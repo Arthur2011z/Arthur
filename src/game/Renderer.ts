@@ -1,8 +1,11 @@
+import { Player } from '../entities/Player';
+import { Vec2 } from '../utils/math';
 import { COURT_LENGTH, COURT_WIDTH, NET_Y } from './constants';
 
 const SAND_COLOR = '#e8c481';
 const LINE_COLOR = '#1c4d6b';
 const NET_COLOR = '#1c1c1c';
+const PLAYER_COLOR = '#e63946';
 
 /**
  * Draws the game world in court-unit coordinates (see Court.resize() for the
@@ -35,6 +38,22 @@ export class Renderer {
     ctx.beginPath();
     ctx.moveTo(0, NET_Y);
     ctx.lineTo(COURT_WIDTH, NET_Y);
+    ctx.stroke();
+  }
+
+  drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
+    this.drawToken(ctx, player.pos, player.radius, PLAYER_COLOR);
+  }
+
+  /** Generic colored-circle token, reused for every figure (player, teammate,
+   * opponents) so each build step only needs to pick a color and a position. */
+  drawToken(ctx: CanvasRenderingContext2D, pos: Vec2, radius: number, color: string): void {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 0.03;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.stroke();
   }
 }
