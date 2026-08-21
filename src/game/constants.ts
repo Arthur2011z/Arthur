@@ -51,6 +51,12 @@ export const AUTO_SERVE_PEAK_HEIGHT = 3;
 export const DIVE_PASS_DURATION = 0.7;
 export const DIVE_PASS_PEAK_HEIGHT = 2.5;
 
+// Weak shot (Hit button, no jump): lands somewhere generous and central in the
+// opponent half so it's an easy return for the opponent AI, by design.
+export const WEAK_SHOT_DURATION = 1.2;
+export const WEAK_SHOT_PEAK_HEIGHT = 3;
+export const WEAK_SHOT_MARGIN = 2;
+
 // Fixed home/base positions the AI teammate and opponents return to when not
 // actively playing the ball.
 export const TEAMMATE_HOME: { x: number; y: number } = {

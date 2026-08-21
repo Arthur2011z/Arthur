@@ -1,4 +1,5 @@
 import { Ball } from '../entities/Ball';
+import { OpponentAI } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { Vec2 } from '../utils/math';
@@ -9,6 +10,7 @@ const LINE_COLOR = '#1c4d6b';
 const NET_COLOR = '#1c1c1c';
 const PLAYER_COLOR = '#e63946';
 const TEAMMATE_COLOR = '#2a9d8f';
+const OPPONENT_COLOR = '#6d4c9c';
 const BALL_COLOR = '#f4f4f0';
 const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
 
@@ -52,6 +54,10 @@ export class Renderer {
 
   drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {
     this.drawToken(ctx, teammate.pos, teammate.radius, TEAMMATE_COLOR);
+  }
+
+  drawOpponent(ctx: CanvasRenderingContext2D, opponent: OpponentAI): void {
+    this.drawToken(ctx, opponent.pos, opponent.radius, OPPONENT_COLOR);
   }
 
   drawBall(ctx: CanvasRenderingContext2D, ball: Ball): void {

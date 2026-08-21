@@ -1,4 +1,4 @@
-import { Vec2, clamp, dot, length, lerpVec2, normalize, sub } from '../utils/math';
+import { Vec2, clamp, distance, dot, length, lerpVec2, normalize, sub } from '../utils/math';
 import {
   COURT_LENGTH,
   COURT_WIDTH,
@@ -9,9 +9,13 @@ import {
   DIVE_RANGE,
   DIVE_RECOVERY_DURATION,
   DIVE_WHIFF_DISTANCE,
+  HIT_RANGE,
   NET_Y,
   PLAYER_RADIUS,
   PLAYER_SPEED,
+  WEAK_SHOT_DURATION,
+  WEAK_SHOT_MARGIN,
+  WEAK_SHOT_PEAK_HEIGHT,
 } from '../game/constants';
 import { Ball } from './Ball';
 import { InputSnapshot } from '../input/InputManager';
@@ -21,8 +25,9 @@ type PlayerState = 'active' | 'diving' | 'recovering';
 /**
  * The human-controlled player. Free movement while 'active'; a swipe attempts a
  * dive ('diving', a short dash) which either connects with the ball (auto-passed
- * to the teammate) or whiffs, either way followed by a brief 'recovering' pause.
- * Hit/jump states are added in later build steps.
+ * to the teammate) or whiffs, either way followed by a brief 'recovering' pause;
+ * the Hit button, in range of the ball, sends a weak shot over the net. The jump
+ * state (aimed spike) is added in step 4.
  */
 export class Player {
   pos: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y + COURT_LENGTH / 4 };
@@ -39,6 +44,7 @@ export class Player {
       case 'active':
         this.applyMovement(dt, input.move);
         if (input.swipe) this.startDive(input.swipe, ball);
+        else if (input.hit) this.tryHit(ball);
         break;
       case 'diving':
         this.updateDive(dt, ball, teammatePos);
@@ -104,6 +110,22 @@ export class Player {
       this.state = 'recovering';
       this.stateTimer = 0;
     }
+  }
+
+  /** Hit button, no jump: a weak shot in a semi-random direction over the net.
+   * Only a proximity gate — no height/timing requirement. */
+  private tryHit(ball: Ball): void {
+    if (distance(this.pos, ball.pos) > HIT_RANGE) return;
+
+    const target: Vec2 = {
+      x: WEAK_SHOT_MARGIN + Math.random() * (COURT_WIDTH - 2 * WEAK_SHOT_MARGIN),
+      y: WEAK_SHOT_MARGIN + Math.random() * (NET_Y - 2 * WEAK_SHOT_MARGIN),
+    };
+    ball.launch(this.pos, target, {
+      duration: WEAK_SHOT_DURATION,
+      peakHeight: WEAK_SHOT_PEAK_HEIGHT,
+      toucher: 'player',
+    });
   }
 
   private clampToOwnHalf(p: Vec2): Vec2 {

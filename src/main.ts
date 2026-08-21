@@ -26,6 +26,7 @@ function draw(): void {
   renderer.clear(ctx);
   renderer.drawCourt(ctx);
   renderer.drawTeammate(ctx, gameState.teammate);
+  for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
   renderer.drawBall(ctx, gameState.ball);
   renderer.drawPlayer(ctx, gameState.player);
 }

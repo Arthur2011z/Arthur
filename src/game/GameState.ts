@@ -1,4 +1,5 @@
 import { Ball } from '../entities/Ball';
+import { OpponentAI } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { InputSnapshot } from '../input/InputManager';
@@ -8,17 +9,19 @@ import {
   AUTO_SERVE_PEAK_HEIGHT,
   COURT_WIDTH,
   NET_Y,
+  OPPONENT_HOMES,
 } from './constants';
 
 /**
  * Single source of truth for the game world. Grows incrementally as build steps
- * land (opponents, score/phase); for now it owns the human player, the ball, and
- * the (still static) AI teammate.
+ * land (score/phase); for now it owns the human player, the ball, the (still
+ * static) AI teammate, and the (still static) two AI opponents.
  */
 export class GameState {
   readonly player = new Player();
   readonly ball = new Ball();
   readonly teammate = new TeammateAI();
+  readonly opponents: OpponentAI[] = OPPONENT_HOMES.map((home) => new OpponentAI(home));
 
   private ballIdleTimer = 0;
 
@@ -26,6 +29,7 @@ export class GameState {
     this.player.update(dt, input, this.ball, this.teammate.pos);
     this.ball.update(dt);
     this.teammate.update(dt);
+    for (const opponent of this.opponents) opponent.update(dt);
 
     if (this.ball.state === 'idle') {
       this.ballIdleTimer += dt;
