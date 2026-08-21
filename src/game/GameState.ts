@@ -28,7 +28,7 @@ export class GameState {
   update(dt: number, input: InputSnapshot): void {
     this.player.update(dt, input, this.ball, this.teammate.pos);
     this.ball.update(dt);
-    this.teammate.update(dt);
+    this.teammate.update(dt, this.ball, this.player.pos);
     for (const opponent of this.opponents) opponent.update(dt);
 
     if (this.ball.state === 'idle') {

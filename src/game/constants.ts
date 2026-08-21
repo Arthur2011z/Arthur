@@ -63,6 +63,24 @@ export const SPIKE_DURATION = 0.5;
 export const SPIKE_PEAK_HEIGHT = 1.2;
 export const SPIKE_TARGET_MARGIN = 0.3;
 
+// AI teammate: reacts only once the ball is within this radius of its current
+// position or of where the ball is actually headed (ball.target) - covers both
+// "comes near" and "flies toward them" (including the human player's dive-pass,
+// which always targets the teammate's position directly).
+export const TEAMMATE_REACT_RADIUS = 2.5;
+// Close enough to home to snap and stop, instead of asymptotically creeping in.
+export const TEAMMATE_RETURN_EPSILON = 0.1;
+
+// Emergency self-set save (ball arrived too fast/direct to set up properly):
+// low and quick, just enough to keep it alive over the net.
+export const TEAMMATE_EMERGENCY_SET_DURATION = 0.5;
+export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
+
+// Normal case: a high, easy set toward the net, to the human player's current
+// position.
+export const TEAMMATE_SET_DURATION = 0.85;
+export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
+
 // Fixed home/base positions the AI teammate and opponents return to when not
 // actively playing the ball.
 export const TEAMMATE_HOME: { x: number; y: number } = {

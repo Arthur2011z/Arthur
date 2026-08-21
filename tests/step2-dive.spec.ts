@@ -6,7 +6,12 @@ async function getState(page: Page) {
     const g = (window as any).__game;
     return {
       player: { pos: { ...g.state.player.pos }, state: g.state.player.state },
-      ball: { pos: { ...g.state.ball.pos }, state: g.state.ball.state, lastToucher: g.state.ball.lastToucher },
+      ball: {
+        pos: { ...g.state.ball.pos },
+        target: { ...g.state.ball.target },
+        state: g.state.ball.state,
+        lastToucher: g.state.ball.lastToucher,
+      },
       teammate: { pos: { ...g.state.teammate.pos } },
     };
   });
@@ -73,14 +78,10 @@ test.describe('Step 2: swipe-to-dive + auto-pass to teammate', () => {
     const afterDash = await getState(page);
     expect(afterDash.ball.state).toBe('flying');
     expect(afterDash.player.state).toBe('recovering');
-
-    // Let the pass complete: the ball should arrive at the teammate.
-    await page.waitForFunction(() => (window as any).__game.state.ball.state === 'idle', undefined, {
-      timeout: 2000,
-    });
-    const afterPass = await getState(page);
-    expect(afterPass.ball.pos.x).toBeCloseTo(afterPass.teammate.pos.x, 0);
-    expect(afterPass.ball.pos.y).toBeCloseTo(afterPass.teammate.pos.y, 0);
+    // The pass targets the teammate directly (what happens to it after that is
+    // the teammate AI's job, covered in its own step5 tests).
+    expect(afterDash.ball.target.x).toBeCloseTo(afterDash.teammate.pos.x, 0);
+    expect(afterDash.ball.target.y).toBeCloseTo(afterDash.teammate.pos.y, 0);
 
     // Recovery pause, then control returns to the player.
     await page.waitForFunction(() => (window as any).__game.state.player.state === 'active', undefined, {
