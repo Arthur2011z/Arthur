@@ -13,6 +13,8 @@ const TEAMMATE_COLOR = '#2a9d8f';
 const OPPONENT_COLOR = '#6d4c9c';
 const BALL_COLOR = '#f4f4f0';
 const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
+const AIM_LINE_COLOR = 'rgba(255, 255, 255, 0.85)';
+const AIM_TARGET_COLOR = 'rgba(255, 255, 255, 0.5)';
 
 /**
  * Draws the game world in court-unit coordinates (see Court.resize() for the
@@ -50,6 +52,27 @@ export class Renderer {
 
   drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
     this.drawToken(ctx, player.pos, player.radius, PLAYER_COLOR);
+  }
+
+  /** While the player is jumping, shows exactly where a spike would currently
+   * land, tracking the live joystick-steered aim direction. */
+  drawAimPreview(ctx: CanvasRenderingContext2D, player: Player): void {
+    const target = player.getAimPreviewTarget();
+    if (!target) return;
+
+    ctx.strokeStyle = AIM_LINE_COLOR;
+    ctx.lineWidth = 0.04;
+    ctx.setLineDash([0.12, 0.1]);
+    ctx.beginPath();
+    ctx.moveTo(player.pos.x, player.pos.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = AIM_TARGET_COLOR;
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, 0.2, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {

@@ -9,13 +9,12 @@ export interface InputSnapshot {
   swipe: Vec2 | null;
   /** True only on the frame the Hit button was just pressed. */
   hit: boolean;
+  /** True only on the frame the Jump button was just pressed (and enabled). */
+  jump: boolean;
 }
 
-/**
- * Bundles all touch input sources (joystick, swipe, Hit button now; Jump is
- * added in step 4) and exposes a single per-frame snapshot for the game loop to
- * consume.
- */
+/** Bundles all touch input sources (joystick, swipe, Hit + Jump buttons) and
+ * exposes a single per-frame snapshot for the game loop to consume. */
 export class InputManager {
   private readonly joystick: Joystick;
   private readonly swipeDetector: SwipeDetector;
@@ -27,11 +26,18 @@ export class InputManager {
     this.buttons = new Buttons(overlay);
   }
 
+  /** Driven every frame from game state: enables/dims Jump to match whether the
+   * player is currently close enough to the net to use it. */
+  setJumpEnabled(enabled: boolean): void {
+    this.buttons.setJumpEnabled(enabled);
+  }
+
   snapshot(): InputSnapshot {
     return {
       move: this.joystick.vector,
       swipe: this.swipeDetector.consume(),
       hit: this.buttons.consumeHit(),
+      jump: this.buttons.consumeJump(),
     };
   }
 }

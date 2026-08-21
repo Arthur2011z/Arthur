@@ -29,10 +29,12 @@ function draw(): void {
   for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
   renderer.drawBall(ctx, gameState.ball);
   renderer.drawPlayer(ctx, gameState.player);
+  renderer.drawAimPreview(ctx, gameState.player);
 }
 
 const loop = new GameLoop((dt) => {
   gameState.update(dt, input.snapshot());
+  input.setJumpEnabled(gameState.player.canJump());
   draw();
 });
 

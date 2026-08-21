@@ -57,6 +57,12 @@ export const WEAK_SHOT_DURATION = 1.2;
 export const WEAK_SHOT_PEAK_HEIGHT = 3;
 export const WEAK_SHOT_MARGIN = 2;
 
+// Aimed spike (Jump + Hit, at the net): fast and flat, precisely steerable by
+// the joystick direction held during the jump - the reliable way to score.
+export const SPIKE_DURATION = 0.5;
+export const SPIKE_PEAK_HEIGHT = 1.2;
+export const SPIKE_TARGET_MARGIN = 0.3;
+
 // Fixed home/base positions the AI teammate and opponents return to when not
 // actively playing the ball.
 export const TEAMMATE_HOME: { x: number; y: number } = {
