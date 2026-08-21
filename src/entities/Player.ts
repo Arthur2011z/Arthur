@@ -108,7 +108,8 @@ export class Player {
     if (connects) {
       // Freeze the ball where it was caught so the short dash below visibly
       // lands on it, instead of it continuing to fly past the catch point.
-      ball.state = 'idle';
+      // 'held', not 'idle': a real landing is what scoring reacts to.
+      ball.state = 'held';
       this.diveTarget = { ...ball.pos };
     } else {
       const whiff = {

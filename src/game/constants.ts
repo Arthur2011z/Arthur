@@ -81,6 +81,20 @@ export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
 export const TEAMMATE_SET_DURATION = 0.85;
 export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
 
+// Opponent AI: simple return - once it reaches the ball, sends it back into a
+// generous, random spot in the human half. No emergency/set distinction needed.
+export const OPPONENT_RETURN_EPSILON = 0.1;
+export const OPPONENT_RETURN_DURATION = 1.1;
+export const OPPONENT_RETURN_PEAK_HEIGHT = 2.7;
+
+// Shared inset margin for generating a random, in-bounds landing point on
+// either side of the net (used by serves and the opponent's return).
+export const SERVE_MARGIN = 2;
+
+// Brief pause after a point is scored, so the score change reads clearly
+// before the next serve goes up.
+export const POINT_PAUSE_DURATION = 1.2;
+
 // Fixed home/base positions the AI teammate and opponents return to when not
 // actively playing the ball.
 export const TEAMMATE_HOME: { x: number; y: number } = {

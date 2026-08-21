@@ -2,6 +2,7 @@ import './style.css';
 import { Court } from './game/Court';
 import { GameLoop } from './game/GameLoop';
 import { GameState } from './game/GameState';
+import { Hud } from './game/Hud';
 import { Renderer } from './game/Renderer';
 import { InputManager } from './input/InputManager';
 
@@ -16,6 +17,7 @@ const ctx: CanvasRenderingContext2D = maybeCtx;
 const court = new Court(viewportEl, canvas, ctx);
 const renderer = new Renderer();
 const input = new InputManager(overlay, canvas);
+const hud = new Hud(overlay);
 const gameState = new GameState();
 
 function resize(): void {
@@ -33,8 +35,10 @@ function draw(): void {
 }
 
 const loop = new GameLoop((dt) => {
+  if (hud.consumeRestart()) gameState.restart();
   gameState.update(dt, input.snapshot());
   input.setJumpEnabled(gameState.player.canJump());
+  hud.update(gameState.score, gameState.phase, gameState.winner);
   draw();
 });
 

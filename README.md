@@ -27,13 +27,26 @@ eigenständige Seite verteilen.
 - **Sprung-Button** (nur aktiv nahe am Netz): Sprung, während dessen die
   Steuerknüppel-Richtung die Zielrichtung eines harten Schmetterschlags bestimmt.
 
+## Spielregeln
+
+- **KI-Mitspieler**: reagiert nur, wenn der Ball wirklich in seine Nähe kommt oder
+  auf ihn zufliegt (auch nach einem Hechtsprung-Zuspiel). Kommt der Ball zu
+  schnell/direkt, spielt er sofort eine Notlösung übers Netz; sonst stellt er ihn
+  hoch zum menschlichen Spieler. Kehrt danach zur Grundposition zurück.
+- **Gegner-KI** (2 Spieler): Der jeweils näher am Ball stehende Gegner läuft
+  automatisch hin und spielt zurück; der andere bleibt an seiner Grundposition.
+- **Punktesystem**: Rally-Point-Zählung bis 21, Gewinn mit 2 Punkten Vorsprung.
+  Wer den letzten Punkt gewonnen hat, bekommt den nächsten Aufschlag. Nach
+  Spielende erscheint ein "Neu starten"-Button.
+
 ## Baufortschritt
 
-Das Spiel entsteht in kleinen, einzeln testbaren Schritten (siehe Commit-Historie):
+Das Spiel ist in kleinen, einzeln testbaren Schritten entstanden (siehe
+Commit-Historie):
 
 1. Steuerknüppel-Bewegung
 2. Wisch-Hechten mit automatischem Zuspiel zum KI-Mitspieler
 3. Schlag-Knopf mit schwachem Zufallsschlag
 4. Sprung-Knopf mit gezieltem Schmetterschlag am Netz
 5. KI-Mitspieler-Logik mit Grundposition
-6. Gegner-KI und Punktesystem (Rally-Point bis 21)
+6. Gegner-KI und Punktesystem (Rally-Point bis 21) ✅ fertig
