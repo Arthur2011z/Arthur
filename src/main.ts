@@ -15,7 +15,7 @@ const ctx: CanvasRenderingContext2D = maybeCtx;
 
 const court = new Court(viewportEl, canvas, ctx);
 const renderer = new Renderer();
-const input = new InputManager(overlay);
+const input = new InputManager(overlay, canvas);
 const gameState = new GameState();
 
 function resize(): void {
@@ -25,6 +25,8 @@ function resize(): void {
 function draw(): void {
   renderer.clear(ctx);
   renderer.drawCourt(ctx);
+  renderer.drawTeammate(ctx, gameState.teammate);
+  renderer.drawBall(ctx, gameState.ball);
   renderer.drawPlayer(ctx, gameState.player);
 }
 

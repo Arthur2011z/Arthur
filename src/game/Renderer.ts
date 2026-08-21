@@ -1,17 +1,22 @@
+import { Ball } from '../entities/Ball';
 import { Player } from '../entities/Player';
+import { TeammateAI } from '../entities/TeammateAI';
 import { Vec2 } from '../utils/math';
-import { COURT_LENGTH, COURT_WIDTH, NET_Y } from './constants';
+import { BALL_RADIUS, COURT_LENGTH, COURT_WIDTH, NET_Y } from './constants';
 
 const SAND_COLOR = '#e8c481';
 const LINE_COLOR = '#1c4d6b';
 const NET_COLOR = '#1c1c1c';
 const PLAYER_COLOR = '#e63946';
+const TEAMMATE_COLOR = '#2a9d8f';
+const BALL_COLOR = '#f4f4f0';
+const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
 
 /**
  * Draws the game world in court-unit coordinates (see Court.resize() for the
  * canvas transform that makes this possible). Methods are added incrementally as
- * new entities land (drawCourt now; drawPlayer, drawBall, ... in later steps) so
- * each build step only ever adds to this file rather than restructuring it.
+ * new entities land, so each build step only ever adds to this file rather than
+ * restructuring it.
  */
 export class Renderer {
   clear(ctx: CanvasRenderingContext2D): void {
@@ -43,6 +48,23 @@ export class Renderer {
 
   drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
     this.drawToken(ctx, player.pos, player.radius, PLAYER_COLOR);
+  }
+
+  drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {
+    this.drawToken(ctx, teammate.pos, teammate.radius, TEAMMATE_COLOR);
+  }
+
+  drawBall(ctx: CanvasRenderingContext2D, ball: Ball): void {
+    // Shadow stays on the ground plane, flattened, so height reads visually
+    // even though the game itself is a flat top-down view.
+    ctx.fillStyle = BALL_SHADOW_COLOR;
+    ctx.beginPath();
+    ctx.ellipse(ball.pos.x, ball.pos.y, BALL_RADIUS * 0.9, BALL_RADIUS * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const liftedPos: Vec2 = { x: ball.pos.x, y: ball.pos.y - ball.height };
+    const drawRadius = BALL_RADIUS * (1 + ball.height * 0.15);
+    this.drawToken(ctx, liftedPos, drawRadius, BALL_COLOR);
   }
 
   /** Generic colored-circle token, reused for every figure (player, teammate,

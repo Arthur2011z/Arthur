@@ -32,6 +32,25 @@ export const EMERGENCY_TIME_THRESHOLD = 0.35;
 export const WIN_SCORE = 21;
 export const WIN_MARGIN = 2;
 
+// Swipe gesture thresholds (screen pixels / seconds) for detecting a dive.
+export const SWIPE_MIN_DISTANCE_PX = 30;
+export const SWIPE_MAX_DURATION_S = 0.35;
+export const SWIPE_MIN_VELOCITY_PX_S = 500;
+
+// How far a dive lunges when the swipe *doesn't* connect with the ball — shorter
+// than DIVE_RANGE so a whiff reads as a real (failed) lunge, not a teleport.
+export const DIVE_WHIFF_DISTANCE = 1.8;
+
+// Auto-serve: while the ball has been idle this long, toss a fresh practice
+// ball into the human half (no serve mechanic exists yet).
+export const AUTO_SERVE_DELAY = 2;
+export const AUTO_SERVE_DURATION = 1.3;
+export const AUTO_SERVE_PEAK_HEIGHT = 3;
+
+// Dive-save: the pass a successful dive automatically sends to the teammate.
+export const DIVE_PASS_DURATION = 0.7;
+export const DIVE_PASS_PEAK_HEIGHT = 2.5;
+
 // Fixed home/base positions the AI teammate and opponents return to when not
 // actively playing the ball.
 export const TEAMMATE_HOME: { x: number; y: number } = {
