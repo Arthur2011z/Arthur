@@ -1,5 +1,7 @@
-import { Vec2, distance, normalize } from '../utils/math';
+import { Vec2, clamp, distance, normalize } from '../utils/math';
 import {
+  COURT_LENGTH,
+  COURT_WIDTH,
   EMERGENCY_TIME_THRESHOLD,
   HIT_RANGE,
   NET_Y,
@@ -13,7 +15,6 @@ import {
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
   WEAK_SHOT_MARGIN,
-  COURT_WIDTH,
 } from '../game/constants';
 import { Ball } from './Ball';
 
@@ -71,22 +72,28 @@ export class TeammateAI {
     const dir = normalize({ x: ball.pos.x - this.pos.x, y: ball.pos.y - this.pos.y });
     this.pos.x += dir.x * TEAMMATE_SPEED * dt;
     this.pos.y += dir.y * TEAMMATE_SPEED * dt;
+    this.pos = this.clampToOwnHalf(this.pos);
   }
 
   private playBall(ball: Ball, playerPos: Vec2): void {
+    // Launch from the ball's own live position, not this.pos: contact is
+    // allowed within HIT_RANGE (not exact overlap), so using the catcher's
+    // position here would snap the ball sideways/vertically at the moment of
+    // contact instead of continuing smoothly from where it actually is.
+    const from = { ...ball.pos };
     const isEmergency = ball.timeRemaining < EMERGENCY_TIME_THRESHOLD;
     if (isEmergency) {
       const target: Vec2 = {
         x: WEAK_SHOT_MARGIN + Math.random() * (COURT_WIDTH - 2 * WEAK_SHOT_MARGIN),
         y: WEAK_SHOT_MARGIN + Math.random() * (NET_Y - 2 * WEAK_SHOT_MARGIN),
       };
-      ball.launch(this.pos, target, {
+      ball.launch(from, target, {
         duration: TEAMMATE_EMERGENCY_SET_DURATION,
         peakHeight: TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT,
         toucher: 'teammate',
       });
     } else {
-      ball.launch(this.pos, { ...playerPos }, {
+      ball.launch(from, { ...playerPos }, {
         duration: TEAMMATE_SET_DURATION,
         peakHeight: TEAMMATE_SET_PEAK_HEIGHT,
         toucher: 'teammate',
@@ -104,5 +111,15 @@ export class TeammateAI {
     const dir = normalize({ x: this.homePos.x - this.pos.x, y: this.homePos.y - this.pos.y });
     this.pos.x += dir.x * TEAMMATE_SPEED * dt;
     this.pos.y += dir.y * TEAMMATE_SPEED * dt;
+    this.pos = this.clampToOwnHalf(this.pos);
+  }
+
+  /** Never cross the net: stays within the human team's half, same bounds as
+   * the human player. */
+  private clampToOwnHalf(p: Vec2): Vec2 {
+    return {
+      x: clamp(p.x, this.radius, COURT_WIDTH - this.radius),
+      y: clamp(p.y, NET_Y + this.radius, COURT_LENGTH - this.radius),
+    };
   }
 }

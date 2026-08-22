@@ -1,4 +1,4 @@
-import { Vec2, distance, normalize } from '../utils/math';
+import { Vec2, clamp, distance, normalize } from '../utils/math';
 import {
   COURT_WIDTH,
   HIT_RANGE,
@@ -57,11 +57,16 @@ export class OpponentAI {
     }
 
     if (distance(this.pos, ball.pos) <= HIT_RANGE) {
+      // Launch from the ball's own live position, not this.pos: contact is
+      // allowed within HIT_RANGE (not exact overlap), so using the catcher's
+      // position here would snap the ball sideways/vertically at the moment
+      // of contact instead of continuing smoothly from where it actually is.
+      const from = { ...ball.pos };
       const target: Vec2 = {
         x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
         y: NET_Y + SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
       };
-      ball.launch(this.pos, target, {
+      ball.launch(from, target, {
         duration: OPPONENT_RETURN_DURATION,
         peakHeight: OPPONENT_RETURN_PEAK_HEIGHT,
         toucher: this.toucherId,
@@ -73,6 +78,7 @@ export class OpponentAI {
     const dir = normalize({ x: ball.pos.x - this.pos.x, y: ball.pos.y - this.pos.y });
     this.pos.x += dir.x * OPPONENT_SPEED * dt;
     this.pos.y += dir.y * OPPONENT_SPEED * dt;
+    this.pos = this.clampToOwnHalf(this.pos);
   }
 
   private updateReturning(dt: number): void {
@@ -85,5 +91,14 @@ export class OpponentAI {
     const dir = normalize({ x: this.homePos.x - this.pos.x, y: this.homePos.y - this.pos.y });
     this.pos.x += dir.x * OPPONENT_SPEED * dt;
     this.pos.y += dir.y * OPPONENT_SPEED * dt;
+    this.pos = this.clampToOwnHalf(this.pos);
+  }
+
+  /** Never cross the net: stays within the opponent half. */
+  private clampToOwnHalf(p: Vec2): Vec2 {
+    return {
+      x: clamp(p.x, this.radius, COURT_WIDTH - this.radius),
+      y: clamp(p.y, this.radius, NET_Y - this.radius),
+    };
   }
 }

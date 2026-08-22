@@ -19,6 +19,14 @@ export interface LaunchOptions {
  * Simple parabolic flight: linear interpolation in x/y, a parabola in height (no
  * aerodynamics). One formula drives every shot type in the game — only duration,
  * peak height and target differ (see the callers of launch()).
+ *
+ * A relaunch (a teammate/opponent/player contacting a still-flying ball) always
+ * starts from the ball's own live position and height at that instant — never
+ * from the catcher's position — so the trajectory stays visually continuous
+ * instead of snapping. Position continuity comes from callers passing `pos` as
+ * the new `from`; height continuity is handled here: `launch()` carries over
+ * whatever height the ball already had into `initialHeight`, which decays
+ * linearly to 0 over the new flight, blended with the new arc's own parabola.
  */
 export class Ball {
   pos: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y };
@@ -32,17 +40,21 @@ export class Ball {
   private duration = 0;
   private elapsed = 0;
   private peakHeight = 0;
+  /** Height at the moment of launch (0 for a fresh serve off the ground; the
+   * ball's own current height if it was still airborne when caught/redirected). */
+  private initialHeight = 0;
 
   launch(from: Vec2, to: Vec2, opts: LaunchOptions): void {
+    this.initialHeight = this.height;
     this.start = { ...from };
     this.target = { ...to };
     this.pos = { ...from };
-    this.height = 0;
     this.duration = opts.duration;
     this.elapsed = 0;
     this.peakHeight = opts.peakHeight;
     this.state = 'flying';
     this.lastToucher = opts.toucher;
+    this.height = this.initialHeight; // stays visually continuous this same frame
   }
 
   update(dt: number): void {
@@ -50,7 +62,7 @@ export class Ball {
     this.elapsed = Math.min(this.elapsed + dt, this.duration);
     const u = this.duration > 0 ? this.elapsed / this.duration : 1;
     this.pos = lerpVec2(this.start, this.target, u);
-    this.height = this.peakHeight * 4 * u * (1 - u);
+    this.height = this.peakHeight * 4 * u * (1 - u) + this.initialHeight * (1 - u);
     if (u >= 1) {
       this.state = 'idle';
     }

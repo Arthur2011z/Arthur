@@ -154,7 +154,11 @@ export class Player {
       x: WEAK_SHOT_MARGIN + Math.random() * (COURT_WIDTH - 2 * WEAK_SHOT_MARGIN),
       y: WEAK_SHOT_MARGIN + Math.random() * (NET_Y - 2 * WEAK_SHOT_MARGIN),
     };
-    ball.launch(this.pos, target, {
+    // Launch from the ball's own live position, not this.pos: contact is
+    // allowed within HIT_RANGE (not exact overlap), so using the player's
+    // position here would snap the ball at the moment of contact instead of
+    // continuing smoothly from where it actually is.
+    ball.launch({ ...ball.pos }, target, {
       duration: WEAK_SHOT_DURATION,
       peakHeight: WEAK_SHOT_PEAK_HEIGHT,
       toucher: 'player',
@@ -212,7 +216,9 @@ export class Player {
     if (distance(this.pos, ball.pos) > HIT_RANGE) return false;
 
     const target = this.computeSpikeTarget(dir);
-    ball.launch(this.pos, target, {
+    // Launch from the ball's own live position (see tryHit() for why), while
+    // the aim/target itself is still computed from the player's position.
+    ball.launch({ ...ball.pos }, target, {
       duration: SPIKE_DURATION,
       peakHeight: SPIKE_PEAK_HEIGHT,
       toucher: 'player',
