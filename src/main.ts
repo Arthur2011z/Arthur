@@ -30,8 +30,11 @@ function draw(): void {
   renderer.drawLandingMarker(ctx, gameState.ball);
   renderer.drawTeammate(ctx, gameState.teammate);
   for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
-  renderer.drawBall(ctx, gameState.ball);
   renderer.drawPlayer(ctx, gameState.player);
+  // Ball drawn last (on top): while holding serve it sits exactly on the
+  // player's position and would otherwise be fully hidden behind the larger
+  // player token.
+  renderer.drawBall(ctx, gameState.ball);
 }
 
 const loop = new GameLoop((dt) => {

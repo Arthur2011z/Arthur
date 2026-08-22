@@ -5,10 +5,13 @@ import { TeammateAI } from '../entities/TeammateAI';
 import { InputSnapshot } from '../input/InputManager';
 import { distance, Vec2 } from '../utils/math';
 import {
+  AUTO_SERVE_DELAY,
   AUTO_SERVE_DURATION,
   AUTO_SERVE_PEAK_HEIGHT,
-  AUTO_SERVE_DELAY,
   COURT_WIDTH,
+  HUMAN_SERVE_DURATION,
+  HUMAN_SERVE_PEAK_HEIGHT,
+  HUMAN_SERVE_TIMEOUT,
   NET_Y,
   OPPONENT_HOMES,
   POINT_PAUSE_DURATION,
@@ -35,9 +38,12 @@ export class GameState {
   score = { human: 0, opponents: 0 };
   phase: GamePhase = 'playing';
   winner: Team | null = null;
+  /** Non-null while the human is holding serve, waiting for their swipe. */
+  awaitingServe: Team | null = null;
 
   private ballIdleTimer = 0;
   private pointPauseTimer = 0;
+  private serveHoldTimer = 0;
   /** Whoever wins a rally serves the next one; opponents serve first. */
   private servingTeam: Team = 'opponents';
 
@@ -49,8 +55,13 @@ export class GameState {
       if (this.pointPauseTimer >= POINT_PAUSE_DURATION) {
         this.pointPauseTimer = 0;
         this.phase = 'playing';
-        this.launchServe(this.servingTeam);
+        this.beginServe(this.servingTeam);
       }
+      return;
+    }
+
+    if (this.awaitingServe !== null) {
+      this.updateServeHold(dt, input);
       return;
     }
 
@@ -73,7 +84,7 @@ export class GameState {
     if (this.ball.state === 'idle') {
       this.ballIdleTimer += dt;
       if (this.ballIdleTimer >= AUTO_SERVE_DELAY) {
-        this.launchServe(this.servingTeam);
+        this.beginServe(this.servingTeam);
       }
     } else {
       this.ballIdleTimer = 0;
@@ -91,8 +102,10 @@ export class GameState {
     this.score = { human: 0, opponents: 0 };
     this.phase = 'playing';
     this.winner = null;
+    this.awaitingServe = null;
     this.ballIdleTimer = 0;
     this.pointPauseTimer = 0;
+    this.serveHoldTimer = 0;
     this.servingTeam = 'opponents';
   }
 
@@ -132,22 +145,62 @@ export class GameState {
     }
   }
 
-  /** No real serve mechanic exists: toss the ball into whichever half the
-   * *receiving* team defends - the human half if opponents are serving, the
-   * opponent half if the human team just won the rally. */
-  private launchServe(servingTeam: Team): void {
-    const receivingHumanHalf = servingTeam === 'opponents';
+  /** Dispatches the next serve to whoever won the last rally: the opponents
+   * auto-serve immediately, the human instead holds the ball until they
+   * swipe it away (or a fallback timeout elapses). */
+  private beginServe(servingTeam: Team): void {
+    this.ballIdleTimer = 0;
+    if (servingTeam === 'opponents') {
+      this.launchOpponentServe();
+    } else {
+      this.awaitingServe = 'human';
+      this.serveHoldTimer = 0;
+      this.ball.pos = { ...this.player.pos }; // snap immediately, no first-frame pop
+    }
+  }
+
+  /** Fair, easy-to-react-to toss, visually originating from an opponent
+   * (rather than the abstract net-center point) so it reads as a real serve. */
+  private launchOpponentServe(): void {
+    const origin = { ...this.opponents[0].pos };
     const target: Vec2 = {
       x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
-      y: receivingHumanHalf
-        ? NET_Y + SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN)
-        : SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
+      y: NET_Y + SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
     };
-    this.ball.launch(
-      { x: COURT_WIDTH / 2, y: NET_Y },
-      target,
-      { duration: AUTO_SERVE_DURATION, peakHeight: AUTO_SERVE_PEAK_HEIGHT, toucher: null },
-    );
-    this.ballIdleTimer = 0;
+    this.ball.launch(origin, target, {
+      duration: AUTO_SERVE_DURATION,
+      peakHeight: AUTO_SERVE_PEAK_HEIGHT,
+      toucher: null,
+    });
+  }
+
+  /** While the human holds serve: the ball tracks their position (free
+   * movement still works), and only a swipe (or the safety timeout) sends it
+   * over - Hit/Jump are withheld entirely so an accidental press can't race
+   * a zero-range weak-shot/spike against the serve itself. */
+  private updateServeHold(dt: number, input: InputSnapshot): void {
+    this.serveHoldTimer += dt;
+
+    this.player.update(dt, { move: input.move, swipe: null, hit: false, jump: false }, this.ball, this.teammate.pos);
+    this.ball.pos = { ...this.player.pos };
+    this.teammate.update(dt, this.ball, this.player.pos);
+    for (const opponent of this.opponents) opponent.update(dt, this.ball, false);
+
+    if (input.swipe !== null || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
+      this.fireHumanServe();
+    }
+  }
+
+  private fireHumanServe(): void {
+    const target: Vec2 = {
+      x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
+      y: SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
+    };
+    this.ball.launch({ ...this.player.pos }, target, {
+      duration: HUMAN_SERVE_DURATION,
+      peakHeight: HUMAN_SERVE_PEAK_HEIGHT,
+      toucher: 'player',
+    });
+    this.awaitingServe = null;
   }
 }

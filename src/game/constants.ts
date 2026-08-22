@@ -51,11 +51,20 @@ export const SWIPE_MIN_VELOCITY_PX_S = 500;
 // than DIVE_RANGE so a whiff reads as a real (failed) lunge, not a teleport.
 export const DIVE_WHIFF_DISTANCE = 1.8;
 
-// Auto-serve: while the ball has been idle this long, toss a fresh practice
-// ball into the human half (no serve mechanic exists yet).
+// Opponent auto-serve (also the bootstrap/fallback serve at game start): fair
+// and easy to react to - AUTO_SERVE_DELAY is only ever reached at the very
+// first serve of a game, since every later serve is dispatched explicitly by
+// beginServe() right after the point-scored pause.
 export const AUTO_SERVE_DELAY = 2;
 export const AUTO_SERVE_DURATION = 1.3;
 export const AUTO_SERVE_PEAK_HEIGHT = 3;
+
+// Human serve: the ball rests "in hand" (tracks the player) until a swipe
+// sends it over - generous, so normal play never feels rushed - or this
+// fallback timeout elapses, so the game can never get permanently stuck.
+export const HUMAN_SERVE_TIMEOUT = 5; // seconds
+export const HUMAN_SERVE_DURATION = 1.3; // seconds - same easy, reactable arc as the opponent auto-serve
+export const HUMAN_SERVE_PEAK_HEIGHT = 3; // meters
 
 // Dive-save: the pass a successful dive automatically sends to the teammate.
 export const DIVE_PASS_DURATION = 0.7;
