@@ -1,4 +1,4 @@
-import { COURT_LENGTH, COURT_WIDTH } from './constants';
+import { COURT_LENGTH, COURT_OVERSCAN_CAP, COURT_WIDTH } from './constants';
 
 /**
  * Sizes and positions the canvas (and, by extension, the DOM overlay that sits on
@@ -24,8 +24,18 @@ export class Court {
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const [cssW, cssH] =
+    const [containW, containH] =
       vw / vh > courtAspect ? [vh * courtAspect, vh] : [vw, vw / courtAspect];
+
+    // Beyond a strict aspect-locked "contain" fit, scale up a bit further
+    // (like object-fit: cover) so the court reads as bigger/edge-to-edge on
+    // off-ratio viewports, capped so it can never crop into legitimately
+    // reachable play area (players stay clamped >= PLAYER_RADIUS from the
+    // true edge regardless). #viewport's overflow:hidden clips the overscan.
+    const coverRatio = Math.max(vw / containW, vh / containH);
+    const overscan = Math.min(coverRatio, COURT_OVERSCAN_CAP);
+    const cssW = containW * overscan;
+    const cssH = containH * overscan;
 
     this.viewportEl.style.width = `${vw}px`;
     this.viewportEl.style.height = `${vh}px`;

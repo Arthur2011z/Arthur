@@ -31,7 +31,7 @@ export class Renderer {
     ctx.fillStyle = SAND_COLOR;
     ctx.fillRect(0, 0, COURT_WIDTH, COURT_LENGTH);
 
-    const lineWidth = 0.06;
+    const lineWidth = 0.08;
     ctx.strokeStyle = LINE_COLOR;
     ctx.lineWidth = lineWidth;
     ctx.strokeRect(
@@ -43,7 +43,7 @@ export class Renderer {
 
     // Net: drawn as a thicker horizontal line across the middle of the court.
     ctx.strokeStyle = NET_COLOR;
-    ctx.lineWidth = 0.1;
+    ctx.lineWidth = 0.12;
     ctx.beginPath();
     ctx.moveTo(0, NET_Y);
     ctx.lineTo(COURT_WIDTH, NET_Y);

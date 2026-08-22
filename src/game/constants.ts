@@ -6,6 +6,12 @@ export const COURT_WIDTH = 8;
 export const COURT_LENGTH = 16;
 export const NET_Y = 8;
 
+// How far Court.resize() is allowed to scale beyond a strict aspect-locked
+// "contain" fit, to fill more of off-ratio viewports (reduces/removes visible
+// letterbox bars) - capped so it can never crop into legitimately reachable
+// play area (players are always clamped >= PLAYER_RADIUS from the true edge).
+export const COURT_OVERSCAN_CAP = 1.05; // max 5% zoom-crop beyond "contain"
+
 export const PLAYER_RADIUS = 0.35;
 export const BALL_RADIUS = 0.15;
 
