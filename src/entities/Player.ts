@@ -10,7 +10,9 @@ import {
   DIVE_RECOVERY_DURATION,
   DIVE_WHIFF_DISTANCE,
   HIT_RANGE,
-  JUMP_WINDOW_DURATION,
+  JUMP_FALL_DURATION,
+  JUMP_PEAK_HEIGHT,
+  JUMP_RISE_DURATION,
   NET_PROXIMITY_RANGE,
   NET_Y,
   PLAYER_RADIUS,
@@ -26,37 +28,42 @@ import {
 import { Ball } from './Ball';
 import { InputSnapshot } from '../input/InputManager';
 
-type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping';
+type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'jumping_down';
 
-/** Default aim direction (straight toward the net) used when the joystick is
- * neutral at the moment a jump starts. */
+/** Default spike direction (straight toward the net) used when the jump's
+ * peak is reached with no swipe yet. */
 const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
 
 /**
  * The human-controlled player. Free movement while 'active'; a swipe attempts a
  * dive ('diving', a short dash) which either connects with the ball (auto-passed
  * to the teammate) or whiffs, either way followed by a brief 'recovering' pause;
- * the Hit button, in range of the ball, sends a weak shot over the net. Near the
- * net, Jump instead locks lateral movement ('jumping') and lets the joystick aim
- * a hard, precise spike, fired by Hit during the jump window.
+ * the Hit button, in range of the ball, sends a weak shot over the net.
+ *
+ * Near the net, Jump instead sends the player into a brief hop: 'jumping_up'
+ * locks lateral movement and accepts a swipe to fire a hard, precisely-aimed
+ * spike in the swiped direction (or, failing that, automatically at the peak in
+ * a default direction, so a jump never wastes itself with no outcome); then
+ * 'jumping_down' plays out the landing before control returns to 'active'.
  */
 export class Player {
   pos: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y + COURT_LENGTH / 4 };
   radius = PLAYER_RADIUS;
   state: PlayerState = 'active';
-  /** Live aim direction while jumping; also drives the aim-preview line. */
-  aimDir: Vec2 = { ...DEFAULT_AIM_DIR };
+  /** Visual-only vertical lift while jumping (mirrors Ball.height). */
+  height = 0;
 
   private stateTimer = 0;
   private diveStart: Vec2 = { ...this.pos };
   private diveTarget: Vec2 = { ...this.pos };
   private diveConnected = false;
+  private fallStartHeight = 0;
 
   update(dt: number, input: InputSnapshot, ball: Ball, teammatePos: Vec2): void {
     switch (this.state) {
       case 'active':
         this.applyMovement(dt, input.move);
-        if (input.jump && this.canJump()) this.startJump(input.move);
+        if (input.jump && this.canJump()) this.startJump();
         else if (input.swipe) this.startDive(input.swipe, ball);
         else if (input.hit) this.tryHit(ball);
         break;
@@ -70,8 +77,11 @@ export class Player {
           this.stateTimer = 0;
         }
         break;
-      case 'jumping':
-        this.updateJump(dt, input, ball);
+      case 'jumping_up':
+        this.updateJumpUp(dt, input, ball);
+        break;
+      case 'jumping_down':
+        this.updateJumpDown(dt);
         break;
     }
   }
@@ -79,12 +89,6 @@ export class Player {
   /** Whether the player is currently close enough to the net to use Jump. */
   canJump(): boolean {
     return this.pos.y <= NET_Y + NET_PROXIMITY_RANGE;
-  }
-
-  /** Where a spike would currently land while jumping; null otherwise. Drives
-   * the on-screen aim indicator. */
-  getAimPreviewTarget(): Vec2 | null {
-    return this.state === 'jumping' ? this.computeSpikeTarget(this.aimDir) : null;
   }
 
   private applyMovement(dt: number, moveVector: Vec2): void {
@@ -157,36 +161,57 @@ export class Player {
     });
   }
 
-  private startJump(moveVector: Vec2): void {
-    this.state = 'jumping';
+  private startJump(): void {
+    this.state = 'jumping_up';
     this.stateTimer = 0;
-    this.aimDir = length(moveVector) > 0.01 ? normalize(moveVector) : { ...DEFAULT_AIM_DIR };
+    this.height = 0;
   }
 
-  private updateJump(dt: number, input: InputSnapshot, ball: Ball): void {
-    // No lateral movement while jumping: the joystick steers aim only.
-    if (length(input.move) > 0.01) this.aimDir = normalize(input.move);
+  private updateJumpUp(dt: number, input: InputSnapshot, ball: Ball): void {
+    // No lateral movement while jumping.
+    this.stateTimer += dt;
+    this.height = JUMP_PEAK_HEIGHT * clamp(this.stateTimer / JUMP_RISE_DURATION, 0, 1);
 
-    if (input.hit && this.trySpike(ball)) {
-      this.state = 'active';
-      this.stateTimer = 0;
+    if (input.swipe) {
+      // A well-aimed swipe fires immediately. Out of range: forgiven, not a
+      // failed attempt - stay up and let another swipe be tried before the
+      // peak, matching the whole point of this redesign (less time pressure).
+      if (this.trySpike(input.swipe, ball)) this.enterFalling();
       return;
     }
 
+    if (this.stateTimer >= JUMP_RISE_DURATION) {
+      // The aiming window always closes at the peak - attempt a default-
+      // direction spike (still range-gated: a jump taken far from the ball
+      // can still whiff), then fall regardless.
+      this.trySpike(DEFAULT_AIM_DIR, ball);
+      this.enterFalling();
+    }
+  }
+
+  private enterFalling(): void {
+    this.fallStartHeight = this.height;
+    this.state = 'jumping_down';
+    this.stateTimer = 0;
+  }
+
+  private updateJumpDown(dt: number): void {
     this.stateTimer += dt;
-    if (this.stateTimer >= JUMP_WINDOW_DURATION) {
-      this.state = 'active'; // window closed without a spike
+    const u = clamp(this.stateTimer / JUMP_FALL_DURATION, 0, 1);
+    this.height = this.fallStartHeight * (1 - u);
+    if (u >= 1) {
+      this.height = 0;
+      this.state = 'active';
       this.stateTimer = 0;
     }
   }
 
-  /** Jump + Hit: a hard, precisely-aimed spike toward the joystick direction
-   * held during the jump. Returns whether it connected (still just a proximity
-   * gate, like the weak shot). */
-  private trySpike(ball: Ball): boolean {
+  /** A hard, precisely-aimed spike toward the given direction. Returns
+   * whether it connected (proximity gate only, like the weak shot). */
+  private trySpike(dir: Vec2, ball: Ball): boolean {
     if (distance(this.pos, ball.pos) > HIT_RANGE) return false;
 
-    const target = this.computeSpikeTarget(this.aimDir);
+    const target = this.computeSpikeTarget(dir);
     ball.launch(this.pos, target, {
       duration: SPIKE_DURATION,
       peakHeight: SPIKE_PEAK_HEIGHT,
@@ -196,9 +221,10 @@ export class Player {
   }
 
   private computeSpikeTarget(aimDir: Vec2): Vec2 {
+    const dir = normalize(aimDir);
     const raw = {
-      x: this.pos.x + aimDir.x * SPIKE_RANGE,
-      y: this.pos.y + aimDir.y * SPIKE_RANGE,
+      x: this.pos.x + dir.x * SPIKE_RANGE,
+      y: this.pos.y + dir.y * SPIKE_RANGE,
     };
     return {
       x: clamp(raw.x, SPIKE_TARGET_MARGIN, COURT_WIDTH - SPIKE_TARGET_MARGIN),

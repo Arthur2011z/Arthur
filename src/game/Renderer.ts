@@ -13,8 +13,7 @@ const TEAMMATE_COLOR = '#2a9d8f';
 const OPPONENT_COLOR = '#6d4c9c';
 const BALL_COLOR = '#f4f4f0';
 const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
-const AIM_LINE_COLOR = 'rgba(255, 255, 255, 0.85)';
-const AIM_TARGET_COLOR = 'rgba(255, 255, 255, 0.5)';
+const JUMP_READY_RING_COLOR = 'rgba(255, 255, 255, 0.9)';
 
 /**
  * Draws the game world in court-unit coordinates (see Court.resize() for the
@@ -51,28 +50,27 @@ export class Renderer {
   }
 
   drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
-    this.drawToken(ctx, player.pos, player.radius, PLAYER_COLOR);
-  }
+    if (player.height > 0) {
+      // Same ground-shadow-plus-lift trick as drawBall(), so the hop reads
+      // visually even in a flat top-down view.
+      ctx.fillStyle = BALL_SHADOW_COLOR;
+      ctx.beginPath();
+      ctx.ellipse(player.pos.x, player.pos.y, player.radius * 0.9, player.radius * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-  /** While the player is jumping, shows exactly where a spike would currently
-   * land, tracking the live joystick-steered aim direction. */
-  drawAimPreview(ctx: CanvasRenderingContext2D, player: Player): void {
-    const target = player.getAimPreviewTarget();
-    if (!target) return;
+    const liftedPos: Vec2 = { x: player.pos.x, y: player.pos.y - player.height };
+    this.drawToken(ctx, liftedPos, player.radius, PLAYER_COLOR);
 
-    ctx.strokeStyle = AIM_LINE_COLOR;
-    ctx.lineWidth = 0.04;
-    ctx.setLineDash([0.12, 0.1]);
-    ctx.beginPath();
-    ctx.moveTo(player.pos.x, player.pos.y);
-    ctx.lineTo(target.x, target.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = AIM_TARGET_COLOR;
-    ctx.beginPath();
-    ctx.arc(target.x, target.y, 0.2, 0, Math.PI * 2);
-    ctx.fill();
+    if (player.state === 'jumping_up') {
+      // "The swipe window is open" cue - no implied direction, unlike the old
+      // joystick-steered aim line this replaces.
+      ctx.strokeStyle = JUMP_READY_RING_COLOR;
+      ctx.lineWidth = 0.05;
+      ctx.beginPath();
+      ctx.arc(liftedPos.x, liftedPos.y, player.radius + 0.15, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {

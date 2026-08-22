@@ -29,7 +29,6 @@ export const DIVE_AIM_TOLERANCE_COS = 0.7; // ~45 degree cone
 // Timings, in seconds.
 export const DIVE_DASH_DURATION = 0.22;
 export const DIVE_RECOVERY_DURATION = 0.5;
-export const JUMP_WINDOW_DURATION = 0.55;
 
 export const SPIKE_RANGE = 5;
 export const REACH_SAFETY_MARGIN = 0.85;
@@ -63,11 +62,21 @@ export const WEAK_SHOT_DURATION = 1.2;
 export const WEAK_SHOT_PEAK_HEIGHT = 3;
 export const WEAK_SHOT_MARGIN = 2;
 
-// Aimed spike (Jump + Hit, at the net): fast and flat, precisely steerable by
-// the joystick direction held during the jump - the reliable way to score.
+// Aimed spike: fast and flat - the reliable way to score.
 export const SPIKE_DURATION = 0.5;
 export const SPIKE_PEAK_HEIGHT = 1.2;
 export const SPIKE_TARGET_MARGIN = 0.3;
+
+// Jump + swipe-to-spike (replaces the old Jump+Hit chord): pressing Jump
+// (still net-proximity gated) sends the player into a brief up-then-down hop;
+// a swipe during the rise fires a hard, precisely-aimed spike in the swiped
+// direction; reaching the peak with no swipe yet fires automatically in the
+// default (straight-over-net) direction instead, so a jump never wastes
+// itself with no outcome - but only if the ball is still in range, exactly
+// like a manually-aimed spike.
+export const JUMP_RISE_DURATION = 0.35; // seconds, Jump press -> peak
+export const JUMP_FALL_DURATION = 0.3; // seconds, peak -> back to 'active'
+export const JUMP_PEAK_HEIGHT = 0.6; // meters, visual-only hop height
 
 // AI teammate: reacts only once the ball is within this radius of its current
 // position or of where the ball is actually headed (ball.target) - covers both

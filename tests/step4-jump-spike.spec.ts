@@ -5,7 +5,7 @@ async function getState(page: Page) {
   return page.evaluate(() => {
     const g = (window as any).__game;
     return {
-      player: { pos: { ...g.state.player.pos }, state: g.state.player.state },
+      player: { pos: { ...g.state.player.pos }, state: g.state.player.state, height: g.state.player.height },
       ball: {
         pos: { ...g.state.ball.pos },
         target: { ...g.state.ball.target },
@@ -42,18 +42,26 @@ async function tapJump(page: Page) {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-/** Fires a synthetic Hit pointerdown with its own pointerId, independent of
- * whatever the real mouse pointer is doing (e.g. holding the joystick). */
-async function tapHitSynthetic(page: Page) {
-  await page.locator('#hit-btn').dispatchEvent('pointerdown', { pointerId: 999, bubbles: true });
+/** Performs a quick drag on the canvas (away from the joystick) - a swipe,
+ * either a dive trigger while active or an aim+fire while jumping. */
+async function swipe(page: Page, dx: number, dy: number) {
+  const canvas = page.locator('#game-canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('canvas not found');
+  const startX = box.x + box.width * 0.7;
+  const startY = box.y + box.height * 0.55;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + dx, startY + dy, { steps: 3 });
+  await page.mouse.up();
 }
 
-test.describe('Step 4: Jump button, aimed spike', () => {
+test.describe('Step 4 / Refine 3: Jump + swipe-to-spike', () => {
   test('Jump is disabled away from the net and enabled near it', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // Default player position is far from the net.
     await page.waitForTimeout(100);
     expect(await jumpButtonPointerEvents(page)).toBe('none');
 
@@ -62,7 +70,7 @@ test.describe('Step 4: Jump button, aimed spike', () => {
     expect(await jumpButtonPointerEvents(page)).toBe('auto');
   });
 
-  test('Jump locks lateral movement and a joystick-aimed spike fires on Hit', async ({ page }) => {
+  test('a swipe during the rise fires an immediate aimed spike, then falls before returning control', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
@@ -70,39 +78,51 @@ test.describe('Step 4: Jump button, aimed spike', () => {
     await page.waitForTimeout(100);
 
     await tapJump(page);
-    await page.waitForFunction(() => (window as any).__game.state.player.state === 'jumping', undefined, {
+    await page.waitForFunction(() => (window as any).__game.state.player.state === 'jumping_up', undefined, {
       timeout: 500,
     });
 
-    // Hold the joystick toward the upper-right (aim right + toward the net)
-    // without releasing it, then fire Hit with a separate synthetic pointer.
-    const base = page.locator('#joystick-base');
-    const box = await base.boundingBox();
-    if (!box) throw new Error('joystick not found');
-    const cx = box.x + box.width / 2;
-    const cy = box.y + box.height / 2;
-    await page.mouse.move(cx, cy);
-    await page.mouse.down();
-    await page.mouse.move(cx + 40, cy - 30, { steps: 5 });
-
-    const duringJump = await getState(page);
-    expect(duringJump.player.pos).toEqual({ x: 4, y: 9 }); // no lateral movement
-
-    await tapHitSynthetic(page);
-    await page.mouse.up();
+    // Swipe up-right: aim right (+x) and toward the net (-y).
+    await swipe(page, 60, -40);
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 500,
     });
-    const after = await getState(page);
-    expect(after.player.state).toBe('active'); // spike ends the jump immediately
-    expect(after.player.pos).toEqual({ x: 4, y: 9 }); // still hasn't moved
-    // Aimed roughly right (+x) and toward the net (-y, i.e. below NET_Y=8).
-    expect(after.ball.target.x).toBeGreaterThan(4);
-    expect(after.ball.target.y).toBeLessThan(8);
+    const afterSwipe = await getState(page);
+    expect(afterSwipe.player.state).toBe('jumping_down'); // falls, doesn't snap back instantly
+    expect(afterSwipe.player.pos).toEqual({ x: 4, y: 9 }); // never moved laterally
+    expect(afterSwipe.ball.target.x).toBeGreaterThan(4);
+    expect(afterSwipe.ball.target.y).toBeLessThan(8);
+
+    await page.waitForFunction(() => (window as any).__game.state.player.state === 'active', undefined, {
+      timeout: 1000,
+    });
+    const afterLanding = await getState(page);
+    expect(afterLanding.player.height).toBe(0);
   });
 
-  test('an un-spiked jump window closes on its own and returns control', async ({ page }) => {
+  test('an out-of-range swipe during the rise is forgiven, not a failed attempt', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+
+    // Ball well outside HIT_RANGE (0.7m).
+    await setup(page, { x: 4, y: 9 }, { x: 4, y: 6 });
+    await page.waitForTimeout(100);
+
+    await tapJump(page);
+    await page.waitForFunction(() => (window as any).__game.state.player.state === 'jumping_up', undefined, {
+      timeout: 500,
+    });
+
+    await swipe(page, 60, -40);
+    await page.waitForTimeout(100);
+
+    const after = await getState(page);
+    expect(after.ball.lastToucher).toBeNull();
+    expect(after.player.state).toBe('jumping_up'); // still open, not ended by the failed swipe
+  });
+
+  test('reaching the peak with no swipe and the ball in range auto-fires the default-direction spike', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
@@ -110,14 +130,29 @@ test.describe('Step 4: Jump button, aimed spike', () => {
     await page.waitForTimeout(100);
 
     await tapJump(page);
-    await page.waitForFunction(() => (window as any).__game.state.player.state === 'jumping', undefined, {
-      timeout: 500,
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
+      timeout: 1000,
     });
 
+    const after = await getState(page);
+    expect(after.player.state).toBe('jumping_down');
+    expect(after.ball.target.x).toBeCloseTo(4, 0); // straight ahead
+    expect(after.ball.target.y).toBeLessThan(8);
+  });
+
+  test('reaching the peak with no swipe and the ball out of range fires nothing', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+
+    await setup(page, { x: 4, y: 9 }, { x: 4, y: 6 }); // out of HIT_RANGE
+    await page.waitForTimeout(100);
+
+    await tapJump(page);
     await page.waitForFunction(() => (window as any).__game.state.player.state === 'active', undefined, {
       timeout: 1500,
     });
+
     const after = await getState(page);
-    expect(after.ball.lastToucher).toBeNull(); // no spike happened
+    expect(after.ball.lastToucher).toBeNull();
   });
 });
