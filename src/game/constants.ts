@@ -15,6 +15,11 @@ export const COURT_OVERSCAN_CAP = 1.05; // max 5% zoom-crop beyond "contain"
 export const PLAYER_RADIUS = 0.35;
 export const BALL_RADIUS = 0.15;
 
+// Ball landing-spot marker: shown on the ground at ball.target (already
+// exact - see Ball.launch()) while the ball is flying, distinct from the
+// ball's own small traveling shadow drawn in drawBall().
+export const LANDING_MARKER_RADIUS = 0.35;
+
 // Movement speeds, in meters/second.
 export const PLAYER_SPEED = 4.5;
 export const TEAMMATE_SPEED = 4.2;

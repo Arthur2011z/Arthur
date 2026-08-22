@@ -3,7 +3,7 @@ import { OpponentAI } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { Vec2 } from '../utils/math';
-import { BALL_RADIUS, COURT_LENGTH, COURT_WIDTH, NET_Y } from './constants';
+import { BALL_RADIUS, COURT_LENGTH, COURT_WIDTH, LANDING_MARKER_RADIUS, NET_Y } from './constants';
 
 const SAND_COLOR = '#e8c481';
 const LINE_COLOR = '#1c4d6b';
@@ -14,6 +14,7 @@ const OPPONENT_COLOR = '#6d4c9c';
 const BALL_COLOR = '#f4f4f0';
 const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
 const JUMP_READY_RING_COLOR = 'rgba(255, 255, 255, 0.9)';
+const LANDING_MARKER_COLOR = 'rgba(255, 209, 102, 0.9)';
 
 /**
  * Draws the game world in court-unit coordinates (see Court.resize() for the
@@ -71,6 +72,29 @@ export class Renderer {
       ctx.arc(liftedPos.x, liftedPos.y, player.radius + 0.15, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  /** While the ball is in flight, marks exactly where it's headed
+   * (ball.target is exact - we control every launch, no prediction needed).
+   * Deliberately distinct from the ball's own small traveling shadow: this is
+   * the *destination*, not the ball's current position. */
+  drawLandingMarker(ctx: CanvasRenderingContext2D, ball: Ball): void {
+    if (ball.state !== 'flying') return;
+    const { x, y } = ball.target;
+
+    ctx.strokeStyle = LANDING_MARKER_COLOR;
+    ctx.lineWidth = 0.05;
+    ctx.beginPath();
+    ctx.arc(x, y, LANDING_MARKER_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const r = LANDING_MARKER_RADIUS * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x - r, y - r);
+    ctx.lineTo(x + r, y + r);
+    ctx.moveTo(x + r, y - r);
+    ctx.lineTo(x - r, y + r);
+    ctx.stroke();
   }
 
   drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {
