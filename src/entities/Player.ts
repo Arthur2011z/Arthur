@@ -1,50 +1,67 @@
-import { Vec2, clamp, distance, dot, length, lerpVec2, normalize, sub } from '../utils/math';
 import {
+  Vec2,
+  clamp,
+  closestPointOnSegment,
+  distance,
+  dot,
+  length,
+  lerpVec2,
+  normalize,
+  sub,
+} from '../utils/math';
+import {
+  AIM_DEADZONE,
   COURT_LENGTH,
   COURT_WIDTH,
-  DIVE_AIM_TOLERANCE_COS,
   DIVE_DASH_DURATION,
-  DIVE_PASS_DURATION,
-  DIVE_PASS_PEAK_HEIGHT,
-  DIVE_RANGE,
   DIVE_RECOVERY_DURATION,
-  DIVE_WHIFF_DISTANCE,
   HIT_RANGE,
+  INPUT_BUFFER_WINDOW,
   JUMP_FALL_DURATION,
   JUMP_PEAK_HEIGHT,
   JUMP_RISE_DURATION,
+  JUMP_SCHLAG_GRACE_DURATION,
   NET_PROXIMITY_RANGE,
   NET_Y,
+  PASS_DURATION,
+  PASS_PEAK_HEIGHT,
   PLAYER_RADIUS,
   PLAYER_SPEED,
+  REACH_AIMLESS_RANGE,
+  REACH_AIM_TOLERANCE_COS,
+  REACH_RANGE,
   SPIKE_DURATION,
   SPIKE_PEAK_HEIGHT,
   SPIKE_RANGE,
   SPIKE_TARGET_MARGIN,
-  WEAK_SHOT_DURATION,
-  WEAK_SHOT_MARGIN,
-  WEAK_SHOT_PEAK_HEIGHT,
 } from '../game/constants';
 import { Ball } from './Ball';
 import { InputSnapshot } from '../input/InputManager';
 
 type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'jumping_down';
 
-/** Default spike direction (straight toward the net) used when the jump's
- * peak is reached with no swipe yet. */
+/** Default spike direction (straight toward the net), used while the joystick
+ * is left centered during the whole jump. */
 const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
 
 /**
- * The human-controlled player. Free movement while 'active'; a swipe attempts a
- * dive ('diving', a short dash) which either connects with the ball (auto-passed
- * to the teammate) or whiffs, either way followed by a brief 'recovering' pause;
- * the Hit button, in range of the ball, sends a weak shot over the net.
+ * The human-controlled player. Only four inputs exist, no gestures:
  *
- * Near the net, Jump instead sends the player into a brief hop: 'jumping_up'
- * locks lateral movement and accepts a swipe to fire a hard, precisely-aimed
- * spike in the swiped direction (or, failing that, automatically at the peak in
- * a default direction, so a jump never wastes itself with no outcome); then
- * 'jumping_down' plays out the landing before control returns to 'active'.
+ * - the joystick: free movement within the player's own half.
+ * - Sprung/Hecht ("reach"): while the joystick points roughly toward the
+ *   ball's remaining flight path, sends the player into a brief automatic
+ *   approach toward the nearest point of that path - a vertical hop (with
+ *   hang time, locking lateral movement) if already near the net, a flat
+ *   dash otherwise. The precise positioning is the game's job, not the
+ *   player's - the joystick only has to point roughly the right way.
+ * - Schlag ("attack"): fires a hard, aimed spike, but only while airborne
+ *   near the net. May be pressed early (buffered) and still resolves the
+ *   instant the ball comes within range, plus a short grace period past the
+ *   jump's peak - so timing is never split-second. Aim direction is whatever
+ *   the joystick is held toward during the jump.
+ * - Pass: a controlled, medium touch straight to the AI teammate. Works from
+ *   any state the instant the ball is within HIT_RANGE - the deliberate
+ *   "safe" alternative to attacking.
  */
 export class Player {
   pos: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y + COURT_LENGTH / 4 };
@@ -52,23 +69,31 @@ export class Player {
   state: PlayerState = 'active';
   /** Visual-only vertical lift while jumping (mirrors Ball.height). */
   height = 0;
+  /** Current spike aim direction while jumping (driven by the joystick each
+   * frame, exposed for the renderer's aim indicator). */
+  aimDir: Vec2 = { ...DEFAULT_AIM_DIR };
 
   private stateTimer = 0;
-  private diveStart: Vec2 = { ...this.pos };
-  private diveTarget: Vec2 = { ...this.pos };
-  private diveConnected = false;
+  private approachStart: Vec2 = { ...this.pos };
+  private approachTarget: Vec2 = { ...this.pos };
   private fallStartHeight = 0;
 
+  private attackBuffered = false;
+  private attackBufferAge = 0;
+  private passBuffered = false;
+  private passBufferAge = 0;
+
   update(dt: number, input: InputSnapshot, ball: Ball, teammatePos: Vec2): void {
+    this.updateInputBuffers(dt, input);
+
     switch (this.state) {
       case 'active':
         this.applyMovement(dt, input.move);
-        if (input.jump && this.canJump()) this.startJump();
-        else if (input.swipe) this.startDive(input.swipe, ball);
-        else if (input.hit) this.tryHit(ball);
+        if (input.reach) this.tryReach(input.move, ball);
+        this.tryResolvePending(ball, teammatePos, false);
         break;
       case 'diving':
-        this.updateDive(dt, ball, teammatePos);
+        this.updateDiving(dt, ball, teammatePos);
         break;
       case 'recovering':
         this.stateTimer += dt;
@@ -78,15 +103,16 @@ export class Player {
         }
         break;
       case 'jumping_up':
-        this.updateJumpUp(dt, input, ball);
+        this.updateJumpingUp(dt, input, ball, teammatePos);
         break;
       case 'jumping_down':
-        this.updateJumpDown(dt);
+        this.updateJumpingDown(dt, ball, teammatePos);
         break;
     }
   }
 
-  /** Whether the player is currently close enough to the net to use Jump. */
+  /** Whether the player is currently close enough to the net for Sprung/Hecht
+   * to produce a jump (rather than a grounded dive). */
   canJump(): boolean {
     return this.pos.y <= NET_Y + NET_PROXIMITY_RANGE;
   }
@@ -99,96 +125,91 @@ export class Player {
     this.pos = this.clampToOwnHalf(this.pos);
   }
 
-  private startDive(swipeDir: Vec2, ball: Ball): void {
-    const toBall = sub(ball.pos, this.pos);
-    const dist = length(toBall);
-    const connects =
-      ball.state === 'flying' &&
-      dist <= DIVE_RANGE &&
-      dot(normalize(swipeDir), normalize(toBall)) >= DIVE_AIM_TOLERANCE_COS;
-
-    this.diveStart = { ...this.pos };
-    this.diveConnected = connects;
-    if (connects) {
-      // Freeze the ball where it was caught so the short dash below visibly
-      // lands on it, instead of it continuing to fly past the catch point.
-      // 'held', not 'idle': a real landing is what scoring reacts to.
-      ball.state = 'held';
-      this.diveTarget = { ...ball.pos };
-    } else {
-      const whiff = {
-        x: this.pos.x + swipeDir.x * DIVE_WHIFF_DISTANCE,
-        y: this.pos.y + swipeDir.y * DIVE_WHIFF_DISTANCE,
-      };
-      this.diveTarget = this.clampToOwnHalf(whiff);
+  /** Remembers a fresh Schlag/Pass press for INPUT_BUFFER_WINDOW seconds, so
+   * either can be pressed before the ball is actually in reach. */
+  private updateInputBuffers(dt: number, input: InputSnapshot): void {
+    if (input.attack) {
+      this.attackBuffered = true;
+      this.attackBufferAge = 0;
+    } else if (this.attackBuffered) {
+      this.attackBufferAge += dt;
+      if (this.attackBufferAge > INPUT_BUFFER_WINDOW) this.attackBuffered = false;
     }
 
-    this.state = 'diving';
-    this.stateTimer = 0;
+    if (input.pass) {
+      this.passBuffered = true;
+      this.passBufferAge = 0;
+    } else if (this.passBuffered) {
+      this.passBufferAge += dt;
+      if (this.passBufferAge > INPUT_BUFFER_WINDOW) this.passBuffered = false;
+    }
   }
 
-  private updateDive(dt: number, ball: Ball, teammatePos: Vec2): void {
+  /** Sprung/Hecht: while the ball is flying and the joystick points roughly
+   * toward the nearest point of its remaining path, auto-approaches it - a
+   * jump near the net, a flat dive dash otherwise. Silently does nothing if
+   * unaimed or the ball is out of reach entirely. */
+  private tryReach(moveVector: Vec2, ball: Ball): void {
+    if (ball.state !== 'flying') return;
+
+    const intercept = closestPointOnSegment(this.pos, ball.pos, ball.target);
+    const toIntercept = sub(intercept, this.pos);
+    const dist = length(toIntercept);
+    if (dist > REACH_RANGE) return;
+
+    if (dist > REACH_AIMLESS_RANGE) {
+      const aimed = dot(normalize(moveVector), normalize(toIntercept)) >= REACH_AIM_TOLERANCE_COS;
+      if (!aimed) return;
+    }
+
+    this.approachStart = { ...this.pos };
+    this.approachTarget = intercept;
+    this.stateTimer = 0;
+
+    if (this.canJump()) {
+      this.state = 'jumping_up';
+      this.height = 0;
+      this.aimDir = { ...DEFAULT_AIM_DIR };
+    } else {
+      this.state = 'diving';
+    }
+  }
+
+  private updateDiving(dt: number, ball: Ball, teammatePos: Vec2): void {
+    if (this.tryResolvePending(ball, teammatePos, false)) {
+      this.state = 'recovering';
+      this.stateTimer = 0;
+      return;
+    }
+
     this.stateTimer += dt;
     const u = clamp(this.stateTimer / DIVE_DASH_DURATION, 0, 1);
-    this.pos = lerpVec2(this.diveStart, this.diveTarget, u);
+    this.pos = lerpVec2(this.approachStart, this.approachTarget, u);
 
     if (u >= 1) {
-      if (this.diveConnected) {
-        ball.launch(this.pos, teammatePos, {
-          duration: DIVE_PASS_DURATION,
-          peakHeight: DIVE_PASS_PEAK_HEIGHT,
-          toucher: 'player',
-        });
-      }
       this.state = 'recovering';
       this.stateTimer = 0;
     }
   }
 
-  /** Hit button, no jump: a weak shot in a semi-random direction over the net.
-   * Only a proximity gate — no height/timing requirement. */
-  private tryHit(ball: Ball): void {
-    if (distance(this.pos, ball.pos) > HIT_RANGE) return;
-
-    const target: Vec2 = {
-      x: WEAK_SHOT_MARGIN + Math.random() * (COURT_WIDTH - 2 * WEAK_SHOT_MARGIN),
-      y: WEAK_SHOT_MARGIN + Math.random() * (NET_Y - 2 * WEAK_SHOT_MARGIN),
-    };
-    // Launch from the ball's own live position, not this.pos: contact is
-    // allowed within HIT_RANGE (not exact overlap), so using the player's
-    // position here would snap the ball at the moment of contact instead of
-    // continuing smoothly from where it actually is.
-    ball.launch({ ...ball.pos }, target, {
-      duration: WEAK_SHOT_DURATION,
-      peakHeight: WEAK_SHOT_PEAK_HEIGHT,
-      toucher: 'player',
-    });
-  }
-
-  private startJump(): void {
-    this.state = 'jumping_up';
-    this.stateTimer = 0;
-    this.height = 0;
-  }
-
-  private updateJumpUp(dt: number, input: InputSnapshot, ball: Ball): void {
-    // No lateral movement while jumping.
-    this.stateTimer += dt;
-    this.height = JUMP_PEAK_HEIGHT * clamp(this.stateTimer / JUMP_RISE_DURATION, 0, 1);
-
-    if (input.swipe) {
-      // A well-aimed swipe fires immediately. Out of range: forgiven, not a
-      // failed attempt - stay up and let another swipe be tried before the
-      // peak, matching the whole point of this redesign (less time pressure).
-      if (this.trySpike(input.swipe, ball)) this.enterFalling();
+  private updateJumpingUp(dt: number, input: InputSnapshot, ball: Ball, teammatePos: Vec2): void {
+    if (this.tryResolvePending(ball, teammatePos, true)) {
+      this.enterFalling();
       return;
     }
 
+    // No lateral joystick movement while jumping - it steers the spike's aim
+    // instead (see aimDir below).
+    this.stateTimer += dt;
+    const u = clamp(this.stateTimer / JUMP_RISE_DURATION, 0, 1);
+    this.height = JUMP_PEAK_HEIGHT * u;
+    this.pos = lerpVec2(this.approachStart, this.approachTarget, u);
+
+    if (length(input.move) > AIM_DEADZONE) {
+      this.aimDir = normalize(input.move);
+    }
+
     if (this.stateTimer >= JUMP_RISE_DURATION) {
-      // The aiming window always closes at the peak - attempt a default-
-      // direction spike (still range-gated: a jump taken far from the ball
-      // can still whiff), then fall regardless.
-      this.trySpike(DEFAULT_AIM_DIR, ball);
       this.enterFalling();
     }
   }
@@ -199,7 +220,13 @@ export class Player {
     this.stateTimer = 0;
   }
 
-  private updateJumpDown(dt: number): void {
+  private updateJumpingDown(dt: number, ball: Ball, teammatePos: Vec2): void {
+    // Grace period: a Schlag/Pass arriving just past the peak still resolves,
+    // so the jump's timing never feels like a single-frame deadline.
+    if (this.stateTimer <= JUMP_SCHLAG_GRACE_DURATION) {
+      this.tryResolvePending(ball, teammatePos, true);
+    }
+
     this.stateTimer += dt;
     const u = clamp(this.stateTimer / JUMP_FALL_DURATION, 0, 1);
     this.height = this.fallStartHeight * (1 - u);
@@ -210,20 +237,49 @@ export class Player {
     }
   }
 
-  /** A hard, precisely-aimed spike toward the given direction. Returns
-   * whether it connected (proximity gate only, like the weak shot). */
-  private trySpike(dir: Vec2, ball: Ball): boolean {
+  /** Resolves a buffered Schlag (only if `allowAttack`) or Pass the instant
+   * the ball is actually within HIT_RANGE. Returns whether something fired. */
+  private tryResolvePending(ball: Ball, teammatePos: Vec2, allowAttack: boolean): boolean {
+    if (ball.state !== 'flying') return false;
     if (distance(this.pos, ball.pos) > HIT_RANGE) return false;
 
-    const target = this.computeSpikeTarget(dir);
-    // Launch from the ball's own live position (see tryHit() for why), while
-    // the aim/target itself is still computed from the player's position.
+    if (allowAttack && this.attackBuffered) {
+      this.fireSpike(ball);
+      this.clearPendingInputs();
+      return true;
+    }
+    if (this.passBuffered) {
+      this.firePass(ball, teammatePos);
+      this.clearPendingInputs();
+      return true;
+    }
+    return false;
+  }
+
+  private clearPendingInputs(): void {
+    this.attackBuffered = false;
+    this.passBuffered = false;
+  }
+
+  private fireSpike(ball: Ball): void {
+    const target = this.computeSpikeTarget(this.aimDir);
+    // Launch from the ball's own live position, not this.pos: contact is
+    // allowed within HIT_RANGE (not exact overlap), so using the player's
+    // position here would snap the ball at the moment of contact instead of
+    // continuing smoothly from where it actually is.
     ball.launch({ ...ball.pos }, target, {
       duration: SPIKE_DURATION,
       peakHeight: SPIKE_PEAK_HEIGHT,
       toucher: 'player',
     });
-    return true;
+  }
+
+  private firePass(ball: Ball, teammatePos: Vec2): void {
+    ball.launch({ ...ball.pos }, { ...teammatePos }, {
+      duration: PASS_DURATION,
+      peakHeight: PASS_PEAK_HEIGHT,
+      toucher: 'player',
+    });
   }
 
   private computeSpikeTarget(aimDir: Vec2): Vec2 {

@@ -38,7 +38,7 @@ export class GameState {
   score = { human: 0, opponents: 0 };
   phase: GamePhase = 'playing';
   winner: Team | null = null;
-  /** Non-null while the human is holding serve, waiting for their swipe. */
+  /** Non-null while the human is holding serve, waiting for their Schlag press. */
   awaitingServe: Team | null = null;
 
   private ballIdleTimer = 0;
@@ -147,7 +147,7 @@ export class GameState {
 
   /** Dispatches the next serve to whoever won the last rally: the opponents
    * auto-serve immediately, the human instead holds the ball until they
-   * swipe it away (or a fallback timeout elapses). */
+   * press Schlag to send it (or a fallback timeout elapses). */
   private beginServe(servingTeam: Team): void {
     this.ballIdleTimer = 0;
     if (servingTeam === 'opponents') {
@@ -175,18 +175,24 @@ export class GameState {
   }
 
   /** While the human holds serve: the ball tracks their position (free
-   * movement still works), and only a swipe (or the safety timeout) sends it
-   * over - Hit/Jump are withheld entirely so an accidental press can't race
-   * a zero-range weak-shot/spike against the serve itself. */
+   * movement still works), and only the Schlag button (or the safety
+   * timeout) sends it over - Sprung/Hecht and Pass are withheld entirely so
+   * an accidental press can't race a zero-range action against the serve
+   * itself. */
   private updateServeHold(dt: number, input: InputSnapshot): void {
     this.serveHoldTimer += dt;
 
-    this.player.update(dt, { move: input.move, swipe: null, hit: false, jump: false }, this.ball, this.teammate.pos);
+    this.player.update(
+      dt,
+      { move: input.move, reach: false, attack: false, pass: false },
+      this.ball,
+      this.teammate.pos,
+    );
     this.ball.pos = { ...this.player.pos };
     this.teammate.update(dt, this.ball, this.player.pos);
     for (const opponent of this.opponents) opponent.update(dt, this.ball, false);
 
-    if (input.swipe !== null || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
+    if (input.attack || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
       this.fireHumanServe();
     }
   }

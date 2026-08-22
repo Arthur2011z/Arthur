@@ -16,7 +16,7 @@ const ctx: CanvasRenderingContext2D = maybeCtx;
 
 const court = new Court(viewportEl, canvas, ctx);
 const renderer = new Renderer();
-const input = new InputManager(overlay, canvas);
+const input = new InputManager(overlay);
 const hud = new Hud(overlay);
 const gameState = new GameState();
 
@@ -40,7 +40,6 @@ function draw(): void {
 const loop = new GameLoop((dt) => {
   if (hud.consumeRestart()) gameState.restart();
   gameState.update(dt, input.snapshot());
-  input.setJumpEnabled(gameState.player.canJump());
   hud.update(gameState.score, gameState.phase, gameState.winner);
   draw();
 });

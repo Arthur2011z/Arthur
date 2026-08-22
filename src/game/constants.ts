@@ -28,8 +28,19 @@ export const OPPONENT_SPEED = 3.8;
 // Interaction ranges, in meters.
 export const HIT_RANGE = 0.7;
 export const NET_PROXIMITY_RANGE = 1.5;
-export const DIVE_RANGE = 2.5;
-export const DIVE_AIM_TOLERANCE_COS = 0.7; // ~45 degree cone
+
+// Sprung/Hecht button: how far away the nearest point of the ball's remaining
+// flight path may be for a press to engage at all, and how forgiving the
+// joystick has to point toward it. Deliberately more generous than the old
+// swipe-based dive (button + auto-movement to the ball needs less precision
+// than a gesture aimed by hand).
+export const REACH_RANGE = 3;
+export const REACH_AIM_TOLERANCE_COS = 0.5; // ~60 degree cone
+// Below this distance to the intercept point, no aiming is required at all -
+// the ball is basically already where the player stands.
+export const REACH_AIMLESS_RANGE = HIT_RANGE;
+// Joystick magnitude below which "no direction held" is assumed (dead zone).
+export const AIM_DEADZONE = 0.15;
 
 // Timings, in seconds.
 export const DIVE_DASH_DURATION = 0.22;
@@ -42,14 +53,14 @@ export const EMERGENCY_TIME_THRESHOLD = 0.35;
 export const WIN_SCORE = 21;
 export const WIN_MARGIN = 2;
 
-// Swipe gesture thresholds (screen pixels / seconds) for detecting a dive.
-export const SWIPE_MIN_DISTANCE_PX = 30;
-export const SWIPE_MAX_DURATION_S = 0.35;
-export const SWIPE_MIN_VELOCITY_PX_S = 500;
-
-// How far a dive lunges when the swipe *doesn't* connect with the ball — shorter
-// than DIVE_RANGE so a whiff reads as a real (failed) lunge, not a teleport.
-export const DIVE_WHIFF_DISTANCE = 1.8;
+// Input buffering: Schlag/Pass may be pressed before the ball is actually in
+// range - the press is remembered for this long and resolved the moment the
+// ball comes within HIT_RANGE, so timing never has to be split-second.
+export const INPUT_BUFFER_WINDOW = 1.2;
+// Extra grace period right after the jump's peak (into the fall) during which
+// a buffered Schlag/Pass still resolves, so aiming a spike never feels like a
+// single-frame deadline.
+export const JUMP_SCHLAG_GRACE_DURATION = 0.15;
 
 // Opponent auto-serve (also the bootstrap/fallback serve at game start): fair
 // and easy to react to - AUTO_SERVE_DELAY is only ever reached at the very
@@ -59,36 +70,40 @@ export const AUTO_SERVE_DELAY = 2;
 export const AUTO_SERVE_DURATION = 1.3;
 export const AUTO_SERVE_PEAK_HEIGHT = 3;
 
-// Human serve: the ball rests "in hand" (tracks the player) until a swipe
-// sends it over - generous, so normal play never feels rushed - or this
-// fallback timeout elapses, so the game can never get permanently stuck.
+// Human serve: the ball rests "in hand" (tracks the player) until the Schlag
+// button sends it over - generous, so normal play never feels rushed - or
+// this fallback timeout elapses, so the game can never get permanently stuck.
 export const HUMAN_SERVE_TIMEOUT = 5; // seconds
 export const HUMAN_SERVE_DURATION = 1.3; // seconds - same easy, reactable arc as the opponent auto-serve
 export const HUMAN_SERVE_PEAK_HEIGHT = 3; // meters
 
-// Dive-save: the pass a successful dive automatically sends to the teammate.
-export const DIVE_PASS_DURATION = 0.7;
-export const DIVE_PASS_PEAK_HEIGHT = 2.5;
+// Pass button: a controlled, medium touch straight to the AI teammate -
+// available any time the ball is in HIT_RANGE, whether reached by walking,
+// diving or jumping. The deliberate "safe" alternative to a Schlag attack.
+export const PASS_DURATION = 0.7;
+export const PASS_PEAK_HEIGHT = 2.5;
 
-// Weak shot (Hit button, no jump): lands somewhere generous and central in the
-// opponent half so it's an easy return for the opponent AI, by design.
-export const WEAK_SHOT_DURATION = 1.2;
-export const WEAK_SHOT_PEAK_HEIGHT = 3;
-export const WEAK_SHOT_MARGIN = 2;
+// Random target margin (meters from the court edges) used whenever a return
+// picks a generous, in-bounds spot rather than a precisely aimed one (the AI
+// teammate's emergency self-set, the opponents' return).
+export const RANDOM_TARGET_MARGIN = 2;
 
-// Aimed spike: fast and flat - the reliable way to score.
+// Aimed spike (Schlag button, only while jumping near the net): fast and flat
+// - the reliable way to score. Aim direction comes from whatever the joystick
+// is held toward during the jump (see Player.aimDir), defaulting to straight
+// over the net if the stick is left centered the whole time.
 export const SPIKE_DURATION = 0.5;
 export const SPIKE_PEAK_HEIGHT = 1.2;
 export const SPIKE_TARGET_MARGIN = 0.3;
 
-// Jump + swipe-to-spike (replaces the old Jump+Hit chord): pressing Jump
-// (still net-proximity gated) sends the player into a brief up-then-down hop;
-// a swipe during the rise fires a hard, precisely-aimed spike in the swiped
-// direction; reaching the peak with no swipe yet fires automatically in the
-// default (straight-over-net) direction instead, so a jump never wastes
-// itself with no outcome - but only if the ball is still in range, exactly
-// like a manually-aimed spike.
-export const JUMP_RISE_DURATION = 0.35; // seconds, Jump press -> peak
+// Sprung/Hecht button: pressing it while the joystick points roughly toward
+// the ball's flight path sends the player into a brief automatic approach -
+// a vertical hop (with hang time) if already near the net, a flat dash
+// otherwise - toward the nearest point of that path; the exact positioning is
+// handled by the game, not by the player's own precision. Schlag/Pass then
+// resolve once the ball is actually within HIT_RANGE (see INPUT_BUFFER_WINDOW
+// and JUMP_SCHLAG_GRACE_DURATION above for how forgiving the timing is).
+export const JUMP_RISE_DURATION = 0.35; // seconds, press -> peak
 export const JUMP_FALL_DURATION = 0.3; // seconds, peak -> back to 'active'
 export const JUMP_PEAK_HEIGHT = 0.6; // meters, visual-only hop height
 

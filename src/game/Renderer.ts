@@ -64,12 +64,18 @@ export class Renderer {
     this.drawToken(ctx, liftedPos, player.radius, PLAYER_COLOR);
 
     if (player.state === 'jumping_up') {
-      // "The swipe window is open" cue - no implied direction, unlike the old
-      // joystick-steered aim line this replaces.
+      // "The Schlag window is open" ring, plus a short line showing the
+      // current aim direction (driven live by the joystick - see Player.aimDir).
       ctx.strokeStyle = JUMP_READY_RING_COLOR;
       ctx.lineWidth = 0.05;
       ctx.beginPath();
       ctx.arc(liftedPos.x, liftedPos.y, player.radius + 0.15, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const aimLen = player.radius + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(liftedPos.x, liftedPos.y);
+      ctx.lineTo(liftedPos.x + player.aimDir.x * aimLen, liftedPos.y + player.aimDir.y * aimLen);
       ctx.stroke();
     }
   }

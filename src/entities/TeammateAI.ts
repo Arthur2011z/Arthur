@@ -14,7 +14,7 @@ import {
   TEAMMATE_SET_DURATION,
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
-  WEAK_SHOT_MARGIN,
+  RANDOM_TARGET_MARGIN,
 } from '../game/constants';
 import { Ball } from './Ball';
 
@@ -84,8 +84,8 @@ export class TeammateAI {
     const isEmergency = ball.timeRemaining < EMERGENCY_TIME_THRESHOLD;
     if (isEmergency) {
       const target: Vec2 = {
-        x: WEAK_SHOT_MARGIN + Math.random() * (COURT_WIDTH - 2 * WEAK_SHOT_MARGIN),
-        y: WEAK_SHOT_MARGIN + Math.random() * (NET_Y - 2 * WEAK_SHOT_MARGIN),
+        x: RANDOM_TARGET_MARGIN + Math.random() * (COURT_WIDTH - 2 * RANDOM_TARGET_MARGIN),
+        y: RANDOM_TARGET_MARGIN + Math.random() * (NET_Y - 2 * RANDOM_TARGET_MARGIN),
       };
       ball.launch(from, target, {
         duration: TEAMMATE_EMERGENCY_SET_DURATION,

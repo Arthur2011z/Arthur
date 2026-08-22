@@ -30,3 +30,14 @@ export const lerpVec2 = (a: Vec2, b: Vec2, t: number): Vec2 => ({
 
 export const clamp = (v: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, v));
+
+/** Nearest point to `p` on the line segment from `a` to `b` (clamped to the
+ * segment, not the infinite line). Used to find where along a ball's
+ * remaining flight path a player's auto-approach should head toward. */
+export const closestPointOnSegment = (p: Vec2, a: Vec2, b: Vec2): Vec2 => {
+  const ab = sub(b, a);
+  const abLenSq = dot(ab, ab);
+  if (abLenSq < 1e-9) return { ...a };
+  const t = clamp(dot(sub(p, a), ab) / abLenSq, 0, 1);
+  return { x: a.x + ab.x * t, y: a.y + ab.y * t };
+};
