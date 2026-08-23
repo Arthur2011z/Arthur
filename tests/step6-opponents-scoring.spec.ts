@@ -48,6 +48,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
   test('the closer opponent returns an incoming ball; the other stays home', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    // This test is about which opponent reacts, not the error/attack roll -
+    // force the safe default branch so it's not flaky.
+    await forceRandom(page, 0.99);
 
     // Aimed near opponent1's home (2.5, 3) - well past opponent2's (5.5, 3).
     await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);

@@ -361,6 +361,19 @@ export class Player {
    * existing landed-in-which-half scoring in GameState already attributes
    * correctly - no separate "fault" concept needed). */
   private resolveSpike(ball: Ball): void {
+    // The ball isn't frozen during slowmo_aim (see GameState.update) - it
+    // keeps creeping along its original flight, heavily slowed but not
+    // stopped, so a fast original shot (or a long aim window) can drift it
+    // back out of HIT_RANGE before this resolves. Re-check right here: no
+    // contact is ever allowed to fire from a position the player didn't
+    // actually reach - let the ball fly on untouched instead.
+    if (!this.ballReachable(ball)) {
+      this.fallStartHeight = this.height;
+      this.state = 'jumping_down';
+      this.stateTimer = 0;
+      return;
+    }
+
     const riskT = clamp(
       (this.jumpStartNetDistance - NET_RISK_SAFE_DISTANCE) / (NET_RISK_MAX_DISTANCE - NET_RISK_SAFE_DISTANCE),
       0,

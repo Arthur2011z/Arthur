@@ -173,6 +173,60 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
     expect(after.ball.target.y).toBeGreaterThan(8); // netted out, dropped back on the player's own side
   });
 
+  test('bugfix: a ball that drifts out of HIT_RANGE during the aim window is never hit - no phantom contact', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await forceRandom(page, 0.99); // rule out the net-fault roll as a confound
+
+    // Drives Player.update()/Ball.update() directly in lockstep, mirroring
+    // exactly what GameState.update() does every frame (including the
+    // ball-dt scaling while player.state === 'slowmo_aim') - fully
+    // deterministic, independent of real click/network round-trip timing,
+    // which a ball this fast (needed to actually drift beyond HIT_RANGE
+    // within the short aim window) can't reliably survive.
+    const result = await page.evaluate(() => {
+      const SLOWMO_FACTOR = 0.18; // mirror src/game/constants.ts
+      const g = window.__game;
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: false, hit: false };
+      const step = (dt: number, input = noInput) => {
+        g.state.player.update(dt, input, g.state.ball, g.state.teammate.pos, false);
+        const ballDt = g.state.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt;
+        g.state.ball.update(ballDt);
+      };
+
+      g.state.player.pos.x = 4;
+      g.state.player.pos.y = 9;
+      g.state.player.state = 'active';
+      // Fast flight (0.6s across 8.5m, ~14 m/s): starts just inside
+      // HIT_RANGE of the player (0.4m) so the jump catches it immediately.
+      g.state.ball.launch({ x: 4, y: 9.4 }, { x: 4, y: 1 }, { duration: 0.6, peakHeight: 3, toucher: null });
+
+      step(0.016, { ...noInput, jump: true }); // -> jumping_up (tryStartJump doesn't itself check contact)
+      step(0.016); // jumping_up's own contact check runs here - ball is still in range
+      const enteredSlowmo = g.state.player.state === 'slowmo_aim';
+
+      // Advance a full 0.9s of real time in small steps (matches how the
+      // real game loop ticks) - past SLOWMO_REAL_DURATION (0.55s) - without
+      // ever swiping, so it must resolve via the timeout path once the ball
+      // has drifted away.
+      for (let t = 0; t < 0.9; t += 0.016) step(0.016);
+
+      return {
+        enteredSlowmo,
+        lastToucher: g.state.ball.lastToucher,
+        ballState: g.state.ball.state,
+        playerState: g.state.player.state,
+      };
+    });
+
+    expect(result.enteredSlowmo).toBe(true); // sanity: the bug scenario was actually set up
+    expect(result.lastToucher).not.toBe('player'); // no contact fired at all
+    expect(result.ballState).toBe('flying'); // the original flight continues undisturbed
+    expect(result.playerState).toBe('active'); // jump completed normally, empty-handed
+  });
+
   test('net-fault risk: jumping far from the net can still succeed on a lucky roll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
