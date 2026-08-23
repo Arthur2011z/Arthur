@@ -73,7 +73,7 @@ export const INPUT_BUFFER_WINDOW = 1.2;
 // first serve of a game, since every later serve is dispatched explicitly by
 // beginServe() right after the point-scored pause.
 export const AUTO_SERVE_DELAY = 2;
-export const AUTO_SERVE_DURATION = 1.3;
+export const AUTO_SERVE_DURATION = 2.2; // slowed down for reaction time - see HIT_DURATION's note
 export const AUTO_SERVE_PEAK_HEIGHT = 3;
 
 // Human serve: the ball rests "in hand" (tracks the player) until the
@@ -81,19 +81,29 @@ export const AUTO_SERVE_PEAK_HEIGHT = 3;
 // rushed - or this fallback timeout elapses, so the game can never get
 // permanently stuck.
 export const HUMAN_SERVE_TIMEOUT = 5; // seconds
-export const HUMAN_SERVE_DURATION = 1.3; // seconds - same easy, reactable arc as the opponent auto-serve
+export const HUMAN_SERVE_DURATION = 2.2; // seconds - same easy, reactable arc as the opponent auto-serve
 export const HUMAN_SERVE_PEAK_HEIGHT = 3; // meters
 
 // Pass button: a controlled, medium touch straight to the AI teammate -
 // available any time the ball is in HIT_RANGE (or brought into it via
 // ASSIST_RANGE homing). The deliberate "safe" alternative to the Jump-Smash.
-export const PASS_DURATION = 0.7;
+export const PASS_DURATION = 1.3; // slowed down for reaction time - see HIT_DURATION's note
 export const PASS_PEAK_HEIGHT = 2.5;
 
 // Notfall-Schlag (small emergency button): simple, weak, no-jump touch that
 // always sends the ball back over the net to a generous, safe spot - the
 // "get it over somehow" fallback when in trouble.
-export const HIT_DURATION = 0.9;
+//
+// This and every other *routine* ball flight in the game (both serves, Pass/
+// Hechten, the AI teammate's set and emergency-set, the opponent's normal
+// return) were slowed down together, on request, so the ball spends
+// noticeably more time in the air and everyone (human or AI) has real time to
+// move to the landing spot. The two deliberately fast/hard shots - the
+// Jump-Smash spike and the opponent's aggressive attack (plus each one's own
+// short, instant net-fault outcome) - are the sole exception, left exactly as
+// fast as before: that speed is their intentional risk/reward payoff, not
+// something needing more reaction time.
+export const HIT_DURATION = 1.6;
 export const HIT_PEAK_HEIGHT = 2.2;
 
 // Random target margin (meters from the court edges) used whenever a return
@@ -156,7 +166,7 @@ export const TEAMMATE_RETURN_EPSILON = 0.1;
 // Emergency self-set save (ball arrived too fast/direct to set up properly,
 // or this is the team's mandatory final touch): low and quick, just enough to
 // keep it alive over the net.
-export const TEAMMATE_EMERGENCY_SET_DURATION = 0.5;
+export const TEAMMATE_EMERGENCY_SET_DURATION = 0.8; // slowed down for reaction time - see HIT_DURATION's note
 export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
 // "Arrived too fast/direct" is judged by the incoming flight's own total
 // duration (Ball.duration - fixed per shot type, independent of how far into
@@ -167,12 +177,12 @@ export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
 // as it arrives) and was making this branch fire far too often. Only the
 // genuinely fast/hard shots - a spike (SPIKE_DURATION) or an opponent's
 // attack (OPPONENT_ATTACK_DURATION) - are shorter than this; every routine
-// return/set/pass/serve is at or above PASS_DURATION (0.7s) and stays clear.
+// return/set/pass/serve is at or above PASS_DURATION (1.3s) and stays clear.
 export const EMERGENCY_DURATION_THRESHOLD = 0.65;
 
 // Normal case: a high, easy set toward the net, to the human player's current
 // position.
-export const TEAMMATE_SET_DURATION = 0.85;
+export const TEAMMATE_SET_DURATION = 1.5; // slowed down for reaction time - see HIT_DURATION's note
 export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
 
 // Two zones within the human half the player and AI teammate dynamically
@@ -191,7 +201,7 @@ export const TEAMMATE_HOME_X = COURT_WIDTH * 0.7;
 // generous return, sometimes an aggressive attack, occasionally a mechanical
 // error (see OpponentAI.playBall for the probabilities).
 export const OPPONENT_RETURN_EPSILON = 0.1;
-export const OPPONENT_RETURN_DURATION = 1.1;
+export const OPPONENT_RETURN_DURATION = 1.9; // slowed down for reaction time - see HIT_DURATION's note
 export const OPPONENT_RETURN_PEAK_HEIGHT = 2.7;
 export const OPPONENT_ATTACK_CHANCE = 0.25;
 export const OPPONENT_ATTACK_DURATION = 0.6;
