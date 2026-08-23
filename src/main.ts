@@ -5,6 +5,7 @@ import { GameState } from './game/GameState';
 import { Hud } from './game/Hud';
 import { Renderer } from './game/Renderer';
 import { InputManager } from './input/InputManager';
+import { setRandom } from './utils/random';
 
 const viewportEl = document.getElementById('viewport') as HTMLDivElement;
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -16,7 +17,7 @@ const ctx: CanvasRenderingContext2D = maybeCtx;
 
 const court = new Court(viewportEl, canvas, ctx);
 const renderer = new Renderer();
-const input = new InputManager(overlay);
+const input = new InputManager(overlay, canvas);
 const hud = new Hud(overlay);
 const gameState = new GameState();
 
@@ -49,11 +50,13 @@ window.addEventListener('orientationchange', resize);
 resize();
 loop.start();
 
-// Debug hook for automated (Playwright) tests: harmless in a locally-opened
+// Debug hooks for automated (Playwright) tests: harmless in a locally-opened
 // single-file build, never sent anywhere.
 declare global {
   interface Window {
     __game?: { state: GameState; court: Court };
+    __setRandom?: (fn: () => number) => void;
   }
 }
 window.__game = { state: gameState, court };
+window.__setRandom = setRandom;
