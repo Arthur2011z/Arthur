@@ -101,6 +101,47 @@ test.describe('Step 5: AI teammate home/base logic', () => {
     expect(afterReturn.teammate.pos).toEqual(home);
   });
 
+  test('bugfix: a normal-paced pass from across the court still sets to the player, not an emergency', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+
+    // A real Pass button press from a realistic distance away from the
+    // teammate: PASS_DURATION (0.7s) is a routine, un-hurried touch by the
+    // ball's own speed, but because the flight is aimed squarely at the
+    // teammate's position, contact used to happen right as it arrived - low
+    // timeRemaining at that instant, which the old timeRemaining-based check
+    // misread as "arrived too fast" purely because of the travel distance,
+    // not the ball's actual speed. Set()-ing to the player must still be the
+    // outcome regardless of how far the pass had to travel.
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      g.state.player.pos.x = 4;
+      g.state.player.pos.y = 15;
+      g.state.teammate.pos.x = 4;
+      g.state.teammate.pos.y = 10; // 5m from the player - well beyond a short pass
+      g.state.teammate.state = 'home';
+      g.state.ball.launch({ x: 4, y: 14.7 }, { x: 4, y: 4 }, { duration: 5, peakHeight: 3, toucher: null });
+    });
+
+    const passBtn = page.locator('#pass-btn');
+    const box = await passBtn.boundingBox();
+    if (!box) throw new Error('pass button not found');
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
+      timeout: 1000,
+    });
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'teammate', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await page.evaluate(() => ({ ...(window as any).__game.state.ball.target }));
+    expect(after.y).toBeCloseTo(15, 0); // set to the player's position, not over the net
+    expect(after.y).toBeGreaterThan(8);
+  });
+
   test('dynamically covers the back zone when the player is up at the net', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);

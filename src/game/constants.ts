@@ -158,7 +158,17 @@ export const TEAMMATE_RETURN_EPSILON = 0.1;
 // keep it alive over the net.
 export const TEAMMATE_EMERGENCY_SET_DURATION = 0.5;
 export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
-export const EMERGENCY_TIME_THRESHOLD = 0.35;
+// "Arrived too fast/direct" is judged by the incoming flight's own total
+// duration (Ball.duration - fixed per shot type, independent of how far into
+// the flight contact happens - see the callers of launch()), NOT by how much
+// of that flight's clock happens to be left at the moment of contact: the
+// latter also swings low for a routine, un-hurried touch (e.g. a Pass aimed
+// squarely at the teammate is, by construction, almost always caught right
+// as it arrives) and was making this branch fire far too often. Only the
+// genuinely fast/hard shots - a spike (SPIKE_DURATION) or an opponent's
+// attack (OPPONENT_ATTACK_DURATION) - are shorter than this; every routine
+// return/set/pass/serve is at or above PASS_DURATION (0.7s) and stays clear.
+export const EMERGENCY_DURATION_THRESHOLD = 0.65;
 
 // Normal case: a high, easy set toward the net, to the human player's current
 // position.

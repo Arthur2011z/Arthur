@@ -4,7 +4,7 @@ import {
   BACK_ZONE_CENTER_Y,
   COURT_LENGTH,
   COURT_WIDTH,
-  EMERGENCY_TIME_THRESHOLD,
+  EMERGENCY_DURATION_THRESHOLD,
   HIT_RANGE,
   NET_Y,
   NET_ZONE_CENTER_Y,
@@ -132,7 +132,7 @@ export class TeammateAI {
     // - either because it arrived too fast/direct to set up properly, or
     // because this is the team's mandatory final touch (a set here would
     // illegally stay on the human side for a 4th touch).
-    const isEmergency = ball.timeRemaining < EMERGENCY_TIME_THRESHOLD || mustCrossNet;
+    const isEmergency = ball.duration < EMERGENCY_DURATION_THRESHOLD || mustCrossNet;
     if (isEmergency) {
       const target: Vec2 = {
         x: RANDOM_TARGET_MARGIN + random() * (COURT_WIDTH - 2 * RANDOM_TARGET_MARGIN),

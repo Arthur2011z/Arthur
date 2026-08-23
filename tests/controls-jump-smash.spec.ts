@@ -188,7 +188,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
     // within the short aim window) can't reliably survive.
     const result = await page.evaluate(() => {
       const SLOWMO_FACTOR = 0.18; // mirror src/game/constants.ts
-      const g = window.__game;
+      const g = (window as any).__game;
       const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: false, hit: false };
       const step = (dt: number, input = noInput) => {
         g.state.player.update(dt, input, g.state.ball, g.state.teammate.pos, false);
