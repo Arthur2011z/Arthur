@@ -1,7 +1,8 @@
 # Beach-Volleyball
 
 Mobile-first 2D-Top-Down-Beachvolleyball (2 gegen 2) für Touch-Bedienung auf Handy und
-Tablet. Reines HTML5 Canvas + TypeScript, kein Game-Framework.
+Tablet. Reines HTML5 Canvas + TypeScript, kein Game-Framework. Ein Spieler (Nutzer) plus
+KI-Mitspieler gegen zwei KI-Gegner.
 
 ## Entwicklung
 
@@ -20,23 +21,53 @@ eigenständige Seite verteilen.
 
 ## Steuerung
 
-- **Steuerknüppel** unten links: freies Laufen in der eigenen Feldhälfte.
-- **Wischen** auf dem Spielfeld in Ballrichtung: Hechtsprung, wenn der Ball zu weit
-  weg ist, um normal hinzulaufen.
-- **Schlag-Button**: Ballkontakt auslösen (schwacher Zufallsschlag ohne Sprung).
-- **Sprung-Button** (nur aktiv nahe am Netz): Sprung, während dessen die
-  Steuerknüppel-Richtung die Zielrichtung eines harten Schmetterschlags bestimmt.
+- **Steuerknüppel** (unten links): freie Bewegung in der eigenen Feldhälfte. Stoppt
+  sofort beim Loslassen.
+- **Wisch-Geste auf dem Spielfeld** (Hechten): grob in Richtung eines ankommenden,
+  entfernten Balls wischen — der Spieler hechtet automatisch dorthin, nur so weit wie
+  für diesen Ball nötig, bis maximal zur Reichweitengrenze. Ballkontakt löst
+  automatisch einen kontrollierten Pass zum Mitspieler aus (oder einen Schlag übers
+  Netz, falls es der Pflicht-Endkontakt des Teams ist).
+- **Sprung-Schmetterschlag** (großer Haupt-Button): funktioniert von überall auf dem
+  Feld, springt sofort. Trifft der Ball den Spieler in der Luft, tritt eine kurze,
+  deutlich spürbare Zeitlupe ein (Spieler *und* Ball synchron verlangsamt) — währenddessen
+  einen **Ziel-Wisch** machen, um die Schlagrichtung des harten Schmetterschlags zu
+  bestimmen. Ohne Wisch fliegt der Schlag geradeaus übers Netz. Je weiter der Spieler
+  beim Absprung vom Netz entfernt war, desto höher das Risiko, dass der Schlag ins
+  Netz geht.
+- **Pass-Knopf** (großer Haupt-Button): kontrollierter Pass zum KI-Mitspieler. Kann
+  vorgehalten werden — die KI übernimmt die Feinbewegung zum Ball, der eigentliche
+  Kontakt passiert erst, wenn der Ball wirklich in Reichweite ist.
+- **Notfall-Schlag** (kleiner Button): einfacher, schwacher Schlag übers Netz von
+  überall, ohne Sprung — die Notlösung, wenn der Spieler in Bedrängnis ist.
+
+Gewischt wird ausschließlich fürs Hechten und für die Ziel-Richtung während der
+Zeitlupe — sonst nirgends.
 
 ## Spielregeln
 
-- **KI-Mitspieler**: reagiert nur, wenn der Ball wirklich in seine Nähe kommt oder
-  auf ihn zufliegt (auch nach einem Hechtsprung-Zuspiel). Kommt der Ball zu
-  schnell/direkt, spielt er sofort eine Notlösung übers Netz; sonst stellt er ihn
-  hoch zum menschlichen Spieler. Kehrt danach zur Grundposition zurück.
-- **Gegner-KI** (2 Spieler): Der jeweils näher am Ball stehende Gegner läuft
-  automatisch hin und spielt zurück; der andere bleibt an seiner Grundposition.
-- **Punktesystem**: Rally-Point-Zählung bis 21, Gewinn mit 2 Punkten Vorsprung.
-  Wer den letzten Punkt gewonnen hat, bekommt den nächsten Aufschlag. Nach
+- **3-Kontakte-Regel**: jedes Team darf den Ball höchstens dreimal berühren, bevor er
+  zurück übers Netz muss. Beim Pflicht-Endkontakt wandelt sich ein gedrückter
+  Pass-Button automatisch in einen Schlag übers Netz um; auch der KI-Mitspieler setzt
+  dann zwingend übers Netz statt zum Spieler vor.
+- **Netz-Regel**: kein Spieler (beide Teams) darf während des normalen Spiels über die
+  Netzlinie in die gegnerische Hälfte laufen.
+- **Echtes Aufschlag-System**: nach jedem Punkt Aufschlagwechsel an das Team, das den
+  letzten Punkt gewonnen hat. Bei eigenem Aufschlag hält der Spieler den Ball, bis der
+  Notfall-Schlag-Button gedrückt wird (oder ein Fallback-Timeout abläuft).
+- **KI-Mitspieler**: deckt dynamisch die Zone (Netz vs. hinten) ab, in der sich der
+  Spieler gerade *nicht* befindet — keine starre Grundposition. Reagiert nur, wenn der
+  Ball wirklich in seine Nähe kommt oder auf ihn zufliegt. Legt fast immer zum Spieler
+  vor (für dessen Schmetterschlag), statt selbst übers Netz zu spielen — außer bei
+  einem zu schnellen/direkten Ball oder dem Pflicht-Endkontakt, dann Notlösung übers
+  Netz. Kehrt danach zur aktuellen Zielzone zurück.
+- **Gegner-KI** (2 Spieler): der näher am Ball stehende Gegner spielt automatisch
+  zurück. Meistens ein sicherer Rückschlag, gelegentlich ein spürbar schnellerer,
+  aggressiverer Angriff, seltener ein Fehler (Ball landet im Netz auf der eigenen
+  Seite) — insgesamt bewusst schlagbar statt eine unüberwindbare Mauer.
+- **Landepunkt-Anzeige**: Kreuz/Kreis am Boden zeigt an, wo ein fliegender Ball landen
+  wird.
+- **Punktesystem**: Rally-Point-Zählung bis 21, Gewinn mit 2 Punkten Vorsprung. Nach
   Spielende erscheint ein "Neu starten"-Button.
 
 ## Baufortschritt
@@ -45,8 +76,10 @@ Das Spiel ist in kleinen, einzeln testbaren Schritten entstanden (siehe
 Commit-Historie):
 
 1. Steuerknüppel-Bewegung
-2. Wisch-Hechten mit automatischem Zuspiel zum KI-Mitspieler
-3. Schlag-Knopf mit schwachem Zufallsschlag
-4. Sprung-Knopf mit gezieltem Schmetterschlag am Netz
-5. KI-Mitspieler-Logik mit Grundposition
-6. Gegner-KI und Punktesystem (Rally-Point bis 21) ✅ fertig
+2. Ballphysik (saubere Parabel-Flugbahn, konsistent über die gesamte Flugzeit)
+3. Eingabe-Schicht: Wisch-Geste + Sprung-Schmetterschlag-/Pass-/Notfall-Schlag-Buttons
+4. Wisch-Hechten, Sprung-Schmetterschlag mit Zeitlupe + Netzrisiko, Notfall-Schlag,
+   3-Kontakte-Regel
+5. KI-Mitspieler mit dynamischer Zonen-Abdeckung
+6. Gegner-KI mit Angriff und Fehleranfälligkeit
+7. Punktesystem (Rally-Point bis 21), echtes Aufschlagsystem, Netz-Kollision ✅ fertig
