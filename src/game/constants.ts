@@ -167,7 +167,15 @@ export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
 
 // Two zones within the human half the player and AI teammate dynamically
 // split between (net/front vs. back) - see TeammateAI's home-position logic.
+// The teammate always covers whichever zone the player's current position
+// (< ZONE_SPLIT_Y = net zone, >= it = back zone) is *not* in, re-evaluated
+// every frame - a situational base, not a fixed spot.
 export const ZONE_SPLIT_Y = NET_Y + (COURT_LENGTH - NET_Y) / 2;
+export const NET_ZONE_CENTER_Y = NET_Y + (ZONE_SPLIT_Y - NET_Y) / 2;
+export const BACK_ZONE_CENTER_Y = ZONE_SPLIT_Y + (COURT_LENGTH - ZONE_SPLIT_Y) / 2;
+// Off-center on purpose (rather than the same x as the player), so the two
+// don't end up standing on top of each other when both drift toward the net.
+export const TEAMMATE_HOME_X = COURT_WIDTH * 0.7;
 
 // Opponent AI: once it reaches the ball, sends it back - usually a safe,
 // generous return, sometimes an aggressive attack, occasionally a mechanical
@@ -199,11 +207,10 @@ export const OPPONENT_HOMES: { x: number; y: number }[] = [
   { x: 5.5, y: 3 },
 ];
 
-// AI teammate's home/base position. TODO(Schritt 5): replaced by a position
-// computed dynamically from the player's current zone (net vs. back), so the
-// teammate covers whichever zone the player currently isn't in instead of
-// sitting at one fixed spot.
-export const TEAMMATE_HOME: { x: number; y: number } = {
-  x: COURT_WIDTH * 0.7,
-  y: NET_Y + 3,
+// The human player's starting position each game/rally cycle - shared with
+// TeammateAI so its own initial position can be derived from the same point
+// without needing a live Player reference at construction time.
+export const PLAYER_START_POS: { x: number; y: number } = {
+  x: COURT_WIDTH / 2,
+  y: NET_Y + COURT_LENGTH / 4,
 };

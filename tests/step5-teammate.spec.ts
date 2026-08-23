@@ -26,6 +26,14 @@ async function launchBall(page: Page, from: { x: number; y: number }, to: { x: n
   );
 }
 
+async function teleportPlayer(page: Page, pos: { x: number; y: number }) {
+  await page.evaluate((pos) => {
+    const g = (window as any).__game;
+    g.state.player.pos.x = pos.x;
+    g.state.player.pos.y = pos.y;
+  }, pos);
+}
+
 test.describe('Step 5: AI teammate home/base logic', () => {
   test('stays home while the ball is far away and unrelated', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -91,5 +99,31 @@ test.describe('Step 5: AI teammate home/base logic', () => {
     });
     const afterReturn = await getState(page);
     expect(afterReturn.teammate.pos).toEqual(home);
+  });
+
+  test('dynamically covers the back zone when the player is up at the net', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+
+    await teleportPlayer(page, { x: 4, y: 9 }); // right at the net
+    await page.waitForTimeout(1500); // plenty of time to drift to the new base
+
+    const after = await getState(page);
+    expect(after.teammate.state).toBe('home');
+    expect(after.teammate.home.y).toBeGreaterThan(12); // back zone (y >= ZONE_SPLIT_Y)
+    expect(after.teammate.pos).toEqual(after.teammate.home);
+  });
+
+  test('dynamically covers the net zone when the player is pulled back deep', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+
+    await teleportPlayer(page, { x: 4, y: 15 }); // deep baseline
+    await page.waitForTimeout(1500);
+
+    const after = await getState(page);
+    expect(after.teammate.state).toBe('home');
+    expect(after.teammate.home.y).toBeLessThan(12); // net zone (y < ZONE_SPLIT_Y)
+    expect(after.teammate.pos).toEqual(after.teammate.home);
   });
 });

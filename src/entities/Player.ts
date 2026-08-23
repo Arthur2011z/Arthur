@@ -36,6 +36,7 @@ import {
   PASS_PEAK_HEIGHT,
   PLAYER_RADIUS,
   PLAYER_SPEED,
+  PLAYER_START_POS,
   RANDOM_TARGET_MARGIN,
   REACH_AIMLESS_RANGE,
   REACH_AIM_TOLERANCE_COS,
@@ -87,7 +88,7 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  * HIT_RANGE - never pre-emptively.
  */
 export class Player {
-  pos: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y + COURT_LENGTH / 4 };
+  pos: Vec2 = { ...PLAYER_START_POS };
   radius = PLAYER_RADIUS;
   state: PlayerState = 'active';
   /** Visual-only vertical lift while jumping (mirrors Ball.height). */

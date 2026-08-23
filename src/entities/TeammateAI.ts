@@ -1,44 +1,89 @@
 import { Vec2, clamp, distance, normalize } from '../utils/math';
 import { random } from '../utils/random';
 import {
+  BACK_ZONE_CENTER_Y,
   COURT_LENGTH,
   COURT_WIDTH,
   EMERGENCY_TIME_THRESHOLD,
   HIT_RANGE,
   NET_Y,
+  NET_ZONE_CENTER_Y,
   PLAYER_RADIUS,
+  PLAYER_START_POS,
   TEAMMATE_EMERGENCY_SET_DURATION,
   TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT,
-  TEAMMATE_HOME,
+  TEAMMATE_HOME_X,
   TEAMMATE_REACT_RADIUS,
   TEAMMATE_RETURN_EPSILON,
   TEAMMATE_SET_DURATION,
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
   RANDOM_TARGET_MARGIN,
+  ZONE_SPLIT_Y,
 } from '../game/constants';
 import { Ball } from './Ball';
 
 type TeammateState = 'home' | 'moving_to_ball' | 'returning';
 
+/** Whichever zone (net vs. back) `pos` is currently in, within the human
+ * half. Used to figure out which zone the *other* one - the AI teammate's
+ * target - should cover. */
+function zoneOf(pos: Vec2): 'net' | 'back' {
+  return pos.y < ZONE_SPLIT_Y ? 'net' : 'back';
+}
+
+/** The AI teammate's current base position: the center of whichever zone
+ * `playerPos` is currently *not* in. Re-evaluated every frame - there is no
+ * single fixed home, the teammate always covers the gap the player's own
+ * position is currently leaving open (e.g. player up at the net -> teammate
+ * covers the back; player pulled back -> teammate moves up toward the net). */
+function computeZoneHome(playerPos: Vec2): Vec2 {
+  const y = zoneOf(playerPos) === 'net' ? BACK_ZONE_CENTER_Y : NET_ZONE_CENTER_Y;
+  return { x: TEAMMATE_HOME_X, y };
+}
+
 /**
- * AI teammate: only leaves home when the ball is actually coming near it or
- * flying toward it (which also covers the human player's dive-pass, since that
- * always targets this teammate's position); plays it — a quick emergency
- * save if it arrived too fast/direct or this is the team's mandatory final
- * touch, otherwise a high set to the human player — then heads back home.
- * Idle at home whenever the ball isn't headed its way.
+ * AI teammate: dynamically covers whichever zone (net/front vs. back) the
+ * player currently isn't in (see computeZoneHome) instead of sitting at one
+ * fixed spot. Only leaves that base when the ball is actually coming near it
+ * or flying toward it (which also covers the human player's dive-pass, since
+ * that always targets this teammate's position); plays it — a quick
+ * emergency save if it arrived too fast/direct or this is the team's
+ * mandatory final touch, otherwise a high set to the human player — then
+ * heads back to base.
  */
 export class TeammateAI {
-  readonly homePos: Vec2 = { ...TEAMMATE_HOME };
-  pos: Vec2 = { ...TEAMMATE_HOME };
+  pos: Vec2;
   radius = PLAYER_RADIUS;
   state: TeammateState = 'home';
 
+  /** The currently-targeted base position (see computeZoneHome) - recomputed
+   * every update() from the live player position. */
+  private targetHome: Vec2;
+
+  constructor() {
+    this.targetHome = computeZoneHome(PLAYER_START_POS);
+    this.pos = { ...this.targetHome };
+  }
+
+  /** The teammate's current base position (read by the renderer/tests; also
+   * where updateReturning heads back to). */
+  get homePos(): Vec2 {
+    return this.targetHome;
+  }
+
   update(dt: number, ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
+    this.targetHome = computeZoneHome(playerPos);
+
     switch (this.state) {
       case 'home':
-        if (this.shouldReact(ball)) this.state = 'moving_to_ball';
+        if (this.shouldReact(ball)) {
+          this.state = 'moving_to_ball';
+        } else {
+          // Situational positioning, not a static spot: keep drifting toward
+          // the current base as the player moves between zones.
+          this.driftToward(dt, this.targetHome);
+        }
         break;
       case 'moving_to_ball':
         this.updateMovingToBall(dt, ball, playerPos, mustCrossNet);
@@ -108,13 +153,22 @@ export class TeammateAI {
   }
 
   private updateReturning(dt: number): void {
-    const toHome = distance(this.pos, this.homePos);
+    const toHome = distance(this.pos, this.targetHome);
     if (toHome <= TEAMMATE_RETURN_EPSILON) {
-      this.pos = { ...this.homePos };
+      this.pos = { ...this.targetHome };
       this.state = 'home';
       return;
     }
-    const dir = normalize({ x: this.homePos.x - this.pos.x, y: this.homePos.y - this.pos.y });
+    this.driftToward(dt, this.targetHome);
+  }
+
+  private driftToward(dt: number, target: Vec2): void {
+    const toTarget = distance(this.pos, target);
+    if (toTarget <= TEAMMATE_RETURN_EPSILON) {
+      this.pos = { ...target };
+      return;
+    }
+    const dir = normalize({ x: target.x - this.pos.x, y: target.y - this.pos.y });
     this.pos.x += dir.x * TEAMMATE_SPEED * dt;
     this.pos.y += dir.y * TEAMMATE_SPEED * dt;
     this.pos = this.clampToOwnHalf(this.pos);
