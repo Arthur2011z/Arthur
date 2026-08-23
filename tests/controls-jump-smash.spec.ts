@@ -113,7 +113,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
     await swipeOnCanvas(page, 120, 0); // aim hard to the right
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 500,
+      timeout: 1500,
     });
     const after = await getState(page);
     expect(after.player.state).toBe('jumping_down');

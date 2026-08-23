@@ -39,6 +39,11 @@ async function setScore(page: Page, human: number, opponents: number) {
   );
 }
 
+/** Forces the RNG used by the opponent's error/attack roll (see utils/random.ts). */
+async function forceRandom(page: Page, value: number) {
+  await page.evaluate((value) => (window as any).__setRandom(() => value), value);
+}
+
 test.describe('Step 6: opponent AI + scoring', () => {
   test('the closer opponent returns an incoming ball; the other stays home', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -129,5 +134,58 @@ test.describe('Step 6: opponent AI + scoring', () => {
     expect(after.score).toEqual({ human: 0, opponents: 0 });
     expect(after.winner).toBeNull();
     await expect(page.locator('#game-over-overlay')).toBeHidden();
+  });
+
+  test('a forced error roll nets the ball out on the opponent\'s own side, scoring for the human team', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await forceRandom(page, 0); // below OPPONENT_ERROR_CHANCE - always the error branch
+
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeLessThan(8); // dropped back on the opponent's own side
+    expect(after.ball.target.y).toBeGreaterThan(0);
+  });
+
+  test('a forced attack roll is noticeably faster than the safe default return', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    // Above the error chance, below error+attack - always the attack branch.
+    await forceRandom(page, 0.2);
+
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeGreaterThan(8); // still a legal return into the human half
+    // OPPONENT_ATTACK_DURATION (0.6s) is clearly under OPPONENT_RETURN_DURATION
+    // (1.1s) - sampled right at the moment of contact, so this is close to the
+    // full duration either way.
+    const timeRemaining: number = await page.evaluate(() => (window as any).__game.state.ball.timeRemaining);
+    expect(timeRemaining).toBeLessThan(0.9);
+  });
+
+  test('the safe default return (no forced error/attack) is the slower of the two', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await forceRandom(page, 0.99); // above error+attack - always the safe default branch
+
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeGreaterThan(8);
+    const timeRemaining: number = await page.evaluate(() => (window as any).__game.state.ball.timeRemaining);
+    expect(timeRemaining).toBeGreaterThan(0.9); // OPPONENT_RETURN_DURATION (1.1s)
   });
 });

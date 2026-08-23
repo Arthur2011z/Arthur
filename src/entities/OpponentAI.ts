@@ -4,6 +4,14 @@ import {
   COURT_WIDTH,
   HIT_RANGE,
   NET_Y,
+  OPPONENT_ATTACK_CHANCE,
+  OPPONENT_ATTACK_DURATION,
+  OPPONENT_ATTACK_PEAK_HEIGHT,
+  OPPONENT_ATTACK_TARGET_MARGIN,
+  OPPONENT_ERROR_CHANCE,
+  OPPONENT_FAULT_DURATION,
+  OPPONENT_FAULT_OWN_SIDE_MARGIN,
+  OPPONENT_FAULT_PEAK_HEIGHT,
   OPPONENT_RETURN_DURATION,
   OPPONENT_RETURN_EPSILON,
   OPPONENT_RETURN_PEAK_HEIGHT,
@@ -16,10 +24,17 @@ import { Ball, BallToucher } from './Ball';
 type OpponentState = 'home' | 'moving_to_ball' | 'returning';
 
 /**
- * Simple opponent AI: automatically moves to an incoming ball and returns it,
- * then heads back to its home position. Only the closer of the two opponents
+ * Opponent AI: automatically moves to an incoming ball and plays it, then
+ * heads back to its home position. Only the closer of the two opponents
  * (decided in GameState, passed in as `isLead`) chases any given ball, so they
  * don't both pile onto the same one.
+ *
+ * Deliberately beatable rather than a wall: most touches are a safe, generous
+ * return (see OPPONENT_RETURN_*), but a fraction are an aggressive attack
+ * (OPPONENT_ATTACK_CHANCE - faster, flatter, aimed closer to the lines) and a
+ * smaller fraction are a mechanical error that nets out on their own side
+ * (OPPONENT_ERROR_CHANCE), giving the human team real, earned scoring
+ * chances beyond just outrunning the AI's positioning.
  */
 export class OpponentAI {
   readonly homePos: Vec2;
@@ -58,11 +73,52 @@ export class OpponentAI {
     }
 
     if (distance(this.pos, ball.pos) <= HIT_RANGE) {
-      // Launch from the ball's own live position, not this.pos: contact is
-      // allowed within HIT_RANGE (not exact overlap), so using the catcher's
-      // position here would snap the ball sideways/vertically at the moment
-      // of contact instead of continuing smoothly from where it actually is.
-      const from = { ...ball.pos };
+      this.playBall(ball);
+      this.state = 'returning';
+      return;
+    }
+
+    const dir = normalize({ x: ball.pos.x - this.pos.x, y: ball.pos.y - this.pos.y });
+    this.pos.x += dir.x * OPPONENT_SPEED * dt;
+    this.pos.y += dir.y * OPPONENT_SPEED * dt;
+    this.pos = this.clampToOwnHalf(this.pos);
+  }
+
+  /** Rolls between an error, an aggressive attack, and the safe default
+   * return - see the class doc comment for the reasoning. */
+  private playBall(ball: Ball): void {
+    // Launch from the ball's own live position, not this.pos: contact is
+    // allowed within HIT_RANGE (not exact overlap), so using the catcher's
+    // position here would snap the ball sideways/vertically at the moment
+    // of contact instead of continuing smoothly from where it actually is.
+    const from = { ...ball.pos };
+    const roll = random();
+
+    if (roll < OPPONENT_ERROR_CHANCE) {
+      // Mechanical error: nets out and drops back on their own side.
+      const target: Vec2 = {
+        x: clamp(ball.pos.x, OPPONENT_FAULT_OWN_SIDE_MARGIN, COURT_WIDTH - OPPONENT_FAULT_OWN_SIDE_MARGIN),
+        y: NET_Y - OPPONENT_FAULT_OWN_SIDE_MARGIN,
+      };
+      ball.launch(from, target, {
+        duration: OPPONENT_FAULT_DURATION,
+        peakHeight: OPPONENT_FAULT_PEAK_HEIGHT,
+        toucher: this.toucherId,
+      });
+    } else if (roll < OPPONENT_ERROR_CHANCE + OPPONENT_ATTACK_CHANCE) {
+      // Aggressive attack: noticeably faster and flatter, aimed closer to
+      // the lines than the safe default.
+      const target: Vec2 = {
+        x: OPPONENT_ATTACK_TARGET_MARGIN + random() * (COURT_WIDTH - 2 * OPPONENT_ATTACK_TARGET_MARGIN),
+        y: NET_Y + OPPONENT_ATTACK_TARGET_MARGIN + random() * (NET_Y - 2 * OPPONENT_ATTACK_TARGET_MARGIN),
+      };
+      ball.launch(from, target, {
+        duration: OPPONENT_ATTACK_DURATION,
+        peakHeight: OPPONENT_ATTACK_PEAK_HEIGHT,
+        toucher: this.toucherId,
+      });
+    } else {
+      // Safe default: generous, easy-to-react-to return.
       const target: Vec2 = {
         x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
         y: NET_Y + SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
@@ -72,14 +128,7 @@ export class OpponentAI {
         peakHeight: OPPONENT_RETURN_PEAK_HEIGHT,
         toucher: this.toucherId,
       });
-      this.state = 'returning';
-      return;
     }
-
-    const dir = normalize({ x: ball.pos.x - this.pos.x, y: ball.pos.y - this.pos.y });
-    this.pos.x += dir.x * OPPONENT_SPEED * dt;
-    this.pos.y += dir.y * OPPONENT_SPEED * dt;
-    this.pos = this.clampToOwnHalf(this.pos);
   }
 
   private updateReturning(dt: number): void {
