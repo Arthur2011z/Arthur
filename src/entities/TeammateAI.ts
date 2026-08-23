@@ -2,6 +2,7 @@ import { Vec2, clamp, distance, normalize } from '../utils/math';
 import { random } from '../utils/random';
 import {
   BACK_ZONE_CENTER_Y,
+  CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
   EMERGENCY_DURATION_THRESHOLD,
@@ -109,8 +110,22 @@ export class TeammateAI {
       return;
     }
 
+    // Both the ground-plane distance AND the ball's current height must be
+    // in range in the same frame - being under a ball still meters overhead
+    // is not a catch (see CATCHABLE_HEIGHT).
     const toBall = distance(this.pos, ball.pos);
-    if (toBall <= HIT_RANGE) {
+    const distanceOk = toBall <= HIT_RANGE;
+    const heightOk = ball.height <= CATCHABLE_HEIGHT;
+    if (distanceOk && heightOk) {
+      console.log('[BallContact] teammate zuspiel', {
+        distance: Number(toBall.toFixed(3)),
+        height: Number(ball.height.toFixed(3)),
+        hitRange: HIT_RANGE,
+        catchableHeight: CATCHABLE_HEIGHT,
+        conditionA_distanceOk: distanceOk,
+        conditionB_heightOk: heightOk,
+        conditionC_inputActive: true, // AI has no button - "active" once shouldReact() committed it to moving_to_ball
+      });
       this.playBall(ball, playerPos, mustCrossNet);
       this.state = 'returning';
       return;

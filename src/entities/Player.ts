@@ -13,6 +13,7 @@ import { random } from '../utils/random';
 import {
   ASSIST_RANGE,
   ASSIST_SPEED_MULTIPLIER,
+  CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
   DIVE_DASH_DURATION,
@@ -182,7 +183,7 @@ export class Player {
     }
 
     if ((this.passBuffered || this.hitBuffered) && this.ballReachable(ball)) {
-      this.resolveContact(ball, teammatePos, mustCrossNet);
+      this.resolveContact(ball, teammatePos, mustCrossNet, 'button');
     }
   }
 
@@ -227,12 +228,17 @@ export class Player {
   }
 
   /** Whether the ball is a live target the player can react to right now:
-   * actually flying, within HIT_RANGE, and - crucially - not the very ball
-   * the player themselves just launched (a freshly-hit ball starts out
-   * colocated with the player, which would otherwise immediately re-trigger
-   * a "catch" on the very next frame). */
+   * actually flying, within HIT_RANGE of the ball's *current* ground-plane
+   * position (never ball.target, the landing-point prediction), at a height
+   * the player can actually reach, and - crucially - not the very ball the
+   * player themselves just launched (a freshly-hit ball starts out colocated
+   * with the player, which would otherwise immediately re-trigger a "catch"
+   * on the very next frame). All three - distance, height, freshly-hit guard
+   * - must hold in the same frame; being close on the ground while the ball
+   * is still meters overhead is deliberately NOT enough (see CATCHABLE_HEIGHT). */
   private ballReachable(ball: Ball): boolean {
-    return ball.state === 'flying' && ball.lastToucher !== 'player' && distance(this.pos, ball.pos) <= HIT_RANGE;
+    if (ball.state !== 'flying' || ball.lastToucher === 'player') return false;
+    return distance(this.pos, ball.pos) <= HIT_RANGE && ball.height <= CATCHABLE_HEIGHT;
   }
 
   /** Wisch-Hechten: while the ball is flying and the swipe points roughly
@@ -260,7 +266,7 @@ export class Player {
 
   private updateDiving(dt: number, ball: Ball, teammatePos: Vec2, mustCrossNet: boolean): void {
     if (this.ballReachable(ball)) {
-      this.resolveContact(ball, teammatePos, mustCrossNet);
+      this.resolveContact(ball, teammatePos, mustCrossNet, 'hechten');
       this.state = 'recovering';
       this.stateTimer = 0;
       return;
@@ -280,14 +286,35 @@ export class Player {
    * Notfall-Schlag if that was explicitly buffered, or if this touch must
    * legally cross the net (mandatory final team touch); a controlled pass to
    * the teammate otherwise (the default for a bare Hechten with nothing
-   * buffered, and for a buffered Pass). */
-  private resolveContact(ball: Ball, teammatePos: Vec2, mustCrossNet: boolean): void {
-    if (this.hitBuffered || mustCrossNet) {
+   * buffered, and for a buffered Pass). `origin` is only for the debug log
+   * below - it doesn't affect which shot fires. */
+  private resolveContact(ball: Ball, teammatePos: Vec2, mustCrossNet: boolean, origin: 'hechten' | 'button'): void {
+    const fired = this.hitBuffered || mustCrossNet ? 'notfall-schlag' : 'pass';
+    this.logContact(origin === 'hechten' ? 'hechten' : fired, ball);
+    if (fired === 'notfall-schlag') {
       this.fireHit(ball);
     } else {
       this.firePass(ball, teammatePos);
     }
     this.clearPendingInputs();
+  }
+
+  /** Required debug trail for the "contact fires without the player actually
+   * being at the ball's current position/height" bug: logs, at the exact
+   * moment ANY contact actually fires, the live distance and height that
+   * satisfied ballReachable() - so a fix (or a regression) is verifiable from
+   * the console instead of taken on faith. Logged only on an actual fire,
+   * never on a rejected attempt (ball just keeps flying then, silently). */
+  private logContact(action: string, ball: Ball): void {
+    console.log('[BallContact] player', action, {
+      distance: Number(distance(this.pos, ball.pos).toFixed(3)),
+      height: Number(ball.height.toFixed(3)),
+      hitRange: HIT_RANGE,
+      catchableHeight: CATCHABLE_HEIGHT,
+      conditionA_distanceOk: true,
+      conditionB_heightOk: true,
+      conditionC_inputActive: true,
+    });
   }
 
   private clearPendingInputs(): void {
@@ -373,6 +400,8 @@ export class Player {
       this.stateTimer = 0;
       return;
     }
+
+    this.logContact('schmetterschlag', ball);
 
     const riskT = clamp(
       (this.jumpStartNetDistance - NET_RISK_SAFE_DISTANCE) / (NET_RISK_MAX_DISTANCE - NET_RISK_SAFE_DISTANCE),

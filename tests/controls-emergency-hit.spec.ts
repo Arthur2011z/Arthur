@@ -15,12 +15,18 @@ async function getState(page: Page) {
   });
 }
 
-async function launchBall(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, duration: number) {
+async function launchBall(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  duration: number,
+  peakHeight = 3,
+) {
   await page.evaluate(
-    ({ from, to, duration }) => {
-      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight: 3, toucher: null });
+    ({ from, to, duration, peakHeight }) => {
+      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight, toucher: null });
     },
-    { from, to, duration },
+    { from, to, duration, peakHeight },
   );
 }
 
@@ -73,7 +79,11 @@ test.describe('Notfall-Schlag: small, no-jump, always-safe fallback', () => {
     await page.goto(distIndex);
 
     await teleportPlayer(page, { x: 1, y: 15 });
-    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4);
+    // Low peakHeight (1m, vs. the helper's 3m default) so the ball is
+    // actually near ground level - within CATCHABLE_HEIGHT - at the moment
+    // it passes through the player, instead of sailing overhead at ~2.7m
+    // right as it crosses their position.
+    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4, 1);
 
     await tapButton(page, 'hit-btn');
     const rightAfterPress = await getState(page);

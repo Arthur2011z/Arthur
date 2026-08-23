@@ -27,6 +27,16 @@ export const OPPONENT_SPEED = 3.8;
 
 // Interaction ranges, in meters.
 export const HIT_RANGE = 0.7;
+// Contact (Hechten/Pass/Schlag/Schmetterschlag/Zuspiel, for every entity -
+// player, teammate, opponent) additionally requires the ball's *current*
+// flight height to be at or below this - HIT_RANGE alone only checks the
+// ground-plane (x/y) distance to the ball's live position, which a high arc
+// can satisfy while the ball is still meters overhead, nowhere near actually
+// touchable. Both this height check AND the HIT_RANGE distance check use the
+// ball's live pos/height, never ball.target (the landing-point prediction) -
+// see Ball.height and the callers of Ball.launch() for how each shot's own
+// peakHeight compares against this.
+export const CATCHABLE_HEIGHT = 2.0;
 
 // Wisch-Hechten (swipe-to-dive): how far away the nearest point of the ball's
 // remaining flight path may be for a swipe to engage at all, and how

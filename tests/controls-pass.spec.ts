@@ -17,12 +17,18 @@ async function getState(page: Page) {
   });
 }
 
-async function launchBall(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, duration: number) {
+async function launchBall(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  duration: number,
+  peakHeight = 3,
+) {
   await page.evaluate(
-    ({ from, to, duration }) => {
-      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight: 3, toucher: null });
+    ({ from, to, duration, peakHeight }) => {
+      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight, toucher: null });
     },
-    { from, to, duration },
+    { from, to, duration, peakHeight },
   );
 }
 
@@ -107,8 +113,11 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     // Ball starts deep behind the player and drifts slowly down through
     // their position toward the opponent half - it only enters HIT_RANGE
     // roughly a second in, giving the "too early" check below a comfortable
-    // margin against round-trip timing.
-    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4);
+    // margin against round-trip timing. Low peakHeight (1m, vs. the helper's
+    // 3m default) so the ball is actually near ground level - and so within
+    // CATCHABLE_HEIGHT - at the moment it passes through the player, instead
+    // of sailing overhead at ~2.7m right as it crosses their position.
+    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4, 1);
 
     await tapButton(page, 'pass-btn');
     const rightAfterPress = await getState(page);

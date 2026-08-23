@@ -45,6 +45,20 @@ async function forceRandom(page: Page, value: number) {
   await page.evaluate((value) => (window as any).__setRandom(() => value), value);
 }
 
+/** Stops the AI teammate/opponents from acting at all - several of these
+ * tests deliberately jump/spike right next to the net, and the teammate's
+ * dynamic zone-homing (or an opponent's own reaction) can otherwise
+ * occasionally wander into range of the very ball the player just spiked,
+ * redirecting it before the test gets to observe lastToucher === 'player'.
+ * Only the player's own Jump-Smash mechanic is under test in this file. */
+async function stubAiEntities(page: Page) {
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.state.teammate.update = () => {};
+    for (const o of g.state.opponents) o.update = () => {};
+  });
+}
+
 async function swipeOnCanvas(page: Page, dx: number, dy: number) {
   const canvas = await page.locator('#game-canvas').boundingBox();
   if (!canvas) throw new Error('canvas not found');
@@ -60,6 +74,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('the jump button works from anywhere on the field, not just near the net', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
 
     await teleportPlayer(page, { x: 4, y: 15 }); // deep baseline, far from the net
     await tapButton(page, 'jump-btn');
@@ -72,6 +87,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('a jump with no ball nearby completes with nothing fired', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
 
     await teleportPlayer(page, { x: 4, y: 15 });
     await tapButton(page, 'jump-btn');
@@ -86,6 +102,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('ball contact while airborne opens the slow-motion aim window', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
 
     await teleportPlayer(page, { x: 4, y: 9 });
     // Ball sits right at the player's position already - contact is
@@ -101,6 +118,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('a swipe during the aim window sets the spike direction and resolves immediately', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0.99); // never net-fault, regardless of distance
 
     await teleportPlayer(page, { x: 4, y: 9 });
@@ -124,6 +142,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('no swipe during the aim window times out with the default straight-ahead aim', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0.99); // never net-fault
 
     await teleportPlayer(page, { x: 4, y: 9 });
@@ -144,6 +163,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('net-fault risk: jumping right at the net always clears, even on an unlucky roll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0); // worst possible roll
 
     await teleportPlayer(page, { x: 4, y: 8.4 }); // 0.4m from the net - well within the safe distance
@@ -160,6 +180,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('net-fault risk: jumping far from the net nets out on an unlucky roll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0); // worst possible roll
 
     await teleportPlayer(page, { x: 4, y: 15 }); // deep baseline, well past the risk-max distance
@@ -178,6 +199,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0.99); // rule out the net-fault roll as a confound
 
     // Drives Player.update()/Ball.update() directly in lockstep, mirroring
@@ -230,6 +252,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
   test('net-fault risk: jumping far from the net can still succeed on a lucky roll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await stubAiEntities(page);
     await forceRandom(page, 0.99); // best possible roll
 
     await teleportPlayer(page, { x: 4, y: 15 });
