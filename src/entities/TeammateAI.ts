@@ -1,4 +1,5 @@
 import { Vec2, clamp, distance, normalize } from '../utils/math';
+import { random } from '../utils/random';
 import {
   COURT_LENGTH,
   COURT_WIDTH,
@@ -24,8 +25,9 @@ type TeammateState = 'home' | 'moving_to_ball' | 'returning';
  * AI teammate: only leaves home when the ball is actually coming near it or
  * flying toward it (which also covers the human player's dive-pass, since that
  * always targets this teammate's position); plays it — a quick emergency
- * save if it arrived too fast/direct, otherwise a high set to the human player
- * — then heads back home. Idle at home whenever the ball isn't headed its way.
+ * save if it arrived too fast/direct or this is the team's mandatory final
+ * touch, otherwise a high set to the human player — then heads back home.
+ * Idle at home whenever the ball isn't headed its way.
  */
 export class TeammateAI {
   readonly homePos: Vec2 = { ...TEAMMATE_HOME };
@@ -33,13 +35,13 @@ export class TeammateAI {
   radius = PLAYER_RADIUS;
   state: TeammateState = 'home';
 
-  update(dt: number, ball: Ball, playerPos: Vec2): void {
+  update(dt: number, ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
     switch (this.state) {
       case 'home':
         if (this.shouldReact(ball)) this.state = 'moving_to_ball';
         break;
       case 'moving_to_ball':
-        this.updateMovingToBall(dt, ball, playerPos);
+        this.updateMovingToBall(dt, ball, playerPos, mustCrossNet);
         break;
       case 'returning':
         this.updateReturning(dt);
@@ -55,7 +57,7 @@ export class TeammateAI {
     );
   }
 
-  private updateMovingToBall(dt: number, ball: Ball, playerPos: Vec2): void {
+  private updateMovingToBall(dt: number, ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
     if (ball.state !== 'flying') {
       // The ball landed, or was already handled elsewhere - stand down.
       this.state = 'returning';
@@ -64,7 +66,7 @@ export class TeammateAI {
 
     const toBall = distance(this.pos, ball.pos);
     if (toBall <= HIT_RANGE) {
-      this.playBall(ball, playerPos);
+      this.playBall(ball, playerPos, mustCrossNet);
       this.state = 'returning';
       return;
     }
@@ -75,17 +77,21 @@ export class TeammateAI {
     this.pos = this.clampToOwnHalf(this.pos);
   }
 
-  private playBall(ball: Ball, playerPos: Vec2): void {
+  private playBall(ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
     // Launch from the ball's own live position, not this.pos: contact is
     // allowed within HIT_RANGE (not exact overlap), so using the catcher's
     // position here would snap the ball sideways/vertically at the moment of
     // contact instead of continuing smoothly from where it actually is.
     const from = { ...ball.pos };
-    const isEmergency = ball.timeRemaining < EMERGENCY_TIME_THRESHOLD;
+    // Send it straight back over the net - rather than setting up the player
+    // - either because it arrived too fast/direct to set up properly, or
+    // because this is the team's mandatory final touch (a set here would
+    // illegally stay on the human side for a 4th touch).
+    const isEmergency = ball.timeRemaining < EMERGENCY_TIME_THRESHOLD || mustCrossNet;
     if (isEmergency) {
       const target: Vec2 = {
-        x: RANDOM_TARGET_MARGIN + Math.random() * (COURT_WIDTH - 2 * RANDOM_TARGET_MARGIN),
-        y: RANDOM_TARGET_MARGIN + Math.random() * (NET_Y - 2 * RANDOM_TARGET_MARGIN),
+        x: RANDOM_TARGET_MARGIN + random() * (COURT_WIDTH - 2 * RANDOM_TARGET_MARGIN),
+        y: RANDOM_TARGET_MARGIN + random() * (NET_Y - 2 * RANDOM_TARGET_MARGIN),
       };
       ball.launch(from, target, {
         duration: TEAMMATE_EMERGENCY_SET_DURATION,

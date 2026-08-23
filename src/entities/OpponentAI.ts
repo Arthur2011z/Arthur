@@ -1,4 +1,5 @@
 import { Vec2, clamp, distance, normalize } from '../utils/math';
+import { random } from '../utils/random';
 import {
   COURT_WIDTH,
   HIT_RANGE,
@@ -63,8 +64,8 @@ export class OpponentAI {
       // of contact instead of continuing smoothly from where it actually is.
       const from = { ...ball.pos };
       const target: Vec2 = {
-        x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
-        y: NET_Y + SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
+        x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
+        y: NET_Y + SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
       };
       ball.launch(from, target, {
         duration: OPPONENT_RETURN_DURATION,

@@ -63,9 +63,10 @@ export class Renderer {
     const liftedPos: Vec2 = { x: player.pos.x, y: player.pos.y - player.height };
     this.drawToken(ctx, liftedPos, player.radius, PLAYER_COLOR);
 
-    if (player.state === 'jumping_up') {
-      // "The Schlag window is open" ring, plus a short line showing the
-      // current aim direction (driven live by the joystick - see Player.aimDir).
+    if (player.state === 'slowmo_aim') {
+      // The slow-motion aim window is open: a ring plus a short line showing
+      // the current aim direction (driven live by the aim-swipe, or the
+      // default straight-ahead direction until one is made).
       ctx.strokeStyle = JUMP_READY_RING_COLOR;
       ctx.lineWidth = 0.05;
       ctx.beginPath();

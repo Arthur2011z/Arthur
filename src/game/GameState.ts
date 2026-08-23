@@ -1,8 +1,9 @@
-import { Ball } from '../entities/Ball';
+import { Ball, BallToucher } from '../entities/Ball';
 import { OpponentAI } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { InputSnapshot } from '../input/InputManager';
+import { random } from '../utils/random';
 import { distance, Vec2 } from '../utils/math';
 import {
   AUTO_SERVE_DELAY,
@@ -12,10 +13,12 @@ import {
   HUMAN_SERVE_DURATION,
   HUMAN_SERVE_PEAK_HEIGHT,
   HUMAN_SERVE_TIMEOUT,
+  MAX_TEAM_TOUCHES,
   NET_Y,
   OPPONENT_HOMES,
   POINT_PAUSE_DURATION,
   SERVE_MARGIN,
+  SLOWMO_FACTOR,
   WIN_MARGIN,
   WIN_SCORE,
 } from './constants';
@@ -25,7 +28,8 @@ export type Team = 'human' | 'opponents';
 
 /**
  * Single source of truth for the game world: the human player, the ball, the
- * AI teammate, the two AI opponents, and rally-point scoring to WIN_SCORE.
+ * AI teammate, the two AI opponents, rally-point scoring to WIN_SCORE, and
+ * the volleyball touch-limit (see rallyTouches/mustCrossNet below).
  */
 export class GameState {
   player = new Player();
@@ -38,7 +42,8 @@ export class GameState {
   score = { human: 0, opponents: 0 };
   phase: GamePhase = 'playing';
   winner: Team | null = null;
-  /** Non-null while the human is holding serve, waiting for their Schlag press. */
+  /** Non-null while the human is holding serve, waiting for their
+   * Notfall-Schlag press. */
   awaitingServe: Team | null = null;
 
   private ballIdleTimer = 0;
@@ -46,6 +51,11 @@ export class GameState {
   private serveHoldTimer = 0;
   /** Whoever wins a rally serves the next one; opponents serve first. */
   private servingTeam: Team = 'opponents';
+  /** How many consecutive touches the currently-touching team has made since
+   * the ball last crossed the net (or since the current serve went up). At
+   * MAX_TEAM_TOUCHES - 1, the *next* touch by that team is mandatory-final -
+   * see mustCrossNet(). */
+  private rallyTouches: { team: Team | null; count: number } = { team: null, count: 0 };
 
   update(dt: number, input: InputSnapshot): void {
     if (this.phase === 'game_over') return;
@@ -66,14 +76,24 @@ export class GameState {
     }
 
     const wasFlying = this.ball.state === 'flying';
+    const prevToucher = this.ball.lastToucher;
 
-    this.player.update(dt, input, this.ball, this.teammate.pos);
-    this.ball.update(dt);
-    this.teammate.update(dt, this.ball, this.player.pos);
+    this.player.update(dt, input, this.ball, this.teammate.pos, this.mustCrossNet('human'));
+    // The ball's own flight is what visibly carries the "Zeitlupe": while the
+    // player is mid-aim (slowmo_aim), it's fed a drastically scaled-down dt so
+    // it barely creeps along its flight for the (real-time) duration of the
+    // window, in sync with the player's own suspended jump animation.
+    const ballDt = this.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt;
+    this.ball.update(ballDt);
+    this.teammate.update(dt, this.ball, this.player.pos, this.mustCrossNet('human'));
 
     const leadOpponent = this.findLeadOpponent();
     for (const opponent of this.opponents) {
       opponent.update(dt, this.ball, opponent === leadOpponent);
+    }
+
+    if (this.ball.lastToucher !== prevToucher && this.ball.lastToucher !== null) {
+      this.registerTouch(this.ball.lastToucher);
     }
 
     if (wasFlying && this.ball.state === 'idle') {
@@ -107,6 +127,24 @@ export class GameState {
     this.pointPauseTimer = 0;
     this.serveHoldTimer = 0;
     this.servingTeam = 'opponents';
+    this.rallyTouches = { team: null, count: 0 };
+  }
+
+  /** Whether `team`'s *next* touch is mandatory-final (its 3rd consecutive
+   * touch since the ball last crossed the net) - Player and TeammateAI use
+   * this to force the ball back over the net instead of staying on their own
+   * side (a pass/set) for that touch. */
+  private mustCrossNet(team: Team): boolean {
+    return this.rallyTouches.team === team && this.rallyTouches.count >= MAX_TEAM_TOUCHES - 1;
+  }
+
+  private registerTouch(toucher: BallToucher): void {
+    const team: Team = toucher === 'player' || toucher === 'teammate' ? 'human' : 'opponents';
+    if (this.rallyTouches.team === team) {
+      this.rallyTouches.count += 1;
+    } else {
+      this.rallyTouches = { team, count: 1 };
+    }
   }
 
   /** Only the closer of the two opponents chases a ball headed their way, so
@@ -147,9 +185,10 @@ export class GameState {
 
   /** Dispatches the next serve to whoever won the last rally: the opponents
    * auto-serve immediately, the human instead holds the ball until they
-   * press Schlag to send it (or a fallback timeout elapses). */
+   * press Notfall-Schlag to send it (or a fallback timeout elapses). */
   private beginServe(servingTeam: Team): void {
     this.ballIdleTimer = 0;
+    this.rallyTouches = { team: null, count: 0 };
     if (servingTeam === 'opponents') {
       this.launchOpponentServe();
     } else {
@@ -164,8 +203,8 @@ export class GameState {
   private launchOpponentServe(): void {
     const origin = { ...this.opponents[0].pos };
     const target: Vec2 = {
-      x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
-      y: NET_Y + SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
+      x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
+      y: NET_Y + SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
     };
     this.ball.launch(origin, target, {
       duration: AUTO_SERVE_DURATION,
@@ -175,32 +214,32 @@ export class GameState {
   }
 
   /** While the human holds serve: the ball tracks their position (free
-   * movement still works), and only the Schlag button (or the safety
-   * timeout) sends it over - Sprung/Hecht and Pass are withheld entirely so
-   * an accidental press can't race a zero-range action against the serve
-   * itself. */
+   * movement still works), and only the Notfall-Schlag button (or the safety
+   * timeout) sends it over - swipe, jump and Pass are withheld entirely so an
+   * accidental press can't race a zero-range action against the serve itself. */
   private updateServeHold(dt: number, input: InputSnapshot): void {
     this.serveHoldTimer += dt;
 
     this.player.update(
       dt,
-      { move: input.move, reach: false, attack: false, pass: false },
+      { move: input.move, swipe: null, jump: false, pass: false, hit: false },
       this.ball,
       this.teammate.pos,
+      false,
     );
     this.ball.pos = { ...this.player.pos };
-    this.teammate.update(dt, this.ball, this.player.pos);
+    this.teammate.update(dt, this.ball, this.player.pos, false);
     for (const opponent of this.opponents) opponent.update(dt, this.ball, false);
 
-    if (input.attack || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
+    if (input.hit || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
       this.fireHumanServe();
     }
   }
 
   private fireHumanServe(): void {
     const target: Vec2 = {
-      x: SERVE_MARGIN + Math.random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
-      y: SERVE_MARGIN + Math.random() * (NET_Y - 2 * SERVE_MARGIN),
+      x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
+      y: SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
     };
     this.ball.launch({ ...this.player.pos }, target, {
       duration: HUMAN_SERVE_DURATION,

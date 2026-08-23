@@ -27,40 +27,46 @@ export const OPPONENT_SPEED = 3.8;
 
 // Interaction ranges, in meters.
 export const HIT_RANGE = 0.7;
-export const NET_PROXIMITY_RANGE = 1.5;
 
-// Sprung/Hecht button: how far away the nearest point of the ball's remaining
-// flight path may be for a press to engage at all, and how forgiving the
-// joystick has to point toward it. Deliberately more generous than the old
-// swipe-based dive (button + auto-movement to the ball needs less precision
-// than a gesture aimed by hand).
+// Wisch-Hechten (swipe-to-dive): how far away the nearest point of the ball's
+// remaining flight path may be for a swipe to engage at all, and how
+// forgiving the swipe direction has to be. This is the *big* one-shot dash
+// for balls genuinely out of easy reach - distinct from the light continuous
+// ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump below.
 export const REACH_RANGE = 3;
 export const REACH_AIM_TOLERANCE_COS = 0.5; // ~60 degree cone
 // Below this distance to the intercept point, no aiming is required at all -
 // the ball is basically already where the player stands.
 export const REACH_AIMLESS_RANGE = HIT_RANGE;
-// Joystick magnitude below which "no direction held" is assumed (dead zone).
-export const AIM_DEADZONE = 0.15;
 
-// Timings, in seconds.
 export const DIVE_DASH_DURATION = 0.22;
 export const DIVE_RECOVERY_DURATION = 0.5;
 
+// Light automatic "the AI nudges you the last bit of the way" correction used
+// by Pass, Notfall-Schlag and the Jump-Smash's in-air drift: much shorter
+// range than REACH_RANGE's dash, walked smoothly at (a touch faster than)
+// normal speed rather than dashed.
+export const ASSIST_RANGE = 2.2;
+export const ASSIST_SPEED_MULTIPLIER = 1.15;
+// Even lighter: how far the Jump-Smash's in-air drift toward the ball may
+// pull the player while airborne (smaller than ASSIST_RANGE on purpose - a
+// jump's own correction is meant to be subtle, not a repositioning dash).
+export const JUMP_ASSIST_RANGE = 1.6;
+
 export const SPIKE_RANGE = 5;
-export const REACH_SAFETY_MARGIN = 0.85;
-export const EMERGENCY_TIME_THRESHOLD = 0.35;
 
 export const WIN_SCORE = 21;
 export const WIN_MARGIN = 2;
 
-// Input buffering: Schlag/Pass may be pressed before the ball is actually in
-// range - the press is remembered for this long and resolved the moment the
-// ball comes within HIT_RANGE, so timing never has to be split-second.
+// Volleyball touch-limit: a team may touch the ball at most this many times
+// before it must cross back over the net.
+export const MAX_TEAM_TOUCHES = 3;
+
+// Input buffering: Pass/Notfall-Schlag may be pressed before the ball is
+// actually in range - the press is remembered for this long and resolved the
+// moment the ball comes within HIT_RANGE (or ASSIST_RANGE homing brings the
+// player to it), so timing never has to be split-second.
 export const INPUT_BUFFER_WINDOW = 1.2;
-// Extra grace period right after the jump's peak (into the fall) during which
-// a buffered Schlag/Pass still resolves, so aiming a spike never feels like a
-// single-frame deadline.
-export const JUMP_SCHLAG_GRACE_DURATION = 0.15;
 
 // Opponent auto-serve (also the bootstrap/fallback serve at game start): fair
 // and easy to react to - AUTO_SERVE_DELAY is only ever reached at the very
@@ -70,42 +76,74 @@ export const AUTO_SERVE_DELAY = 2;
 export const AUTO_SERVE_DURATION = 1.3;
 export const AUTO_SERVE_PEAK_HEIGHT = 3;
 
-// Human serve: the ball rests "in hand" (tracks the player) until the Schlag
-// button sends it over - generous, so normal play never feels rushed - or
-// this fallback timeout elapses, so the game can never get permanently stuck.
+// Human serve: the ball rests "in hand" (tracks the player) until the
+// Notfall-Schlag button sends it over - generous, so normal play never feels
+// rushed - or this fallback timeout elapses, so the game can never get
+// permanently stuck.
 export const HUMAN_SERVE_TIMEOUT = 5; // seconds
 export const HUMAN_SERVE_DURATION = 1.3; // seconds - same easy, reactable arc as the opponent auto-serve
 export const HUMAN_SERVE_PEAK_HEIGHT = 3; // meters
 
 // Pass button: a controlled, medium touch straight to the AI teammate -
-// available any time the ball is in HIT_RANGE, whether reached by walking,
-// diving or jumping. The deliberate "safe" alternative to a Schlag attack.
+// available any time the ball is in HIT_RANGE (or brought into it via
+// ASSIST_RANGE homing). The deliberate "safe" alternative to the Jump-Smash.
 export const PASS_DURATION = 0.7;
 export const PASS_PEAK_HEIGHT = 2.5;
 
+// Notfall-Schlag (small emergency button): simple, weak, no-jump touch that
+// always sends the ball back over the net to a generous, safe spot - the
+// "get it over somehow" fallback when in trouble.
+export const HIT_DURATION = 0.9;
+export const HIT_PEAK_HEIGHT = 2.2;
+
 // Random target margin (meters from the court edges) used whenever a return
-// picks a generous, in-bounds spot rather than a precisely aimed one (the AI
-// teammate's emergency self-set, the opponents' return).
+// picks a generous, in-bounds spot rather than a precisely aimed one (serves,
+// the AI teammate's emergency self-set, the Notfall-Schlag, the opponents'
+// return).
 export const RANDOM_TARGET_MARGIN = 2;
 
-// Aimed spike (Schlag button, only while jumping near the net): fast and flat
-// - the reliable way to score. Aim direction comes from whatever the joystick
-// is held toward during the jump (see Player.aimDir), defaulting to straight
-// over the net if the stick is left centered the whole time.
+// Aimed spike (Jump-Smash, resolved at the end of the slow-motion aim
+// window): fast and flat - the reliable way to score, provided the net-fault
+// risk roll (see NET_RISK_* below) doesn't intervene. Aim direction comes
+// from the swipe performed during slowmo_aim, defaulting to straight over the
+// net if no swipe was made before the window times out.
 export const SPIKE_DURATION = 0.5;
 export const SPIKE_PEAK_HEIGHT = 1.2;
 export const SPIKE_TARGET_MARGIN = 0.3;
 
-// Sprung/Hecht button: pressing it while the joystick points roughly toward
-// the ball's flight path sends the player into a brief automatic approach -
-// a vertical hop (with hang time) if already near the net, a flat dash
-// otherwise - toward the nearest point of that path; the exact positioning is
-// handled by the game, not by the player's own precision. Schlag/Pass then
-// resolve once the ball is actually within HIT_RANGE (see INPUT_BUFFER_WINDOW
-// and JUMP_SCHLAG_GRACE_DURATION above for how forgiving the timing is).
+// Jump-Smash: works from anywhere, anytime (not just near the net) - pressing
+// it always jumps. A light in-air drift (JUMP_ASSIST_RANGE above) nudges the
+// player toward the ball's predicted intercept point while rising.
 export const JUMP_RISE_DURATION = 0.35; // seconds, press -> peak
-export const JUMP_FALL_DURATION = 0.3; // seconds, peak -> back to 'active'
+export const JUMP_FALL_DURATION = 0.3; // seconds, peak -> back to 'active' (no contact made)
 export const JUMP_PEAK_HEIGHT = 0.6; // meters, visual-only hop height
+
+// Slow-motion aim window: opens the instant the ball actually reaches
+// HIT_RANGE while airborne. Both the ball (frozen via BallFlightState =
+// 'held') and the player's own animation slow down together for this long in
+// *real* wall-clock time (deliberately not scaled itself, so the window
+// always feels the same short-but-clear length regardless of SLOWMO_FACTOR).
+// A swipe during the window sets the spike's aim and resolves immediately;
+// otherwise it resolves automatically at the end with the default aim.
+export const SLOWMO_FACTOR = 0.18;
+export const SLOWMO_REAL_DURATION = 0.55; // seconds, real time
+
+// Risk/reward: the further from the net the player was standing at the
+// moment they jumped, the higher the chance the resulting spike nets out
+// instead of clearing - linear ramp between the two distances below, capped
+// at NET_RISK_MAX.
+export const NET_RISK_SAFE_DISTANCE = 2; // meters from the net: 0% risk at/below this
+export const NET_RISK_MAX_DISTANCE = 7; // meters from the net: risk caps here
+export const NET_RISK_MAX = 0.55;
+
+// A failed net-risk roll: a short, low shot that thuds into the net and
+// drops back on the hitter's own side - lands just past the net line on their
+// own half, so the existing landed-in-which-half scoring logic (see
+// GameState.handleBallLanded) attributes the point correctly with no special
+// "fault" state needed.
+export const NET_FAULT_DURATION = 0.22;
+export const NET_FAULT_PEAK_HEIGHT = 0.4;
+export const NET_FAULT_OWN_SIDE_MARGIN = 0.3;
 
 // AI teammate: reacts only once the ball is within this radius of its current
 // position or of where the ball is actually headed (ball.target) - covers both
@@ -115,37 +153,57 @@ export const TEAMMATE_REACT_RADIUS = 2.5;
 // Close enough to home to snap and stop, instead of asymptotically creeping in.
 export const TEAMMATE_RETURN_EPSILON = 0.1;
 
-// Emergency self-set save (ball arrived too fast/direct to set up properly):
-// low and quick, just enough to keep it alive over the net.
+// Emergency self-set save (ball arrived too fast/direct to set up properly,
+// or this is the team's mandatory final touch): low and quick, just enough to
+// keep it alive over the net.
 export const TEAMMATE_EMERGENCY_SET_DURATION = 0.5;
 export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
+export const EMERGENCY_TIME_THRESHOLD = 0.35;
 
 // Normal case: a high, easy set toward the net, to the human player's current
 // position.
 export const TEAMMATE_SET_DURATION = 0.85;
 export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
 
-// Opponent AI: simple return - once it reaches the ball, sends it back into a
-// generous, random spot in the human half. No emergency/set distinction needed.
+// Two zones within the human half the player and AI teammate dynamically
+// split between (net/front vs. back) - see TeammateAI's home-position logic.
+export const ZONE_SPLIT_Y = NET_Y + (COURT_LENGTH - NET_Y) / 2;
+
+// Opponent AI: once it reaches the ball, sends it back - usually a safe,
+// generous return, sometimes an aggressive attack, occasionally a mechanical
+// error (see OpponentAI.playBall for the probabilities).
 export const OPPONENT_RETURN_EPSILON = 0.1;
 export const OPPONENT_RETURN_DURATION = 1.1;
 export const OPPONENT_RETURN_PEAK_HEIGHT = 2.7;
+export const OPPONENT_ATTACK_CHANCE = 0.25;
+export const OPPONENT_ATTACK_DURATION = 0.6;
+export const OPPONENT_ATTACK_PEAK_HEIGHT = 1.1;
+export const OPPONENT_ATTACK_TARGET_MARGIN = 0.6;
+export const OPPONENT_ERROR_CHANCE = 0.15;
+export const OPPONENT_FAULT_DURATION = 0.22;
+export const OPPONENT_FAULT_PEAK_HEIGHT = 0.4;
+export const OPPONENT_FAULT_OWN_SIDE_MARGIN = 0.3;
 
 // Shared inset margin for generating a random, in-bounds landing point on
-// either side of the net (used by serves and the opponent's return).
+// either side of the net (used by serves and the opponent's normal return).
 export const SERVE_MARGIN = 2;
 
 // Brief pause after a point is scored, so the score change reads clearly
 // before the next serve goes up.
 export const POINT_PAUSE_DURATION = 1.2;
 
-// Fixed home/base positions the AI teammate and opponents return to when not
-// actively playing the ball.
-export const TEAMMATE_HOME: { x: number; y: number } = {
-  x: COURT_WIDTH * 0.7,
-  y: NET_Y + 3,
-};
+// Fixed home/base positions the AI opponents return to when not actively
+// playing the ball.
 export const OPPONENT_HOMES: { x: number; y: number }[] = [
   { x: 2.5, y: 3 },
   { x: 5.5, y: 3 },
 ];
+
+// AI teammate's home/base position. TODO(Schritt 5): replaced by a position
+// computed dynamically from the player's current zone (net vs. back), so the
+// teammate covers whichever zone the player currently isn't in instead of
+// sitting at one fixed spot.
+export const TEAMMATE_HOME: { x: number; y: number } = {
+  x: COURT_WIDTH * 0.7,
+  y: NET_Y + 3,
+};

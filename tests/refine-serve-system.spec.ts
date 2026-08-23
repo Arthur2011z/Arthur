@@ -52,15 +52,15 @@ async function dragJoystick(page: Page, dx: number, dy: number, holdMs: number) 
   await page.mouse.up();
 }
 
-async function tapAttack(page: Page) {
-  const btn = page.locator('#attack-btn');
+async function tapHit(page: Page) {
+  const btn = page.locator('#hit-btn');
   const box = await btn.boundingBox();
-  if (!box) throw new Error('attack button not found');
+  if (!box) throw new Error('hit button not found');
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
 test.describe('Refine 5: real serve system', () => {
-  test('holding human serve: the ball follows the player until Schlag sends it over', async ({ page }) => {
+  test('holding human serve: the ball follows the player until Notfall-Schlag sends it over', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
@@ -76,7 +76,7 @@ test.describe('Refine 5: real serve system', () => {
     expect(afterMove.player.pos.x).toBeGreaterThan(held.player.pos.x);
     expect(afterMove.ball.pos).toEqual(afterMove.player.pos);
 
-    await tapAttack(page);
+    await tapHit(page);
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1000,
     });
