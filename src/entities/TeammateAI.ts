@@ -22,6 +22,7 @@ import {
   TEAMMATE_SET_NET_BLEND,
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
+  TEAMMATE_YIELD_MARGIN,
   RANDOM_TARGET_MARGIN,
   ZONE_SPLIT_Y,
 } from '../game/constants';
@@ -50,13 +51,18 @@ export interface PlayerInfo {
  * - Pass/Notfall-Schlag pressed (or still buffered) AND the player is
  *   already within their own ASSIST_RANGE homing distance of the ball - so
  *   about to close the gap and resolve it themselves.
- * - otherwise, whoever is currently closer to the ball's live position.
+ * - otherwise, only if the player is closer to the ball's live position by a
+ *   clear margin (TEAMMATE_YIELD_MARGIN). The two rules above are *active*
+ *   claims and win outright at any distance; this last one is mere proximity,
+ *   which on its own says nothing about whether the player actually intends to
+ *   play the ball - so a near-tie deliberately goes to the teammate, who
+ *   definitely will, rather than leaving the ball to drop between them.
  */
 function playerHasPriority(ball: Ball, player: PlayerInfo, teammatePos: Vec2): boolean {
   if (ball.state !== 'flying') return false;
   if (player.state === 'diving') return true;
   if (player.hasPendingContactInput && distance(player.pos, ball.pos) <= ASSIST_RANGE) return true;
-  return distance(player.pos, ball.pos) < distance(teammatePos, ball.pos);
+  return distance(player.pos, ball.pos) + TEAMMATE_YIELD_MARGIN < distance(teammatePos, ball.pos);
 }
 
 /** Whichever zone (net vs. back) `pos` is currently in, within the human

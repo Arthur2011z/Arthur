@@ -170,6 +170,19 @@ export const NET_FAULT_OWN_SIDE_MARGIN = 0.3;
 // "comes near" and "flies toward them" (including the human player's dive-pass,
 // which always targets the teammate's position directly).
 export const TEAMMATE_REACT_RADIUS = 2.5;
+
+// How much closer to the ball the player must be than the teammate before the
+// teammate defers to them on proximity alone (see playerHasPriority's third
+// rule in TeammateAI). Without a margin here, a player a mere centimeter
+// closer already claimed the ball - including when they had no intention of
+// playing it at all (nothing pressed, not diving), so the teammate would stand
+// by and let balls drop. This is deliberately only the *proximity* rule's
+// tolerance: an active claim (mid-Hechten-dive, or Pass/Notfall-Schlag pressed
+// within ASSIST_RANGE) still wins outright, at any distance, with no margin
+// required. Sits between HIT_RANGE and ASSIST_RANGE: large enough that a
+// near-tie goes to the teammate (who will actually play it), small enough that
+// a genuinely better-placed player still gets their ball.
+export const TEAMMATE_YIELD_MARGIN = 1.5;
 // Close enough to home to snap and stop, instead of asymptotically creeping in.
 export const TEAMMATE_RETURN_EPSILON = 0.1;
 

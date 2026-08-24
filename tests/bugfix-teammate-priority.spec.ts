@@ -29,7 +29,7 @@ function collectContacts(page: Page): string[] {
 }
 
 test.describe('Bugfix 5: the AI teammate yields to the player instead of stealing the ball', () => {
-  test('does not take a ball the player is clearly closer to', async ({ page }) => {
+  test('does not take a ball the player is closer to by a clear margin', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
     const contacts = collectContacts(page);
@@ -40,12 +40,13 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
 
       // Player parked right where the ball will arrive. The teammate is
       // close enough that its own TEAMMATE_REACT_RADIUS check on the ball's
-      // target fires (which is what used to send it in), but it is strictly
-      // farther from the ball than the player is the whole way.
+      // target fires (2.26m, inside 2.5m - which is what used to send it in),
+      // but the player leads it by 1.9-2.3m for the whole flight, clearing
+      // TEAMMATE_YIELD_MARGIN (1.5m) at every frame.
       g.state.player.pos.x = 5.6;
       g.state.player.pos.y = 11.2;
-      g.state.teammate.pos.x = 6.6;
-      g.state.teammate.pos.y = 12.0;
+      g.state.teammate.pos.x = 7.2;
+      g.state.teammate.pos.y = 12.8;
       g.state.teammate.state = 'home';
       g.state.ball.launch({ x: 5.6, y: 9.0 }, { x: 5.6, y: 11.2 }, { duration: 1.6, peakHeight: 1, toucher: null });
     });
@@ -55,6 +56,75 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
     expect(contacts.filter((l) => l.includes('teammate')).length).toBe(0);
     const after = await page.evaluate(() => (window as any).__game.state.ball.lastToucher);
     expect(after).not.toBe('teammate');
+  });
+
+  test('tolerance: still takes a near-tie ball the player is only marginally closer to', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    const contacts = collectContacts(page);
+
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      // Player stubbed idle: nothing pressed, not diving - so only the
+      // proximity rule is in play, which is exactly what the margin governs.
+      g.state.player.update = () => {};
+      for (const o of g.state.opponents) o.update = () => {};
+
+      // Player IS nearer the ball the whole flight, but only by 0.2-0.8m -
+      // inside TEAMMATE_YIELD_MARGIN (1.5m). Mere proximity says nothing
+      // about intent, so the teammate must still play it rather than stand
+      // by and let it drop.
+      g.state.player.pos.x = 5.3;
+      g.state.player.pos.y = 11.2;
+      g.state.teammate.pos.x = 6.9;
+      g.state.teammate.pos.y = 11.2;
+      g.state.teammate.state = 'home';
+      g.state.ball.launch({ x: 5.7, y: 8.0 }, { x: 5.7, y: 11.2 }, { duration: 1.6, peakHeight: 1, toucher: null });
+    });
+
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'teammate', undefined, {
+      timeout: 3000,
+    });
+
+    expect(contacts.filter((l) => l.includes('teammate')).length).toBe(1);
+  });
+
+  test('an active claim beats the margin: a pressed Pass wins even at a near-tie distance', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    const contacts = collectContacts(page);
+
+    // Press Pass BEFORE launching, so the click's network round-trip is not
+    // racing the flight: INPUT_BUFFER_WINDOW (1.2s) then comfortably covers
+    // the player's contact at t=0.83s of the 1.0s flight below.
+    const btn = page.locator('#pass-btn');
+    const box = await btn.boundingBox();
+    if (!box) throw new Error('pass button not found');
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      for (const o of g.state.opponents) o.update = () => {};
+      // Near-tie geometry: the player leads by only 0.3-1.1m the whole way,
+      // inside TEAMMATE_YIELD_MARGIN (1.5m), so the proximity rule alone
+      // would hand this ball to the teammate. The difference here is the
+      // player's active claim (buffered Pass), which wins outright once the
+      // ball is inside ASSIST_RANGE - at t=0.32s, comfortably before the
+      // teammate could have closed its own 2.2m gap (>=0.52s at
+      // TEAMMATE_SPEED), so it backs off without ever making contact.
+      g.state.player.pos.x = 5.3;
+      g.state.player.pos.y = 11.2;
+      g.state.teammate.pos.x = 7.2;
+      g.state.teammate.pos.y = 11.2;
+      g.state.teammate.state = 'home';
+      g.state.ball.launch({ x: 5.7, y: 8.0 }, { x: 5.7, y: 11.2 }, { duration: 1.0, peakHeight: 1, toucher: null });
+    });
+
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
+      timeout: 3000,
+    });
+
+    expect(contacts.filter((l) => l.includes('teammate')).length).toBe(0);
   });
 
   test('does not take a ball while the player is mid-Hechten-dive, even standing much closer to it', async ({
