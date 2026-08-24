@@ -95,8 +95,18 @@ export class TeammateAI {
     }
   }
 
+  /** Excludes the very ball the teammate itself just launched: playBall()
+   * transitions synchronously to 'returning', but if the teammate was
+   * already standing right at (or very near) its target base when it made
+   * contact, updateReturning() can snap it straight back to 'home' within a
+   * frame or two - at which point the ball it JUST hit is still live right
+   * next to it (well inside TEAMMATE_REACT_RADIUS), so shouldReact() would
+   * otherwise immediately fire again and send it straight back into
+   * 'moving_to_ball' to re-catch its own shot. Without this guard that's a
+   * real, observed double-touch within a single rally exchange - not two
+   * separate, legitimate touches later in the rally. */
   private shouldReact(ball: Ball): boolean {
-    if (ball.state !== 'flying') return false;
+    if (ball.state !== 'flying' || ball.lastToucher === 'teammate') return false;
     return (
       distance(ball.pos, this.pos) <= TEAMMATE_REACT_RADIUS ||
       distance(ball.target, this.pos) <= TEAMMATE_REACT_RADIUS
@@ -112,11 +122,15 @@ export class TeammateAI {
 
     // Both the ground-plane distance AND the ball's current height must be
     // in range in the same frame - being under a ball still meters overhead
-    // is not a catch (see CATCHABLE_HEIGHT).
+    // is not a catch (see CATCHABLE_HEIGHT). lastToucher guards against
+    // re-catching the very shot just fired (see shouldReact's doc comment) -
+    // kept here too, defensively, in case this state was ever entered by some
+    // other path.
     const toBall = distance(this.pos, ball.pos);
     const distanceOk = toBall <= HIT_RANGE;
     const heightOk = ball.height <= CATCHABLE_HEIGHT;
-    if (distanceOk && heightOk) {
+    const notOwnShot = ball.lastToucher !== 'teammate';
+    if (distanceOk && heightOk && notOwnShot) {
       console.log('[BallContact] teammate zuspiel', {
         distance: Number(toBall.toFixed(3)),
         height: Number(ball.height.toFixed(3)),
