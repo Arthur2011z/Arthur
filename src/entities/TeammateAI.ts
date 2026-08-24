@@ -1,4 +1,4 @@
-import { Vec2, clamp, distance, normalize } from '../utils/math';
+import { Vec2, clamp, distance, lerpVec2, normalize } from '../utils/math';
 import { random } from '../utils/random';
 import {
   BACK_ZONE_CENTER_Y,
@@ -17,6 +17,8 @@ import {
   TEAMMATE_REACT_RADIUS,
   TEAMMATE_RETURN_EPSILON,
   TEAMMATE_SET_DURATION,
+  TEAMMATE_SET_NET_APPROACH_Y,
+  TEAMMATE_SET_NET_BLEND,
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
   RANDOM_TARGET_MARGIN,
@@ -173,7 +175,14 @@ export class TeammateAI {
         toucher: 'teammate',
       });
     } else {
-      ball.launch(from, { ...playerPos }, {
+      // Blend the player's own current position with a point near the own
+      // net area (same x, so this never asks for lateral movement - only
+      // how far forward/back the set lands) - see TEAMMATE_SET_NET_BLEND's
+      // doc comment for why a set can't just land squarely on top of
+      // wherever the player happens to be standing.
+      const nearNet: Vec2 = { x: playerPos.x, y: TEAMMATE_SET_NET_APPROACH_Y };
+      const target = lerpVec2(playerPos, nearNet, TEAMMATE_SET_NET_BLEND);
+      ball.launch(from, target, {
         duration: TEAMMATE_SET_DURATION,
         peakHeight: TEAMMATE_SET_PEAK_HEIGHT,
         toucher: 'teammate',

@@ -190,10 +190,19 @@ export const TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT = 1.5;
 // return/set/pass/serve is at or above PASS_DURATION (1.3s) and stays clear.
 export const EMERGENCY_DURATION_THRESHOLD = 0.65;
 
-// Normal case: a high, easy set toward the net, to the human player's current
-// position.
+// Normal case: a high, easy set toward the net, aimed to land close to the
+// human player's own current position AND, purposefully, pulled some of the
+// way toward the net - not squarely on top of wherever they happen to be
+// standing. A set that just lands at the player's raw current position gives
+// them zero run-up: if they're deep in the back zone when it arrives, a
+// Sprung-Schmetterschlag from there eats heavy net-fault risk (see
+// NET_RISK_*). TEAMMATE_SET_NET_APPROACH_Y sits comfortably inside
+// NET_RISK_SAFE_DISTANCE, so blending the target toward it gives the player a
+// short, realistic distance to close before jumping - see TeammateAI.playBall.
 export const TEAMMATE_SET_DURATION = 1.5; // slowed down for reaction time - see HIT_DURATION's note
 export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
+export const TEAMMATE_SET_NET_APPROACH_Y = NET_Y + 1.5;
+export const TEAMMATE_SET_NET_BLEND = 0.7; // 0 = pure player position, 1 = pure near-net point
 
 // Two zones within the human half the player and AI teammate dynamically
 // split between (net/front vs. back) - see TeammateAI's home-position logic.

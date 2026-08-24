@@ -69,9 +69,14 @@ test.describe('Step 5: AI teammate home/base logic', () => {
 
     const afterContact = await getState(page);
     expect(afterContact.ball.state).toBe('flying');
-    // Sets toward the human player, not a low emergency save over the net.
+    // Sets toward the human player, not a low emergency save over the net -
+    // but (see Problem 2 fix) blended toward the net rather than landing
+    // exactly on the player's own position, so the x stays put while y is
+    // pulled some of the way toward TEAMMATE_SET_NET_APPROACH_Y.
+    const expectedY = before.player.pos.y + (9.5 - before.player.pos.y) * 0.7; // TEAMMATE_SET_NET_APPROACH_Y / TEAMMATE_SET_NET_BLEND
     expect(afterContact.ball.target.x).toBeCloseTo(before.player.pos.x, 0);
-    expect(afterContact.ball.target.y).toBeCloseTo(before.player.pos.y, 0);
+    expect(afterContact.ball.target.y).toBeCloseTo(expectedY, 1);
+    expect(afterContact.ball.target.y).toBeLessThan(before.player.pos.y); // pulled toward the net, not left where the player stood
   });
 
   test('self-sets an emergency save when the ball arrives too fast/direct', async ({ page }) => {
@@ -138,7 +143,12 @@ test.describe('Step 5: AI teammate home/base logic', () => {
     });
 
     const after = await page.evaluate(() => ({ ...(window as any).__game.state.ball.target }));
-    expect(after.y).toBeCloseTo(15, 0); // set to the player's position, not over the net
+    // Set toward the player's position (not over the net), but blended
+    // toward the net per the Problem 2 fix - see the comment on the test
+    // above for the formula.
+    const expectedY = 15 + (9.5 - 15) * 0.7;
+    expect(after.y).toBeCloseTo(expectedY, 1);
+    expect(after.y).toBeLessThan(15); // pulled toward the net from where the player stood
     expect(after.y).toBeGreaterThan(8);
   });
 
