@@ -51,7 +51,7 @@ import {
 import { Ball } from './Ball';
 import { InputSnapshot } from '../input/InputManager';
 
-type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'slowmo_aim' | 'jumping_down';
+export type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'slowmo_aim' | 'jumping_down';
 
 /** Default spike direction (straight toward the net), used if the slow-motion
  * aim window times out without a swipe. */
@@ -110,6 +110,16 @@ export class Player {
   private passBufferAge = 0;
   private hitBuffered = false;
   private hitBufferAge = 0;
+
+  /** Whether the player currently has a fresh Pass/Notfall-Schlag press
+   * buffered (see updateInputBuffers) - i.e. has actively signaled intent to
+   * play the ball themselves. Read by TeammateAI to decide ball-contact
+   * priority: a player who just pressed one of these shouldn't have the
+   * teammate AI swoop in and take the ball first (see TeammateAI's
+   * playerHasPriority). */
+  get hasPendingContactInput(): boolean {
+    return this.passBuffered || this.hitBuffered;
+  }
 
   update(
     dt: number,

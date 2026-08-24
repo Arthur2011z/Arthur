@@ -85,7 +85,12 @@ export class GameState {
     // window, in sync with the player's own suspended jump animation.
     const ballDt = this.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt;
     this.ball.update(ballDt);
-    this.teammate.update(dt, this.ball, this.player.pos, this.mustCrossNet('human'));
+    this.teammate.update(
+      dt,
+      this.ball,
+      { pos: this.player.pos, state: this.player.state, hasPendingContactInput: this.player.hasPendingContactInput },
+      this.mustCrossNet('human'),
+    );
 
     const leadOpponent = this.findLeadOpponent();
     for (const opponent of this.opponents) {
@@ -228,7 +233,12 @@ export class GameState {
       false,
     );
     this.ball.pos = { ...this.player.pos };
-    this.teammate.update(dt, this.ball, this.player.pos, false);
+    this.teammate.update(
+      dt,
+      this.ball,
+      { pos: this.player.pos, state: this.player.state, hasPendingContactInput: this.player.hasPendingContactInput },
+      false,
+    );
     for (const opponent of this.opponents) opponent.update(dt, this.ball, false);
 
     if (input.hit || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {

@@ -1,6 +1,7 @@
 import { Vec2, clamp, distance, lerpVec2, normalize } from '../utils/math';
 import { random } from '../utils/random';
 import {
+  ASSIST_RANGE,
   BACK_ZONE_CENTER_Y,
   CATCHABLE_HEIGHT,
   COURT_LENGTH,
@@ -25,8 +26,38 @@ import {
   ZONE_SPLIT_Y,
 } from '../game/constants';
 import { Ball } from './Ball';
+import type { PlayerState } from './Player';
 
 type TeammateState = 'home' | 'moving_to_ball' | 'returning';
+
+/** The bits of live player state TeammateAI needs to decide ball-contact
+ * priority (see playerHasPriority) - deliberately narrower than a full
+ * Player reference. */
+export interface PlayerInfo {
+  pos: Vec2;
+  state: PlayerState;
+  hasPendingContactInput: boolean;
+}
+
+/** Whether the human player - not the AI teammate - should be the one to
+ * play this ball right now. Prevents the teammate from racing in and taking
+ * a ball the player is already actively handling or is clearly better
+ * placed for:
+ *
+ * - mid-Hechten-dive: since only one ball is ever in flight at a time, a
+ *   dive is always toward *this* ball - unconditional priority regardless
+ *   of who's technically closer at this exact instant.
+ * - Pass/Notfall-Schlag pressed (or still buffered) AND the player is
+ *   already within their own ASSIST_RANGE homing distance of the ball - so
+ *   about to close the gap and resolve it themselves.
+ * - otherwise, whoever is currently closer to the ball's live position.
+ */
+function playerHasPriority(ball: Ball, player: PlayerInfo, teammatePos: Vec2): boolean {
+  if (ball.state !== 'flying') return false;
+  if (player.state === 'diving') return true;
+  if (player.hasPendingContactInput && distance(player.pos, ball.pos) <= ASSIST_RANGE) return true;
+  return distance(player.pos, ball.pos) < distance(teammatePos, ball.pos);
+}
 
 /** Whichever zone (net vs. back) `pos` is currently in, within the human
  * half. Used to figure out which zone the *other* one - the AI teammate's
@@ -75,12 +106,12 @@ export class TeammateAI {
     return this.targetHome;
   }
 
-  update(dt: number, ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
-    this.targetHome = computeZoneHome(playerPos);
+  update(dt: number, ball: Ball, player: PlayerInfo, mustCrossNet: boolean): void {
+    this.targetHome = computeZoneHome(player.pos);
 
     switch (this.state) {
       case 'home':
-        if (this.shouldReact(ball)) {
+        if (this.shouldReact(ball, player)) {
           this.state = 'moving_to_ball';
         } else {
           // Situational positioning, not a static spot: keep drifting toward
@@ -89,7 +120,7 @@ export class TeammateAI {
         }
         break;
       case 'moving_to_ball':
-        this.updateMovingToBall(dt, ball, playerPos, mustCrossNet);
+        this.updateMovingToBall(dt, ball, player, mustCrossNet);
         break;
       case 'returning':
         this.updateReturning(dt);
@@ -106,18 +137,37 @@ export class TeammateAI {
    * otherwise immediately fire again and send it straight back into
    * 'moving_to_ball' to re-catch its own shot. Without this guard that's a
    * real, observed double-touch within a single rally exchange - not two
-   * separate, legitimate touches later in the rally. */
-  private shouldReact(ball: Ball): boolean {
+   * separate, legitimate touches later in the rally.
+   *
+   * Also defers entirely when the player has priority (see
+   * playerHasPriority) - the teammate should never race the human player for
+   * a ball the human is already actively handling or is clearly better
+   * placed for. */
+  private shouldReact(ball: Ball, player: PlayerInfo): boolean {
     if (ball.state !== 'flying' || ball.lastToucher === 'teammate') return false;
+    if (playerHasPriority(ball, player, this.pos)) return false;
     return (
       distance(ball.pos, this.pos) <= TEAMMATE_REACT_RADIUS ||
       distance(ball.target, this.pos) <= TEAMMATE_REACT_RADIUS
     );
   }
 
-  private updateMovingToBall(dt: number, ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
+  private updateMovingToBall(dt: number, ball: Ball, player: PlayerInfo, mustCrossNet: boolean): void {
     if (ball.state !== 'flying') {
       // The ball landed, or was already handled elsewhere - stand down.
+      this.state = 'returning';
+      return;
+    }
+
+    // The player may only have taken priority *after* the teammate was
+    // already committed to 'moving_to_ball' (e.g. they started a Hechten-dive
+    // mid-approach) - re-check every frame, not just on entry, and back off
+    // immediately rather than continuing to close in on (or catch) a ball
+    // the player is now actively handling. 'returning' re-positions toward
+    // the current zone home, which already leans toward the net when the
+    // player is covering the back - exactly the "get ready for the next
+    // contact" behavior asked for.
+    if (playerHasPriority(ball, player, this.pos)) {
       this.state = 'returning';
       return;
     }
@@ -142,7 +192,7 @@ export class TeammateAI {
         conditionB_heightOk: heightOk,
         conditionC_inputActive: true, // AI has no button - "active" once shouldReact() committed it to moving_to_ball
       });
-      this.playBall(ball, playerPos, mustCrossNet);
+      this.playBall(ball, player.pos, mustCrossNet);
       this.state = 'returning';
       return;
     }

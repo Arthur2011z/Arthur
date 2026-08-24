@@ -116,7 +116,12 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
         { duration: 3, peakHeight: 3, toucher: null },
       );
       g.state.teammate.state = 'moving_to_ball';
-      g.state.teammate.update(0.016, g.state.ball, { x: 4, y: 11 }, true); // mustCrossNet
+      g.state.teammate.update(
+        0.016,
+        g.state.ball,
+        { pos: { x: 4, y: 11 }, state: 'active', hasPendingContactInput: false },
+        true, // mustCrossNet
+      );
       return { target: { ...g.state.ball.target }, lastToucher: g.state.ball.lastToucher };
     });
 
