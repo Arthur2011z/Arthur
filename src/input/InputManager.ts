@@ -5,21 +5,25 @@ import { SwipeInput } from './SwipeInput';
 
 export interface InputSnapshot {
   move: Vec2;
-  /** Swipe direction recognized this frame (Hechten while active, spike aim
-   * while in slowmo_aim - Player decides which based on its own state), or
-   * null if none. */
+  /** Swipe direction recognized this frame, used solely to aim the spike
+   * during the Jump-Smash's slow-motion window (slowmo_aim); null if none.
+   * Hechten is a button now (see `dive`), so a swipe outside that window has
+   * no effect at all. */
   swipe: Vec2 | null;
   /** True only on the frame the Sprung-Schmetterschlag button was just pressed. */
   jump: boolean;
   /** True only on the frame the Pass button was just pressed. */
   pass: boolean;
+  /** True only on the frame the Hechten button was just pressed. */
+  dive: boolean;
   /** True only on the frame the Notfall-Schlag button was just pressed. */
   hit: boolean;
 }
 
-/** Bundles all touch input - the joystick, the swipe gesture (on the canvas),
- * and the three action buttons (Sprung-Schmetterschlag, Pass, Notfall-Schlag)
- * - into a single per-frame snapshot for the game loop to consume. */
+/** Bundles all touch input - the joystick, the swipe gesture (on the canvas,
+ * spike aim only), and the four action buttons (Sprung-Schmetterschlag, Pass,
+ * Hechten, Notfall-Schlag) - into a single per-frame snapshot for the game
+ * loop to consume. */
 export class InputManager {
   private readonly joystick: Joystick;
   private readonly swipe: SwipeInput;
@@ -37,6 +41,7 @@ export class InputManager {
       swipe: this.swipe.consumeSwipe(),
       jump: this.buttons.consumeJump(),
       pass: this.buttons.consumePass(),
+      dive: this.buttons.consumeDive(),
       hit: this.buttons.consumeHit(),
     };
   }

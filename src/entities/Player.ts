@@ -3,7 +3,6 @@ import {
   clamp,
   closestPointOnSegment,
   distance,
-  dot,
   length,
   lerpVec2,
   normalize,
@@ -39,8 +38,6 @@ import {
   PLAYER_SPEED,
   PLAYER_START_POS,
   RANDOM_TARGET_MARGIN,
-  REACH_AIMLESS_RANGE,
-  REACH_AIM_TOLERANCE_COS,
   REACH_RANGE,
   SLOWMO_REAL_DURATION,
   SPIKE_DURATION,
@@ -61,24 +58,27 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  * The human-controlled player. Five inputs, exactly as specced:
  *
  * - the joystick: free movement within the player's own half.
- * - Wisch-Hechten: swiping (SwipeInput, on the canvas) roughly toward a
- *   distant flying ball's remaining path sends the player into a one-shot
- *   dash to the nearest intercept point on it - only as far as that ball
- *   actually needs, up to REACH_RANGE. Resolves automatically on contact
- *   (pass to the teammate, or a safe over-net hit if that would be the
- *   team's mandatory final touch) - no separate button needed.
+ * - Hechten (dive button): sends the player into a one-shot dash to the
+ *   nearest intercept point on the flying ball's remaining path - only as far
+ *   as that ball actually needs, up to REACH_RANGE. The direction is derived
+ *   entirely from the ball's own trajectory: neither the joystick nor a swipe
+ *   has to point anywhere in particular. Resolves automatically on contact
+ *   (pass to the teammate, or a safe over-net hit if that would be the team's
+ *   mandatory final touch), and always ends in a short recovery pause.
  * - Sprung-Schmetterschlag (jump button): works from anywhere, any time.
  *   Jumps immediately, with a light automatic drift toward the ball's
  *   predicted intercept point (only within the much smaller
  *   JUMP_ASSIST_RANGE - a subtle correction, not a dash). Ball contact while
  *   airborne opens a brief real-time slow-motion window (slowmo_aim) in which
- *   a swipe sets the hard spike's aim direction; no swipe times out with the
+ *   a swipe sets the hard spike's aim direction - the only thing swipes are
+ *   still used for; no swipe times out with the
  *   default (straight over the net). The further from the net the player was
  *   standing when they jumped, the higher the chance the spike nets out
  *   instead (see resolveSpike).
  * - Pass button: a controlled, medium touch straight to the AI teammate.
  *   Same "just be roughly nearby" principle as Hechten, but via a light,
  *   continuous walking-speed assist (ASSIST_RANGE) rather than a dash.
+ *   (Note ASSIST_RANGE is deliberately small - see its own doc comment.)
  *   Auto-converts to a safe over-net hit if it would be the team's mandatory
  *   final touch.
  * - Notfall-Schlag (small emergency button): same buffering/assist as Pass,
@@ -181,9 +181,9 @@ export class Player {
     }
     if (!assisted) this.applyMovement(dt, input.move);
 
-    if (input.swipe) this.trySwipeDive(input.swipe, ball);
+    if (input.dive) this.tryButtonDive(ball);
 
-    // trySwipeDive may have switched state to 'diving' - jump/resolve only
+    // tryButtonDive may have switched state to 'diving' - jump/resolve only
     // apply if we're still active.
     if (this.state !== 'active') return;
 
@@ -251,22 +251,20 @@ export class Player {
     return distance(this.pos, ball.pos) <= HIT_RANGE && ball.height <= CATCHABLE_HEIGHT;
   }
 
-  /** Wisch-Hechten: while the ball is flying and the swipe points roughly
-   * toward the nearest point of its remaining path, sends the player into a
-   * one-shot dash toward it. Silently does nothing if unaimed, un-reachable,
-   * or no ball is flying. */
-  private trySwipeDive(swipeDir: Vec2, ball: Ball): void {
+  /** Hechten button: sends the player into a one-shot dash toward the nearest
+   * point of the flying ball's remaining path - the only ball there ever is,
+   * so "the relevant ball" needs no disambiguation. No aiming of any kind is
+   * required: neither the joystick nor a swipe direction is consulted, the
+   * dash target is derived purely from the ball's own trajectory. Silently
+   * does nothing if no ball is flying or its whole remaining path is farther
+   * than REACH_RANGE away - that's a dive the player physically can't make.
+   * Every dive ends in the 'recovering' state (see updateDiving), so there is
+   * always a short pause afterwards, whether or not it connected. */
+  private tryButtonDive(ball: Ball): void {
     if (ball.state !== 'flying') return;
 
     const intercept = closestPointOnSegment(this.pos, ball.pos, ball.target);
-    const toIntercept = sub(intercept, this.pos);
-    const dist = length(toIntercept);
-    if (dist > REACH_RANGE) return;
-
-    if (dist > REACH_AIMLESS_RANGE) {
-      const aimed = dot(normalize(swipeDir), normalize(toIntercept)) >= REACH_AIM_TOLERANCE_COS;
-      if (!aimed) return;
-    }
+    if (distance(this.pos, intercept) > REACH_RANGE) return;
 
     this.approachStart = { ...this.pos };
     this.approachTarget = intercept;

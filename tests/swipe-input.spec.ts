@@ -10,49 +10,80 @@ async function swipe(page: Page, from: { x: number; y: number }, to: { x: number
   await page.mouse.up();
 }
 
+async function canvasCenter(page: Page) {
+  const box = await page.locator('#game-canvas').boundingBox();
+  if (!box) throw new Error('canvas not found');
+  return { cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+}
+
+/** The ball/player setup that used to make a swipe "up" a valid Hechten. */
+async function setUpReachableBall(page: Page) {
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.state.player.pos.x = 4;
+    g.state.player.pos.y = 11.5;
+    g.state.player.state = 'active';
+    g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 9 }, { duration: 5, peakHeight: 3, toucher: null });
+  });
+}
+
 test.describe('SwipeInput: gesture recognition on the canvas', () => {
-  test('a swipe on the open court reaches the game (Hechten triggers) when aimed at a reachable ball', async ({
+  test('a swipe no longer triggers Hechten - that is the dive button now', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await setUpReachableBall(page);
+
+    const { cx, cy } = await canvasCenter(page);
+    // Swipe "up" on screen (toward the net, straight at the ball) - well past
+    // the 40px threshold, and exactly the gesture that used to dive.
+    await swipe(page, { x: cx, y: cy + 100 }, { x: cx, y: cy - 20 });
+    await page.waitForTimeout(200);
+
+    const state = await page.evaluate(() => (window as any).__game.state.player.state);
+    expect(state).toBe('active');
+  });
+
+  test('the swipe gesture still reaches the game - it aims the spike during the slow-motion window', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // Place the player and an incoming ball so a swipe straight "up" (toward
-    // the net, i.e. toward the ball) is a valid, in-range, well-aimed dive.
     await page.evaluate(() => {
       const g = (window as any).__game;
+      g.state.teammate.update = () => {};
+      for (const o of g.state.opponents) o.update = () => {};
+      (window as any).__setRandom(() => 0.99); // never net-fault
       g.state.player.pos.x = 4;
-      g.state.player.pos.y = 11.5;
-      g.state.player.state = 'active';
-      g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 9 }, { duration: 5, peakHeight: 3, toucher: null });
+      g.state.player.pos.y = 9;
+      g.state.ball.launch({ x: 4, y: 9 }, { x: 4.05, y: 9.05 }, { duration: 5, peakHeight: 3, toucher: null });
     });
 
-    const canvasBox = await page.locator('#game-canvas').boundingBox();
-    if (!canvasBox) throw new Error('canvas not found');
-    const cx = canvasBox.x + canvasBox.width / 2;
-    const cy = canvasBox.y + canvasBox.height / 2;
+    const jumpBtn = page.locator('#jump-btn');
+    const box = await jumpBtn.boundingBox();
+    if (!box) throw new Error('jump button not found');
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-    // Swipe "up" on screen (toward the net) - well past the 40px threshold.
-    await swipe(page, { x: cx, y: cy + 100 }, { x: cx, y: cy - 20 });
+    await page.waitForFunction(() => (window as any).__game.state.player.state === 'slowmo_aim', undefined, {
+      timeout: 500,
+    });
 
-    await page.waitForFunction(
-      () => (window as any).__game.state.player.state === 'diving',
-      undefined,
-      { timeout: 500 },
-    );
+    // Aim hard to the right - the spike must follow the swipe.
+    const { cx, cy } = await canvasCenter(page);
+    await swipe(page, { x: cx, y: cy }, { x: cx + 120, y: cy });
+
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
+      timeout: 1500,
+    });
+    const target = await page.evaluate(() => ({ ...(window as any).__game.state.ball.target }));
+    expect(target.x).toBeGreaterThan(5);
+    expect(target.y).toBeLessThan(8); // over the net
   });
 
-  test('a swipe that starts on the joystick does not trigger Hechten', async ({ page }) => {
+  test('a swipe that starts on the joystick does not reach the game', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
-
-    await page.evaluate(() => {
-      const g = (window as any).__game;
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = 11.5;
-      g.state.player.state = 'active';
-      g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 9 }, { duration: 5, peakHeight: 3, toucher: null });
-    });
+    await setUpReachableBall(page);
 
     const joystick = await page.locator('#joystick-hitzone').boundingBox();
     if (!joystick) throw new Error('joystick not found');
@@ -66,23 +97,12 @@ test.describe('SwipeInput: gesture recognition on the canvas', () => {
     expect(state).toBe('active');
   });
 
-  test('a short tap (below the distance threshold) does not trigger Hechten', async ({ page }) => {
+  test('a short tap (below the distance threshold) is not recognized as a swipe', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    await setUpReachableBall(page);
 
-    await page.evaluate(() => {
-      const g = (window as any).__game;
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = 11.5;
-      g.state.player.state = 'active';
-      g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 9 }, { duration: 5, peakHeight: 3, toucher: null });
-    });
-
-    const canvasBox = await page.locator('#game-canvas').boundingBox();
-    if (!canvasBox) throw new Error('canvas not found');
-    const cx = canvasBox.x + canvasBox.width / 2;
-    const cy = canvasBox.y + canvasBox.height / 2;
-
+    const { cx, cy } = await canvasCenter(page);
     await swipe(page, { x: cx, y: cy + 10 }, { x: cx, y: cy }); // 10px, below 40px threshold
     await page.waitForTimeout(200);
 

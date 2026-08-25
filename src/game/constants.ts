@@ -38,16 +38,14 @@ export const HIT_RANGE = 0.7;
 // peakHeight compares against this.
 export const CATCHABLE_HEIGHT = 2.0;
 
-// Wisch-Hechten (swipe-to-dive): how far away the nearest point of the ball's
-// remaining flight path may be for a swipe to engage at all, and how
-// forgiving the swipe direction has to be. This is the *big* one-shot dash
-// for balls genuinely out of easy reach - distinct from the light continuous
-// ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump below.
+// Hechten (dive button): how far away the nearest point of the ball's
+// remaining flight path may be for the dive to engage at all. This is the
+// *big* one-shot dash for balls genuinely out of easy reach - distinct from
+// the light continuous ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump
+// below. No aim tolerance constant accompanies this any more: the dive is
+// button-triggered and its direction comes purely from the ball's own
+// trajectory, so there is no swipe (or joystick) direction left to grade.
 export const REACH_RANGE = 3;
-export const REACH_AIM_TOLERANCE_COS = 0.5; // ~60 degree cone
-// Below this distance to the intercept point, no aiming is required at all -
-// the ball is basically already where the player stands.
-export const REACH_AIMLESS_RANGE = HIT_RANGE;
 
 export const DIVE_DASH_DURATION = 0.22;
 export const DIVE_RECOVERY_DURATION = 0.5;
