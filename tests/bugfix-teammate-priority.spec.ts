@@ -96,7 +96,7 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
 
     // Press Pass BEFORE launching, so the click's network round-trip is not
     // racing the flight: INPUT_BUFFER_WINDOW (1.2s) then comfortably covers
-    // the player's contact at t=0.83s of the 1.0s flight below.
+    // the player's contact at t=0.50s of the 1.0s flight below.
     const btn = page.locator('#pass-btn');
     const box = await btn.boundingBox();
     if (!box) throw new Error('pass button not found');
@@ -105,19 +105,23 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
     await page.evaluate(() => {
       const g = (window as any).__game;
       for (const o of g.state.opponents) o.update = () => {};
-      // Near-tie geometry: the player leads by only 0.3-1.1m the whole way,
+      // Near-tie geometry: the player leads by only 0.6-1.3m the whole way,
       // inside TEAMMATE_YIELD_MARGIN (1.5m), so the proximity rule alone
       // would hand this ball to the teammate. The difference here is the
       // player's active claim (buffered Pass), which wins outright once the
-      // ball is inside ASSIST_RANGE - at t=0.32s, comfortably before the
-      // teammate could have closed its own 2.2m gap (>=0.52s at
-      // TEAMMATE_SPEED), so it backs off without ever making contact.
-      g.state.player.pos.x = 5.3;
+      // ball is inside ASSIST_RANGE - at t=0.20s, before the teammate could
+      // have closed its own gap to the ball (>=0.25s at TEAMMATE_SPEED), so
+      // it backs off without ever making contact.
+      //
+      // The flight is short (1.2m) on purpose: ASSIST_RANGE is only 1m now,
+      // so on a long approach the player would not claim the ball until the
+      // very end - long after the teammate had already played it.
+      g.state.player.pos.x = 5.7;
       g.state.player.pos.y = 11.2;
-      g.state.teammate.pos.x = 7.2;
+      g.state.teammate.pos.x = 7.0;
       g.state.teammate.pos.y = 11.2;
       g.state.teammate.state = 'home';
-      g.state.ball.launch({ x: 5.7, y: 8.0 }, { x: 5.7, y: 11.2 }, { duration: 1.0, peakHeight: 1, toucher: null });
+      g.state.ball.launch({ x: 5.7, y: 10.0 }, { x: 5.7, y: 11.2 }, { duration: 1.0, peakHeight: 1, toucher: null });
     });
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {

@@ -101,17 +101,18 @@ test.describe('Notfall-Schlag: small, no-jump, always-safe fallback', () => {
     await page.goto(distIndex);
 
     // Ball's flight stays entirely "above" the player (both endpoints closer
-    // to the net) - its nearest point is the flight's own end (4, 9.8), 1.7m
-    // from the player: inside ASSIST_RANGE (2.2m) but outside HIT_RANGE
+    // to the net) - its nearest point is the flight's own end (4, 9.8), 0.9m
+    // from the player: inside ASSIST_RANGE (1.0m) but outside HIT_RANGE
     // (0.7m), so the assist walk (not the joystick) should visibly close
-    // the gap, straight toward the net.
-    await teleportPlayer(page, { x: 4, y: 11.5 });
+    // the gap, straight toward the net. That band is narrow by design - the
+    // assist is a last-stride nudge now, not a way to travel.
+    await teleportPlayer(page, { x: 4, y: 10.7 });
     await launchBall(page, { x: 4, y: 9 }, { x: 4, y: 9.8 }, 3);
 
     await tapButton(page, 'hit-btn');
     await page.waitForTimeout(200);
 
     const after = await getState(page);
-    expect(after.player.pos.y).toBeLessThan(11.5); // moved toward the ball on its own
+    expect(after.player.pos.y).toBeLessThan(10.7); // moved toward the ball on its own
   });
 });

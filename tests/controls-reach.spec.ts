@@ -80,8 +80,10 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
 
     await page.evaluate(() => {
       const g = (window as any).__game;
+      // 1.5m from the ball - inside REACH_RANGE (2m), which is deliberately
+      // tighter than it used to be.
       g.state.player.pos.x = 4;
-      g.state.player.pos.y = 11.5;
+      g.state.player.pos.y = 10.5;
       g.state.player.state = 'active';
       g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 9 }, { duration: 5, peakHeight: 3, toucher: null });
     });
@@ -116,7 +118,7 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
     await page.goto(distIndex);
 
     // Player at the back baseline; ball's flight stays up near the net -
-    // 7m+ away, well past REACH_RANGE (3m).
+    // 7m+ away, well past REACH_RANGE (2m).
     const result = await directUpdates(page, { x: 4, y: 16 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [{ dive: true }]);
     expect(result.playerState).toBe('active');
   });
@@ -125,23 +127,23 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // Ball is 2.5m "up" the court (toward the net) while the joystick is
+    // Ball is 1.5m "up" the court (toward the net) while the joystick is
     // held hard the opposite way. The old swipe mechanic gated on direction;
     // the button deliberately does not - the dash target comes purely from
     // the ball's trajectory.
-    const away = await directUpdates(page, { x: 4, y: 11.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
+    const away = await directUpdates(page, { x: 4, y: 10.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
       { dive: true, move: { x: 0, y: 1 } },
     ]);
     expect(away.playerState).toBe('diving');
 
     // Same, joystick held sideways.
-    const sideways = await directUpdates(page, { x: 4, y: 11.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
+    const sideways = await directUpdates(page, { x: 4, y: 10.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
       { dive: true, move: { x: 1, y: 0 } },
     ]);
     expect(sideways.playerState).toBe('diving');
 
     // And with no joystick input at all.
-    const idle = await directUpdates(page, { x: 4, y: 11.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [{ dive: true }]);
+    const idle = await directUpdates(page, { x: 4, y: 10.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [{ dive: true }]);
     expect(idle.playerState).toBe('diving');
   });
 
@@ -151,7 +153,7 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
 
     // Exactly the setup that used to dive on a well-aimed swipe: in range,
     // swipe pointing straight at the ball. Must now do nothing at all.
-    const result = await directUpdates(page, { x: 4, y: 11.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
+    const result = await directUpdates(page, { x: 4, y: 10.5 }, { x: 4, y: 9 }, { x: 4, y: 1 }, 2, [
       { swipe: { x: 0, y: -1 } },
     ]);
     expect(result.playerState).toBe('active');
@@ -201,11 +203,12 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
 
     // Ball flies slowly along y=9 from x=0 toward x=3 (well left of the
     // player) - the *nearest point* of that path to the player's start
-    // (4, 11.5) is the segment's clamped endpoint (3, 9), 2.69m away - a
-    // real, visible dash. The ball's own live position stays far off to the
-    // left the entire time, so it never actually gets within HIT_RANGE of the
-    // player - this test is purely about the dash's movement, not a catch.
-    await directUpdates(page, { x: 4, y: 11.5 }, { x: 0, y: 9 }, { x: 3, y: 9 }, 10, [{ dive: true }]);
+    // (4, 10.5) is the segment's clamped endpoint (3, 9), 1.80m away, just
+    // inside REACH_RANGE (2m) - a real, visible dash. The ball's own live
+    // position stays far off to the left the entire time, so it never
+    // actually gets within HIT_RANGE of the player - this test is purely
+    // about the dash's movement, not a catch.
+    await directUpdates(page, { x: 4, y: 10.5 }, { x: 0, y: 9 }, { x: 3, y: 9 }, 10, [{ dive: true }]);
 
     await page.waitForFunction(() => (window as any).__game.state.player.state === 'recovering', undefined, {
       timeout: 1000,
@@ -228,7 +231,7 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
     // the whole flight) for the entire observation window, so nobody ever
     // touches it. The dive must still pass through 'recovering' before
     // control returns.
-    await directUpdates(page, { x: 4, y: 11.5 }, { x: 0, y: 9 }, { x: 3, y: 9 }, 10, [{ dive: true }]);
+    await directUpdates(page, { x: 4, y: 10.5 }, { x: 0, y: 9 }, { x: 3, y: 9 }, 10, [{ dive: true }]);
 
     await page.waitForFunction(() => (window as any).__game.state.player.state === 'recovering', undefined, {
       timeout: 1000,

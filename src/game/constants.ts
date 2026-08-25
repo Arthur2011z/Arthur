@@ -40,26 +40,48 @@ export const CATCHABLE_HEIGHT = 2.0;
 
 // Hechten (dive button): how far away the nearest point of the ball's
 // remaining flight path may be for the dive to engage at all. This is the
-// *big* one-shot dash for balls genuinely out of easy reach - distinct from
-// the light continuous ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump
-// below. No aim tolerance constant accompanies this any more: the dive is
+// one-shot dash for balls just out of easy reach - distinct from the light
+// continuous ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump below. No
+// aim tolerance constant accompanies this any more: the dive is
 // button-triggered and its direction comes purely from the ball's own
 // trajectory, so there is no swipe (or joystick) direction left to grade.
-export const REACH_RANGE = 3;
+//
+// Reduced from 3 as part of the general trimming of automatic movement help
+// (see ASSIST_RANGE): a dive that covered 3m turned "get roughly near the
+// ball" into "press the button from anywhere nearby". At 2m the player has to
+// have done the running themselves before the dive can bail them out - it is
+// still a real dive, covering nearly 3x HIT_RANGE at roughly twice running
+// speed (2m over DIVE_DASH_DURATION vs. PLAYER_SPEED).
+export const REACH_RANGE = 2;
 
 export const DIVE_DASH_DURATION = 0.22;
 export const DIVE_RECOVERY_DURATION = 0.5;
 
 // Light automatic "the AI nudges you the last bit of the way" correction used
-// by Pass, Notfall-Schlag and the Jump-Smash's in-air drift: much shorter
-// range than REACH_RANGE's dash, walked smoothly at (a touch faster than)
-// normal speed rather than dashed.
-export const ASSIST_RANGE = 2.2;
-export const ASSIST_SPEED_MULTIPLIER = 1.15;
+// by Pass and Notfall-Schlag: much shorter range than REACH_RANGE's dash,
+// walked smoothly rather than dashed.
+//
+// Deliberately small. At the old 2.2m this stopped being a nudge and became
+// the primary way the player reached the ball: pressing Pass anywhere in the
+// neighbourhood walked them in automatically, so manual positioning barely
+// mattered. At 1.0m it only closes the last stride once the player has done
+// the running - roughly the gap between HIT_RANGE (0.7) and "almost there".
+export const ASSIST_RANGE = 1;
+// 1.0 = exactly the player's own running speed. It used to be 1.15, i.e. the
+// automatic correction physically out-ran manual control, which is backwards:
+// the assist should never beat the player to a ball they could have run down
+// themselves.
+export const ASSIST_SPEED_MULTIPLIER = 1;
 // Even lighter: how far the Jump-Smash's in-air drift toward the ball may
 // pull the player while airborne (smaller than ASSIST_RANGE on purpose - a
-// jump's own correction is meant to be subtle, not a repositioning dash).
-export const JUMP_ASSIST_RANGE = 1.6;
+// jump's own correction is meant to be subtle, not a repositioning glide).
+// Cut from 1.6m, which let a jump slide the player over a metre and a half
+// through the air onto a ball they had not actually got under. Kept a hair
+// above HIT_RANGE (0.7) rather than equal to it: at exactly HIT_RANGE the
+// drift could only ever engage for a ball already in reach, i.e. do nothing
+// at all. This narrow band is the whole correction - a ball 0.8m out drifts
+// only the ~0.1m needed to bring it inside HIT_RANGE, then contact fires.
+export const JUMP_ASSIST_RANGE = 0.9;
 
 export const SPIKE_RANGE = 5;
 

@@ -52,6 +52,7 @@ async function spikeFrom(page: Page, netDist: number, ballOffsetY = 0.05) {
         duration: g.state.ball.duration,
         peakHeight: g.state.ball.peakHeight,
         target: { ...g.state.ball.target },
+        contactPos: { ...g.state.player.pos },
       };
     },
     { netDist, ballOffsetY, NET_Y },
@@ -126,13 +127,15 @@ test.describe('Sprung-Schmetterschlag: power scales with the takeoff distance fr
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // Ball sits 1.4m closer to the net than the player, inside
-    // JUMP_ASSIST_RANGE (1.6m), so the jump drifts the player netward while
-    // rising - contact therefore happens meaningfully nearer the net than the
-    // takeoff point. The spike must still be graded on where the player
-    // jumped FROM (7m out => fully weakened), not where they ended up.
-    const drifted = await spikeFrom(page, 7, -1.4);
+    // Ball sits 0.85m closer to the net than the player: outside HIT_RANGE
+    // (0.7m) but inside JUMP_ASSIST_RANGE (0.9m), which is the only band in
+    // which the in-air drift can act at all now that it has been trimmed to
+    // a fine correction. So the player does drift netward before contact -
+    // and the spike must still be graded on where they jumped FROM (7m out
+    // => fully weakened), not on where they ended up.
+    const drifted = await spikeFrom(page, 7, -0.85);
     expect(drifted.lastToucher).toBe('player');
+    expect(drifted.contactPos.y).toBeLessThan(15); // sanity: the drift really happened
     expect(drifted.duration).toBeCloseTo(1.1, 2);
     expect(drifted.peakHeight).toBeCloseTo(1.9, 2);
   });
