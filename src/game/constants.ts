@@ -54,7 +54,22 @@ export const CATCHABLE_HEIGHT = 2.0;
 // speed (2m over DIVE_DASH_DURATION vs. PLAYER_SPEED).
 export const REACH_RANGE = 2;
 
-export const DIVE_DASH_DURATION = 0.22;
+// The dive is defined by its SPEED, not by a fixed duration. A fixed duration
+// (it used to be a flat 0.22s for every dive, however short) meant the dash
+// speed fell with the distance covered: a 0.8m dive crawled along at 3.6 m/s,
+// i.e. slower than simply walking there (PLAYER_SPEED 4.5), and a 0.3m one at
+// 1.4 m/s. Since most dives are short, the move almost always felt limp. With
+// a fixed speed every dive is an equally sharp lunge and only its length
+// varies.
+export const DIVE_SPEED = 11; // m/s - roughly 2.4x running speed
+// Floor and ceiling on the resulting duration: the floor keeps a near-zero
+// dive from being an invisible teleport, the ceiling is a safety net.
+export const DIVE_MIN_DURATION = 0.12;
+export const DIVE_MAX_DURATION = 0.3;
+// Visual-only hop (same mechanism as the jump's height): lifts the token and
+// casts a shadow under it, so the move reads as leaving the ground rather than
+// sliding along it.
+export const DIVE_PEAK_HEIGHT = 0.35;
 export const DIVE_RECOVERY_DURATION = 0.5;
 
 // Light automatic "the AI nudges you the last bit of the way" correction used

@@ -16,8 +16,11 @@ import {
   CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
-  DIVE_DASH_DURATION,
+  DIVE_MAX_DURATION,
+  DIVE_MIN_DURATION,
+  DIVE_PEAK_HEIGHT,
   DIVE_RECOVERY_DURATION,
+  DIVE_SPEED,
   HIT_DURATION,
   HIT_PEAK_HEIGHT,
   HIT_RANGE,
@@ -107,6 +110,9 @@ export class Player {
   private stateTimer = 0;
   private approachStart: Vec2 = { ...this.pos };
   private approachTarget: Vec2 = { ...this.pos };
+  /** How long this particular dive's dash lasts - derived from the distance
+   * it has to cover at DIVE_SPEED, so every dive lunges at the same pace. */
+  private diveDuration = DIVE_MIN_DURATION;
   private fallStartHeight = 0;
   /** Distance from the net at the moment of takeoff - drives the spike's
    * net-fault risk (see resolveSpike). */
@@ -274,6 +280,12 @@ export class Player {
 
     this.approachStart = { ...this.pos };
     this.approachTarget = intercept;
+    this.diveDuration = clamp(
+      distance(this.pos, intercept) / DIVE_SPEED,
+      DIVE_MIN_DURATION,
+      DIVE_MAX_DURATION,
+    );
+    this.height = 0;
     this.stateTimer = 0;
     this.state = 'diving';
   }
@@ -281,19 +293,32 @@ export class Player {
   private updateDiving(dt: number, ball: Ball, teammatePos: Vec2, mustCrossNet: boolean): void {
     if (this.ballReachable(ball)) {
       this.resolveContact(ball, teammatePos, mustCrossNet, 'hechten');
-      this.state = 'recovering';
-      this.stateTimer = 0;
+      this.endDive();
       return;
     }
 
     this.stateTimer += dt;
-    const u = clamp(this.stateTimer / DIVE_DASH_DURATION, 0, 1);
-    this.pos = lerpVec2(this.approachStart, this.approachTarget, u);
+    const u = clamp(this.stateTimer / this.diveDuration, 0, 1);
 
-    if (u >= 1) {
-      this.state = 'recovering';
-      this.stateTimer = 0;
-    }
+    // Cubic ease-out: most of the ground is covered in the first instants and
+    // the dive then settles, which is what gives it the sharp launch of a real
+    // lunge rather than the even glide a linear ramp produces. At a quarter of
+    // the way through the dive is already ~58% of the way there.
+    const eased = 1 - (1 - u) ** 3;
+    this.pos = lerpVec2(this.approachStart, this.approachTarget, eased);
+    // Low hop, peaking mid-dive - purely visual (the renderer lifts the token
+    // and drops a shadow beneath it), never part of any contact check.
+    this.height = DIVE_PEAK_HEIGHT * 4 * u * (1 - u);
+
+    if (u >= 1) this.endDive();
+  }
+
+  /** Ends a dive - whether it connected or not - into the recovery pause,
+   * with the hop reset so the player is back on the ground. */
+  private endDive(): void {
+    this.height = 0;
+    this.state = 'recovering';
+    this.stateTimer = 0;
   }
 
   /** Fires whatever the dive/Pass/Notfall-Schlag contact resolves to: a

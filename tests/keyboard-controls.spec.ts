@@ -62,19 +62,31 @@ test.describe('Tastatur-Steuerung', () => {
 
     // 1.5m from the ball: inside REACH_RANGE, no direction input given.
     await place(page, 10.5, -1.5);
+
+    // Record every state the player passes through, from inside the page. The
+    // dash itself is now very short (a 1.5m dive lasts ~0.14s), far too brief
+    // to reliably catch by polling across a browser round-trip - so sample it
+    // on every animation frame instead of racing it.
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      (window as any).__states = [] as string[];
+      const tick = () => {
+        (window as any).__states.push(g.state.player.state);
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
     await page.keyboard.press('Space');
+    await page.waitForTimeout(1200); // dash + recovery + margin
 
-    await page.waitForFunction(() => (window as any).__game.state.player.state === 'diving', undefined, {
-      timeout: 500,
-    });
+    const seen: string[] = await page.evaluate(() => (window as any).__states);
+    expect(seen).toContain('diving');
+    expect(seen).toContain('recovering'); // the pause afterwards still happens
+    expect(seen[seen.length - 1]).toBe('active'); // and control comes back
 
-    // And it ends in the usual recovery pause.
-    await page.waitForFunction(() => (window as any).__game.state.player.state === 'recovering', undefined, {
-      timeout: 1000,
-    });
-    await page.waitForFunction(() => (window as any).__game.state.player.state === 'active', undefined, {
-      timeout: 1500,
-    });
+    // 'diving' must come before 'recovering' - a real dash, then the pause.
+    expect(seen.indexOf('diving')).toBeLessThan(seen.indexOf('recovering'));
   });
 
   test('Space does nothing when the ball is out of REACH_RANGE', async ({ page }) => {
