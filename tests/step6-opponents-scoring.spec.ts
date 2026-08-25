@@ -45,26 +45,26 @@ async function forceRandom(page: Page, value: number) {
 }
 
 test.describe('Step 6: opponent AI + scoring', () => {
-  test('the closer opponent returns an incoming ball; the other stays home', async ({ page }) => {
+  test('the opponent whose zone the ball lands in returns it; the other stays home', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
     // This test is about which opponent reacts, not the error/attack roll -
     // force the safe default branch so it's not flaky.
     await forceRandom(page, 0.99);
 
-    // Aimed near opponent1's home (2.5, 3) - well past opponent2's (5.5, 3).
-    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    // Lands deep - the back defender's zone (opponents[1]).
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 1.5 }, 2);
 
     await page.waitForFunction(
-      () => (window as any).__game.state.ball.lastToucher === 'opponent1',
+      () => (window as any).__game.state.ball.lastToucher === 'opponent2',
       undefined,
       { timeout: 3000 },
     );
     const after = await getState(page);
     expect(after.ball.state).toBe('flying');
     expect(after.ball.target.y).toBeGreaterThan(8); // returned into the human half
-    // opponent2 never had to react.
-    expect(after.opponents[1].state).toBe('home');
+    // The net defender never had to react.
+    expect(after.opponents[0].state).toBe('home');
   });
 
   test('a ball landing untouched in the human half scores a point for the opponents', async ({ page }) => {
@@ -96,10 +96,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
 
     await setScore(page, 20, 0);
     // Lands untouched in the opponent half -> point for the human team -> 21:0.
-    // Straight down the centerline (x=4), at least 1.5m from either
-    // opponent's home the whole flight - geometrically out of HIT_RANGE, so
-    // neither opponent can possibly reach it in time.
-    await launchBall(page, { x: 4, y: 8 }, { x: 4, y: 0.3 }, 0.5);
+    // Far baseline corner: the back defender's zone, but ~4.9m from its base
+    // and this flight is over in 0.5s, so it cannot get there in time.
+    await launchBall(page, { x: 4, y: 8 }, { x: 0.5, y: 0.5 }, 0.5);
 
     await page.waitForFunction(() => (window as any).__game.state.phase === 'game_over', undefined, {
       timeout: 2000,
@@ -117,10 +116,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
     await page.goto(distIndex);
 
     await setScore(page, 20, 19);
-    // Straight down the centerline (x=4): at least 1.5m from either
-    // opponent's home (2.5,3) / (5.5,3) at every point - geometrically out of
-    // HIT_RANGE the whole flight, so neither can possibly reach it in time.
-    await launchBall(page, { x: 4, y: 8 }, { x: 4, y: 0.3 }, 0.5);
+    // Far baseline corner - unreachable in the 0.5s flight, see the test
+    // above.
+    await launchBall(page, { x: 4, y: 8 }, { x: 0.5, y: 0.5 }, 0.5);
     await page.waitForFunction(() => (window as any).__game.state.phase === 'game_over', undefined, {
       timeout: 2000,
     });
@@ -146,7 +144,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
     await page.goto(distIndex);
     await forceRandom(page, 0); // below OPPONENT_ERROR_CHANCE - always the error branch
 
-    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
       timeout: 3000,
     });
@@ -162,7 +162,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
     // Above the error chance, below error+attack - always the attack branch.
     await forceRandom(page, 0.2);
 
-    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
       timeout: 3000,
     });
@@ -181,7 +183,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
     await page.goto(distIndex);
     await forceRandom(page, 0.99); // above error+attack - always the safe default branch
 
-    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
       timeout: 3000,
     });

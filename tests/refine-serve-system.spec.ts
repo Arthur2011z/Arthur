@@ -29,10 +29,12 @@ async function launchBall(page: Page, from: { x: number; y: number }, to: { x: n
 }
 
 /** Wins a rally for the human team via a trajectory that lands untouched deep
- * in the opponent half - geometrically outside HIT_RANGE of both opponents'
- * homes the whole flight (same proven-safe centerline trick as step6). */
+ * in the opponent half. Aimed at the far baseline corner: that is the back
+ * defender's zone, but its base (5.2, 2) is ~4.9m away and this flight is over
+ * in 0.5s, so it cannot possibly get there - whereas the old centreline target
+ * (4, 0.3) sits only ~2.1m from that base and IS now reachable. */
 async function winRallyForHuman(page: Page) {
-  await launchBall(page, { x: 4, y: 8 }, { x: 4, y: 0.3 }, 0.5);
+  await launchBall(page, { x: 4, y: 8 }, { x: 0.5, y: 0.5 }, 0.5);
   await page.waitForFunction(() => (window as any).__game.state.awaitingServe === 'human', undefined, {
     timeout: 3000,
   });
@@ -104,15 +106,17 @@ test.describe('Refine 5: real serve system', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
+    // Served by the back-zone defender - the one actually standing deep -
+    // rather than whoever happens to be holding the net.
     const before = await getState(page);
-    const opponent1Home = before.opponents[0];
+    const serverHome = before.opponents[1];
 
     await page.waitForFunction(() => (window as any).__game.state.ball.state === 'flying', undefined, {
       timeout: 3000,
     });
     const after = await getState(page);
 
-    const dist = Math.hypot(after.ball.pos.x - opponent1Home.x, after.ball.pos.y - opponent1Home.y);
+    const dist = Math.hypot(after.ball.pos.x - serverHome.x, after.ball.pos.y - serverHome.y);
     expect(dist).toBeLessThan(1);
   });
 });

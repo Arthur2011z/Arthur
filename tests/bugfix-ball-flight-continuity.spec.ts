@@ -76,10 +76,12 @@ test.describe('Bugfix 1: ball flight stays continuous through a mid-air catch', 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    const home = await page.evaluate(() => (window as any).__game.state.opponents[0].pos);
-    // Stays fully in-bounds (opponent half is y in [0, 8]) so this test is
+    // opponents[0] covers the net zone (see OpponentAI's zone split), so the
+    // ball has to land in that zone for it to be the one responsible. Stays
+    // fully in-bounds (opponent half is y in [0, 8]) so this test is
     // independent of the separate net-crossing clamp fix.
-    await launchBall(page, { x: home.x, y: home.y - 2.5 }, { x: home.x, y: home.y + 2.5 }, 2, 3);
+    const home = await page.evaluate(() => (window as any).__game.state.opponents[0].pos);
+    await launchBall(page, { x: home.x, y: home.y - 3 }, { x: home.x, y: home.y + 1.5 }, 2, 3);
 
     const result: any = await captureContactTransition(page, 'opponent1');
 

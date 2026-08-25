@@ -278,12 +278,36 @@ export const SERVE_MARGIN = 2;
 // before the next serve goes up.
 export const POINT_PAUSE_DURATION = 1.2;
 
-// Fixed home/base positions the AI opponents return to when not actively
-// playing the ball.
+// The opponent half (y in [0, NET_Y]) is split into two zones the same way
+// the human half is (see ZONE_SPLIT_Y above): a net/front zone and a back
+// zone. One opponent covers each - the classic beach-volleyball blocker /
+// back-court defender pairing - instead of both standing side by side at the
+// same depth, which left the whole back court unattended and made whichever
+// of the two happened to be nearer the landing spot dart across the court on
+// every ball.
+export const OPPONENT_ZONE_SPLIT_Y = NET_Y / 2;
+export const OPPONENT_NET_ZONE_CENTER_Y = OPPONENT_ZONE_SPLIT_Y + (NET_Y - OPPONENT_ZONE_SPLIT_Y) / 2;
+export const OPPONENT_BACK_ZONE_CENTER_Y = OPPONENT_ZONE_SPLIT_Y / 2;
+// Staggered across the width (rather than both on the centre line) so the two
+// between them cover more of the court laterally as well.
+export const OPPONENT_NET_ZONE_X = COURT_WIDTH * 0.35;
+export const OPPONENT_BACK_ZONE_X = COURT_WIDTH * 0.65;
+
+/** Base position each opponent holds when not actively playing the ball -
+ * the centre of its own zone. Index 0 covers the net zone, index 1 the back
+ * zone (see OpponentAI's `zone`). */
 export const OPPONENT_HOMES: { x: number; y: number }[] = [
-  { x: 2.5, y: 3 },
-  { x: 5.5, y: 3 },
+  { x: OPPONENT_NET_ZONE_X, y: OPPONENT_NET_ZONE_CENTER_Y },
+  { x: OPPONENT_BACK_ZONE_X, y: OPPONENT_BACK_ZONE_CENTER_Y },
 ];
+
+// How much closer to the ball's landing spot the out-of-zone opponent must be
+// before it takes a ball that belongs to the other's zone. Zone ownership is
+// the rule; this margin is the sanity valve for a ball landing just barely
+// across the zone line with the wrong defender standing right on top of it.
+// Without it, strict zone ownership produces exactly the kind of illogical
+// run the zones were introduced to remove.
+export const OPPONENT_ZONE_OVERRIDE_MARGIN = 1.5;
 
 // The human player's starting position each game/rally cycle - shared with
 // TeammateAI so its own initial position can be derived from the same point

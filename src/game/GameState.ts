@@ -1,10 +1,10 @@
 import { Ball, BallToucher } from '../entities/Ball';
-import { OpponentAI } from '../entities/OpponentAI';
+import { OpponentAI, chooseResponsibleOpponent } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { InputSnapshot } from '../input/InputManager';
 import { random } from '../utils/random';
-import { distance, Vec2 } from '../utils/math';
+import { Vec2 } from '../utils/math';
 import {
   AUTO_SERVE_DELAY,
   AUTO_SERVE_DURATION,
@@ -15,7 +15,6 @@ import {
   HUMAN_SERVE_TIMEOUT,
   MAX_TEAM_TOUCHES,
   NET_Y,
-  OPPONENT_HOMES,
   POINT_PAUSE_DURATION,
   SERVE_MARGIN,
   SLOWMO_FACTOR,
@@ -26,6 +25,12 @@ import {
 export type GamePhase = 'playing' | 'point_scored' | 'game_over';
 export type Team = 'human' | 'opponents';
 
+/** The two opponents, one per zone: index 0 covers the net zone, index 1 the
+ * back zone (see OpponentAI's zone). */
+function createOpponents(): OpponentAI[] {
+  return [new OpponentAI('net', 'opponent1'), new OpponentAI('back', 'opponent2')];
+}
+
 /**
  * Single source of truth for the game world: the human player, the ball, the
  * AI teammate, the two AI opponents, rally-point scoring to WIN_SCORE, and
@@ -35,9 +40,7 @@ export class GameState {
   player = new Player();
   ball = new Ball();
   teammate = new TeammateAI();
-  opponents: OpponentAI[] = OPPONENT_HOMES.map((home, i) =>
-    new OpponentAI(home, i === 0 ? 'opponent1' : 'opponent2'),
-  );
+  opponents: OpponentAI[] = createOpponents();
 
   score = { human: 0, opponents: 0 };
   phase: GamePhase = 'playing';
@@ -121,9 +124,7 @@ export class GameState {
     this.player = new Player();
     this.ball = new Ball();
     this.teammate = new TeammateAI();
-    this.opponents = OPPONENT_HOMES.map((home, i) =>
-      new OpponentAI(home, i === 0 ? 'opponent1' : 'opponent2'),
-    );
+    this.opponents = createOpponents();
     this.score = { human: 0, opponents: 0 };
     this.phase = 'playing';
     this.winner = null;
@@ -152,13 +153,11 @@ export class GameState {
     }
   }
 
-  /** Only the closer of the two opponents chases a ball headed their way, so
-   * they never both pile onto the same one. */
+  /** Exactly one opponent chases any given ball, so they never both pile onto
+   * the same one. Which one follows from zone ownership rather than raw
+   * proximity - see chooseResponsibleOpponent. */
   private findLeadOpponent(): OpponentAI | null {
-    if (this.ball.state !== 'flying' || this.ball.target.y > NET_Y) return null;
-    return this.opponents.reduce((closest, o) =>
-      distance(o.pos, this.ball.target) < distance(closest.pos, this.ball.target) ? o : closest,
-    );
+    return chooseResponsibleOpponent(this.ball, this.opponents);
   }
 
   /** A flight completing untouched is a landing: the side it landed on failed
@@ -204,9 +203,12 @@ export class GameState {
   }
 
   /** Fair, easy-to-react-to toss, visually originating from an opponent
-   * (rather than the abstract net-center point) so it reads as a real serve. */
+   * (rather than the abstract net-center point) so it reads as a real serve.
+   * Served by the back-zone defender - the one actually standing deep - not
+   * by whoever is holding the net. */
   private launchOpponentServe(): void {
-    const origin = { ...this.opponents[0].pos };
+    const server = this.opponents.find((o) => o.zone === 'back') ?? this.opponents[0];
+    const origin = { ...server.pos };
     const target: Vec2 = {
       x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
       y: NET_Y + SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
