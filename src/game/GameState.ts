@@ -93,6 +93,8 @@ export class GameState {
       this.ball,
       { pos: this.player.pos, state: this.player.state, hasPendingContactInput: this.player.hasPendingContactInput },
       this.mustCrossNet('human'),
+      // So the teammate's own attack can aim at the gap their formation leaves.
+      this.opponents.map((o) => o.pos),
     );
 
     const leadOpponent = this.findLeadOpponent();

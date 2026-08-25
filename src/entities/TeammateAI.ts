@@ -18,8 +18,14 @@ import {
   TEAMMATE_REACT_RADIUS,
   TEAMMATE_RETURN_EPSILON,
   TEAMMATE_SET_DURATION,
-  TEAMMATE_SET_NET_APPROACH_Y,
-  TEAMMATE_SET_NET_BLEND,
+  SET_NET_APPROACH_Y,
+  SET_NET_BLEND,
+  ATTACK_TARGET_MARGIN,
+  TEAMMATE_ATTACK_HIT_DURATION,
+  TEAMMATE_ATTACK_HIT_PEAK_HEIGHT,
+  TEAMMATE_SPIKE_CHANCE,
+  TEAMMATE_SPIKE_MAX_NET_DISTANCE,
+  TEAMMATE_SPIKE_MIN_HEIGHT,
   TEAMMATE_SET_PEAK_HEIGHT,
   TEAMMATE_SPEED,
   TEAMMATE_YIELD_MARGIN,
@@ -27,6 +33,7 @@ import {
   ZONE_SPLIT_Y,
 } from '../game/constants';
 import { Ball } from './Ball';
+import { spikeShot } from '../game/spikePower';
 import type { PlayerState } from './Player';
 
 type TeammateState = 'home' | 'moving_to_ball' | 'returning';
@@ -45,6 +52,11 @@ export interface PlayerInfo {
  * a ball the player is already actively handling or is clearly better
  * placed for:
  *
+ * A ball the player has just played is excluded outright: they physically
+ * cannot touch it again (see Player.ballReachable's own lastToucher guard), so
+ * granting them priority over it would only stall the teammate - which matters
+ * now that a Pass is deliberately aimed away from the teammate, toward the net.
+ *
  * - mid-Hechten-dive: since only one ball is ever in flight at a time, a
  *   dive is always toward *this* ball - unconditional priority regardless
  *   of who's technically closer at this exact instant.
@@ -60,6 +72,7 @@ export interface PlayerInfo {
  */
 function playerHasPriority(ball: Ball, player: PlayerInfo, teammatePos: Vec2): boolean {
   if (ball.state !== 'flying') return false;
+  if (ball.lastToucher === 'player') return false;
   if (player.state === 'diving') return true;
   if (player.hasPendingContactInput && distance(player.pos, ball.pos) <= ASSIST_RANGE) return true;
   return distance(player.pos, ball.pos) + TEAMMATE_YIELD_MARGIN < distance(teammatePos, ball.pos);
@@ -80,6 +93,39 @@ function zoneOf(pos: Vec2): 'net' | 'back' {
 function computeZoneHome(playerPos: Vec2): Vec2 {
   const y = zoneOf(playerPos) === 'net' ? BACK_ZONE_CENTER_Y : NET_ZONE_CENTER_Y;
   return { x: TEAMMATE_HOME_X, y };
+}
+
+/** Whether this ball is a set-up played to us by the human player: they
+ * touched it last and aimed it into our own half. That is what turns the
+ * teammate from setter into attacker (see playBall/attack), and what makes it
+ * wait at the landing spot rather than running into the ball early. */
+function isSetUpForUs(ball: Ball): boolean {
+  return ball.lastToucher === 'player' && ball.target.y > NET_Y;
+}
+
+/** Where to aim an attack: the in-bounds spot furthest from every opponent -
+ * i.e. the gap their current formation is leaving open. Sampled over a coarse
+ * grid rather than solved exactly; the point is a shot that reads the defence,
+ * not an optimal one. With no opponents known, falls back to the middle of the
+ * far court. */
+function attackTarget(opponentPositions: Vec2[]): Vec2 {
+  const xs = [ATTACK_TARGET_MARGIN, COURT_WIDTH / 2, COURT_WIDTH - ATTACK_TARGET_MARGIN];
+  const ys = [ATTACK_TARGET_MARGIN, NET_Y / 2, NET_Y - ATTACK_TARGET_MARGIN];
+  if (opponentPositions.length === 0) return { x: COURT_WIDTH / 2, y: NET_Y / 2 };
+
+  let best: Vec2 = { x: COURT_WIDTH / 2, y: NET_Y / 2 };
+  let bestGap = -Infinity;
+  for (const x of xs) {
+    for (const y of ys) {
+      const candidate = { x, y };
+      const gap = Math.min(...opponentPositions.map((o) => distance(o, candidate)));
+      if (gap > bestGap) {
+        bestGap = gap;
+        best = candidate;
+      }
+    }
+  }
+  return best;
 }
 
 /**
@@ -112,7 +158,13 @@ export class TeammateAI {
     return this.targetHome;
   }
 
-  update(dt: number, ball: Ball, player: PlayerInfo, mustCrossNet: boolean): void {
+  update(
+    dt: number,
+    ball: Ball,
+    player: PlayerInfo,
+    mustCrossNet: boolean,
+    opponentPositions: Vec2[] = [],
+  ): void {
     this.targetHome = computeZoneHome(player.pos);
 
     switch (this.state) {
@@ -126,7 +178,7 @@ export class TeammateAI {
         }
         break;
       case 'moving_to_ball':
-        this.updateMovingToBall(dt, ball, player, mustCrossNet);
+        this.updateMovingToBall(dt, ball, player, mustCrossNet, opponentPositions);
         break;
       case 'returning':
         this.updateReturning(dt);
@@ -152,13 +204,24 @@ export class TeammateAI {
   private shouldReact(ball: Ball, player: PlayerInfo): boolean {
     if (ball.state !== 'flying' || ball.lastToucher === 'teammate') return false;
     if (playerHasPriority(ball, player, this.pos)) return false;
+    // A ball the player just played into our own half is a pass to us, by
+    // definition - go for it regardless of the reaction radius. That radius is
+    // measured against the teammate's position, and a Pass is now aimed at the
+    // net rather than at the teammate, so it can easily land outside it.
+    if (isSetUpForUs(ball)) return true;
     return (
       distance(ball.pos, this.pos) <= TEAMMATE_REACT_RADIUS ||
       distance(ball.target, this.pos) <= TEAMMATE_REACT_RADIUS
     );
   }
 
-  private updateMovingToBall(dt: number, ball: Ball, player: PlayerInfo, mustCrossNet: boolean): void {
+  private updateMovingToBall(
+    dt: number,
+    ball: Ball,
+    player: PlayerInfo,
+    mustCrossNet: boolean,
+    opponentPositions: Vec2[],
+  ): void {
     if (ball.state !== 'flying') {
       // The ball landed, or was already handled elsewhere - stand down.
       this.state = 'returning';
@@ -198,29 +261,43 @@ export class TeammateAI {
         conditionB_heightOk: heightOk,
         conditionC_inputActive: true, // AI has no button - "active" once shouldReact() committed it to moving_to_ball
       });
-      this.playBall(ball, player.pos, mustCrossNet);
+      this.playBall(ball, player.pos, mustCrossNet, opponentPositions);
       this.state = 'returning';
       return;
     }
 
-    const dir = normalize({ x: ball.pos.x - this.pos.x, y: ball.pos.y - this.pos.y });
+    // For a set-up from the player, head for where the pass is going to land
+    // and let it come. Chasing the ball's live position instead means running
+    // INTO the incoming pass and hitting it early, deep in our own half - which
+    // throws away the whole point of a pass aimed at the net. Every other ball
+    // is still chased live, which is what lets the teammate dig balls that
+    // merely pass nearby.
+    const destination = isSetUpForUs(ball) ? ball.target : ball.pos;
+    const dir = normalize({ x: destination.x - this.pos.x, y: destination.y - this.pos.y });
     this.pos.x += dir.x * TEAMMATE_SPEED * dt;
     this.pos.y += dir.y * TEAMMATE_SPEED * dt;
     this.pos = this.clampToOwnHalf(this.pos);
   }
 
-  private playBall(ball: Ball, playerPos: Vec2, mustCrossNet: boolean): void {
+  /** Decides and plays the teammate's shot. Three outcomes, in order:
+   *
+   * 1. The ball arrived too fast to do anything constructive with -> a quick
+   *    emergency save over the net, just to keep it alive.
+   * 2. It was set up for an attack (the player passed it to us near the net),
+   *    or this is the team's mandatory final touch -> attack (see
+   *    chooseAttack). This is the role swap: the player sets, the AI hits.
+   * 3. Otherwise -> the usual high set to the player, so they can attack.
+   */
+  private playBall(ball: Ball, playerPos: Vec2, mustCrossNet: boolean, opponentPositions: Vec2[]): void {
     // Launch from the ball's own live position, not this.pos: contact is
     // allowed within HIT_RANGE (not exact overlap), so using the catcher's
     // position here would snap the ball sideways/vertically at the moment of
     // contact instead of continuing smoothly from where it actually is.
     const from = { ...ball.pos };
-    // Send it straight back over the net - rather than setting up the player
-    // - either because it arrived too fast/direct to set up properly, or
-    // because this is the team's mandatory final touch (a set here would
-    // illegally stay on the human side for a 4th touch).
-    const isEmergency = ball.duration < EMERGENCY_DURATION_THRESHOLD || mustCrossNet;
-    if (isEmergency) {
+
+    // Judged by the incoming flight's own total duration - fixed per shot
+    // type, independent of how far into the flight contact happened.
+    if (ball.duration < EMERGENCY_DURATION_THRESHOLD) {
       const target: Vec2 = {
         x: RANDOM_TARGET_MARGIN + random() * (COURT_WIDTH - 2 * RANDOM_TARGET_MARGIN),
         y: RANDOM_TARGET_MARGIN + random() * (NET_Y - 2 * RANDOM_TARGET_MARGIN),
@@ -230,20 +307,61 @@ export class TeammateAI {
         peakHeight: TEAMMATE_EMERGENCY_SET_PEAK_HEIGHT,
         toucher: 'teammate',
       });
-    } else {
-      // Blend the player's own current position with a point near the own
-      // net area (same x, so this never asks for lateral movement - only
-      // how far forward/back the set lands) - see TEAMMATE_SET_NET_BLEND's
-      // doc comment for why a set can't just land squarely on top of
-      // wherever the player happens to be standing.
-      const nearNet: Vec2 = { x: playerPos.x, y: TEAMMATE_SET_NET_APPROACH_Y };
-      const target = lerpVec2(playerPos, nearNet, TEAMMATE_SET_NET_BLEND);
+      return;
+    }
+
+    // A ball the player played into our own half is a pass to us - they have
+    // set us up, so we attack rather than setting straight back. A mandatory
+    // final touch has to cross the net anyway, so it is played as an attack
+    // too rather than as a thrown-away safe lob.
+    const setUpForAttack = isSetUpForUs(ball);
+    if (setUpForAttack || mustCrossNet) {
+      this.attack(ball, from, opponentPositions);
+      return;
+    }
+
+    // Blend the player's own current position with a point near the own
+    // net area (same x, so this never asks for lateral movement - only
+    // how far forward/back the set lands) - see SET_NET_BLEND's
+    // doc comment for why a set can't just land squarely on top of
+    // wherever the player happens to be standing.
+    const nearNet: Vec2 = { x: playerPos.x, y: SET_NET_APPROACH_Y };
+    ball.launch(from, lerpVec2(playerPos, nearNet, SET_NET_BLEND), {
+      duration: TEAMMATE_SET_DURATION,
+      peakHeight: TEAMMATE_SET_PEAK_HEIGHT,
+      toucher: 'teammate',
+    });
+  }
+
+  /** The teammate's own attack over the net. Whether it spikes or plays the
+   * safer attacking hit depends on whether it is actually in a position to
+   * spike - close enough to the net, with the ball high enough to strike
+   * downward - and then on a roll, so the same situation does not always
+   * produce the same shot. Either way it aims at the gap in the opponents'
+   * defence rather than at a random spot. */
+  private attack(ball: Ball, from: Vec2, opponentPositions: Vec2[]): void {
+    const netDistance = Math.max(0, this.pos.y - NET_Y);
+    const canSpike =
+      netDistance <= TEAMMATE_SPIKE_MAX_NET_DISTANCE && ball.height >= TEAMMATE_SPIKE_MIN_HEIGHT;
+    const target = attackTarget(opponentPositions);
+
+    if (canSpike && random() < TEAMMATE_SPIKE_CHANCE) {
+      // Same distance-based power rule the human player's spike uses: struck
+      // at the net it is hard and flat, from deeper it is slower and loopier.
+      const shot = spikeShot(netDistance);
       ball.launch(from, target, {
-        duration: TEAMMATE_SET_DURATION,
-        peakHeight: TEAMMATE_SET_PEAK_HEIGHT,
+        duration: shot.duration,
+        peakHeight: shot.peakHeight,
         toucher: 'teammate',
       });
+      return;
     }
+
+    ball.launch(from, target, {
+      duration: TEAMMATE_ATTACK_HIT_DURATION,
+      peakHeight: TEAMMATE_ATTACK_HIT_PEAK_HEIGHT,
+      toucher: 'teammate',
+    });
   }
 
   private updateReturning(dt: number): void {

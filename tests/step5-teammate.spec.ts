@@ -106,7 +106,7 @@ test.describe('Step 5: AI teammate home/base logic', () => {
     expect(afterReturn.teammate.pos).toEqual(home);
   });
 
-  test('bugfix: a normal-paced pass from across the court still sets to the player, not an emergency', async ({
+  test('bugfix: a normal-paced pass from across the court is never misread as an emergency', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -128,6 +128,9 @@ test.describe('Step 5: AI teammate home/base logic', () => {
       g.state.teammate.pos.y = 10; // 5m from the player - well beyond a short pass
       g.state.teammate.state = 'home';
       g.state.ball.launch({ x: 4, y: 14.7 }, { x: 4, y: 4 }, { duration: 5, peakHeight: 3, toucher: null });
+      // Pin the shot choice to the safe attacking hit, so this test is about
+      // the emergency misread and not about the spike/hit roll.
+      (window as any).__setRandom(() => 0.99);
     });
 
     const passBtn = page.locator('#pass-btn');
@@ -142,14 +145,17 @@ test.describe('Step 5: AI teammate home/base logic', () => {
       timeout: 3000,
     });
 
-    const after = await page.evaluate(() => ({ ...(window as any).__game.state.ball.target }));
-    // Set toward the player's position (not over the net), but blended
-    // toward the net per the Problem 2 fix - see the comment on the test
-    // above for the formula.
-    const expectedY = 15 + (9.5 - 15) * 0.7;
-    expect(after.y).toBeCloseTo(expectedY, 1);
-    expect(after.y).toBeLessThan(15); // pulled toward the net from where the player stood
-    expect(after.y).toBeGreaterThan(8);
+    // The player set the teammate up, so the teammate now ATTACKS off it
+    // (role swap) rather than setting straight back. What this test still
+    // guards is the original bug: a long-but-normal-paced pass must not be
+    // misread as "arrived too fast" and thrown away as an emergency save.
+    const after = await page.evaluate(() => {
+      const g = (window as any).__game;
+      return { target: { ...g.state.ball.target }, duration: g.state.ball.duration };
+    });
+    expect(after.target.y).toBeLessThan(8); // a real attack over the net
+    expect(after.duration).toBeCloseTo(1.2, 2); // TEAMMATE_ATTACK_HIT_DURATION...
+    expect(after.duration).not.toBeCloseTo(0.8, 2); // ...not the emergency save (0.8s)
   });
 
   test('dynamically covers the back zone when the player is up at the net', async ({ page }) => {

@@ -272,13 +272,38 @@ export const EMERGENCY_DURATION_THRESHOLD = 0.65;
 // standing. A set that just lands at the player's raw current position gives
 // them zero run-up: if they're deep in the back zone when it arrives, a
 // Sprung-Schmetterschlag from there eats heavy net-fault risk (see
-// NET_RISK_*). TEAMMATE_SET_NET_APPROACH_Y sits comfortably inside
+// NET_RISK_*). SET_NET_APPROACH_Y sits comfortably inside
 // NET_RISK_SAFE_DISTANCE, so blending the target toward it gives the player a
 // short, realistic distance to close before jumping - see TeammateAI.playBall.
 export const TEAMMATE_SET_DURATION = 1.5; // slowed down for reaction time - see HIT_DURATION's note
 export const TEAMMATE_SET_PEAK_HEIGHT = 3.5;
-export const TEAMMATE_SET_NET_APPROACH_Y = NET_Y + 1.5;
-export const TEAMMATE_SET_NET_BLEND = 0.7; // 0 = pure player position, 1 = pure near-net point
+// Used in BOTH directions now, because the set-up is the same geometric idea
+// whichever way round it goes: the teammate setting the player up, and the
+// player's Pass setting the teammate up (see Player.firePass). One shared pair
+// of values so the two can never drift apart.
+export const SET_NET_APPROACH_Y = NET_Y + 1.5;
+export const SET_NET_BLEND = 0.7; // 0 = pure receiver position, 1 = pure near-net point
+
+// Role swap: when the human player passes to the AI teammate, that pass is
+// aimed near the net (SET_NET_* above) so the teammate can attack off it. On
+// that touch the teammate picks its own shot rather than always setting back.
+//
+// A spike needs both the position and the ball for it: close enough to the net
+// to hit down over it, and the ball high enough to actually strike downward
+// rather than scoop. When both hold, TEAMMATE_SPIKE_CHANCE decides between the
+// hard spike and the safer attacking hit - the "spontaneous" part, so the same
+// situation doesn't always produce the same shot.
+export const TEAMMATE_SPIKE_MAX_NET_DISTANCE = 3; // metres from the net
+export const TEAMMATE_SPIKE_MIN_HEIGHT = 0.8; // metres of ball height at contact
+export const TEAMMATE_SPIKE_CHANCE = 0.6;
+// The safer alternative: a controlled attacking hit over the net. Slower and
+// loopier than a spike, but it still aims at the gap in the opponents' defence
+// rather than at a random spot.
+export const TEAMMATE_ATTACK_HIT_DURATION = 1.2;
+export const TEAMMATE_ATTACK_HIT_PEAK_HEIGHT = 2;
+// Inset from the court edges when aiming an attack, so a shot at the gap still
+// lands comfortably in bounds.
+export const ATTACK_TARGET_MARGIN = 1;
 
 // Two zones within the human half the player and AI teammate dynamically
 // split between (net/front vs. back) - see TeammateAI's home-position logic.

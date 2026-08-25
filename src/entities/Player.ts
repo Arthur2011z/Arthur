@@ -4,7 +4,6 @@ import {
   closestPointOnSegment,
   distance,
   length,
-  lerp,
   lerpVec2,
   normalize,
   sub,
@@ -43,17 +42,14 @@ import {
   PLAYER_START_POS,
   RANDOM_TARGET_MARGIN,
   REACH_RANGE,
+  SET_NET_APPROACH_Y,
+  SET_NET_BLEND,
   SLOWMO_REAL_DURATION,
-  SPIKE_DURATION,
-  SPIKE_PEAK_HEIGHT,
-  SPIKE_POWER_FULL_DISTANCE,
-  SPIKE_POWER_MIN_DISTANCE,
   SPIKE_RANGE,
   SPIKE_TARGET_MARGIN,
-  SPIKE_WEAK_DURATION,
-  SPIKE_WEAK_PEAK_HEIGHT,
 } from '../game/constants';
 import { Ball } from './Ball';
+import { spikeShot } from '../game/spikePower';
 import { InputSnapshot } from '../input/InputManager';
 
 export type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'slowmo_aim' | 'jumping_down';
@@ -175,7 +171,13 @@ export class Player {
     teammatePos: Vec2,
     mustCrossNet: boolean,
   ): void {
-    const ballFlying = ball.state === 'flying';
+    // A ball the player themselves just played is not one they can play again
+    // (see ballReachable's own lastToucher guard), so the assist must not walk
+    // them after it. Without this the player gets quietly dragged along behind
+    // their own pass for as long as the input stays buffered, ending up out of
+    // position - and, once the teammate has attacked off it, close enough to
+    // take a third touch nobody asked for.
+    const ballFlying = ball.state === 'flying' && ball.lastToucher !== 'player';
     let assisted = false;
 
     // Pass/Notfall-Schlag "vorgehalten": once the ball's intercept point is
@@ -477,10 +479,10 @@ export class Player {
         toucher: 'player',
       });
     } else {
-      const weakness = this.spikeWeakness();
+      const shot = spikeShot(this.jumpStartNetDistance);
       ball.launch({ ...ball.pos }, this.computeSpikeTarget(this.aimDir), {
-        duration: lerp(SPIKE_DURATION, SPIKE_WEAK_DURATION, weakness),
-        peakHeight: lerp(SPIKE_PEAK_HEIGHT, SPIKE_WEAK_PEAK_HEIGHT, weakness),
+        duration: shot.duration,
+        peakHeight: shot.peakHeight,
         toucher: 'player',
       });
     }
@@ -488,21 +490,6 @@ export class Player {
     this.fallStartHeight = this.height;
     this.state = 'jumping_down';
     this.stateTimer = 0;
-  }
-
-  /** How much power this spike has lost to the distance the player took off
-   * from: 0 = struck at the net, full force; 1 = struck from
-   * SPIKE_POWER_MIN_DISTANCE or beyond, at its weakest. Linear in between.
-   * Read off jumpStartNetDistance - the distance at *takeoff*, not at the
-   * moment of contact - so the in-air drift toward the ball can never sneak a
-   * deep jump back up to full power. */
-  private spikeWeakness(): number {
-    return clamp(
-      (this.jumpStartNetDistance - SPIKE_POWER_FULL_DISTANCE) /
-        (SPIKE_POWER_MIN_DISTANCE - SPIKE_POWER_FULL_DISTANCE),
-      0,
-      1,
-    );
   }
 
   /** While airborne, the movement input stops being movement and becomes the
@@ -555,8 +542,15 @@ export class Player {
     }
   }
 
+  /** Pass to the AI teammate - and, like the teammate's own set to the player,
+   * aimed near the net rather than squarely at where they happen to be
+   * standing (see SET_NET_BLEND). That is what sets up the role swap: the
+   * teammate receives the ball in an attacking position and plays its own shot
+   * off it instead of setting straight back. Only the depth is shifted; x
+   * stays on the teammate so the pass never asks them to sprint sideways. */
   private firePass(ball: Ball, teammatePos: Vec2): void {
-    ball.launch({ ...ball.pos }, { ...teammatePos }, {
+    const nearNet: Vec2 = { x: teammatePos.x, y: SET_NET_APPROACH_Y };
+    ball.launch({ ...ball.pos }, lerpVec2(teammatePos, nearNet, SET_NET_BLEND), {
       duration: PASS_DURATION,
       peakHeight: PASS_PEAK_HEIGHT,
       toucher: 'player',

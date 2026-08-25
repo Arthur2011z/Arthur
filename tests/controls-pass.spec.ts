@@ -76,16 +76,42 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     // needed at all, this is plain in-range contact.
     await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
 
+    // The pass is aimed relative to where the teammate is AT THE MOMENT OF
+    // CONTACT - and it starts moving to receive the pass the instant it is
+    // played, so its position has to be sampled per frame and frozen at
+    // contact, not read afterwards. (Sampling must not block: the button is
+    // only tapped once this is armed.)
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      const w = window as any;
+      w.__tmAtContact = null;
+      let last = { ...g.state.teammate.pos };
+      const sample = () => {
+        if (w.__tmAtContact === null) {
+          if (g.state.ball.lastToucher === 'player') w.__tmAtContact = last;
+          else last = { ...g.state.teammate.pos };
+        }
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+
     await tapButton(page, 'pass-btn');
 
-    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 1000,
-    });
+    await page.waitForFunction(() => (window as any).__tmAtContact !== null, undefined, { timeout: 2000 });
+    const contactPos: { x: number; y: number } = await page.evaluate(() => (window as any).__tmAtContact);
+
     const after = await getState(page);
     expect(after.ball.state).toBe('flying');
     expect(after.player.state).toBe('active'); // Pass doesn't require or trigger a jump/dive
-    expect(after.ball.target.x).toBeCloseTo(after.teammate.x, 0);
-    expect(after.ball.target.y).toBeCloseTo(after.teammate.y, 0);
+    // Aimed at the teammate's own column, but pulled toward the net so they
+    // receive it in an attacking position (SET_NET_*) - the same set-up the
+    // teammate gives the player, mirrored.
+    expect(after.ball.target.x).toBeCloseTo(contactPos.x, 0);
+    const expectedY = contactPos.y + (9.5 - contactPos.y) * 0.7;
+    expect(after.ball.target.y).toBeCloseTo(expectedY, 1);
+    expect(after.ball.target.y).toBeLessThan(contactPos.y); // pulled netward
+    expect(after.ball.target.y).toBeGreaterThan(8); // but still on our own side
   });
 
   test('pressing Pass out of range does nothing', async ({ page }) => {
@@ -126,8 +152,12 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 3000,
     });
+    // Same caveat as the test above: the teammate moves as soon as the pass is
+    // played, so compare against the target's own geometry rather than a
+    // position read after the fact. The pass must stay on our own side and be
+    // pulled toward the net relative to where it was aimed.
     const after = await getState(page);
-    expect(after.ball.target.x).toBeCloseTo(after.teammate.x, 0);
-    expect(after.ball.target.y).toBeCloseTo(after.teammate.y, 0);
+    expect(after.ball.target.y).toBeGreaterThan(8); // still our own half
+    expect(after.ball.target.y).toBeLessThan(13); // and pulled up toward the net
   });
 });
