@@ -121,13 +121,41 @@ export const HIT_PEAK_HEIGHT = 2.2;
 export const RANDOM_TARGET_MARGIN = 2;
 
 // Aimed spike (Jump-Smash, resolved at the end of the slow-motion aim
-// window): fast and flat - the reliable way to score, provided the net-fault
-// risk roll (see NET_RISK_* below) doesn't intervene. Aim direction comes
-// from the swipe performed during slowmo_aim, defaulting to straight over the
-// net if no swipe was made before the window times out.
+// window): at its best fast and flat - the reliable way to score, provided
+// the net-fault risk roll (see NET_RISK_* below) doesn't intervene. Aim
+// direction comes from the swipe performed during slowmo_aim, defaulting to
+// straight over the net if no swipe was made before the window times out.
+//
+// These two are the FULL-POWER values, hit only when the player took off
+// close to the net (see SPIKE_POWER_* below) - not a flat guarantee.
 export const SPIKE_DURATION = 0.5;
 export const SPIKE_PEAK_HEIGHT = 1.2;
 export const SPIKE_TARGET_MARGIN = 0.3;
+
+// Spike power falls off with how far from the net the player took off, so a
+// smash from deep in the back court is no longer the same near-certain point
+// as one struck at the net. Full power at/below SPIKE_POWER_FULL_DISTANCE,
+// linearly weakening to the SPIKE_WEAK_* values at/beyond
+// SPIKE_POWER_MIN_DISTANCE. A weakened spike is slower (longer duration, so
+// less ball speed) and loopier (higher arc) - both give the opponents real
+// time to read it and get under it, which is exactly what makes it
+// defendable. The aim itself (SPIKE_RANGE/computeSpikeTarget) is deliberately
+// NOT scaled: a weak spike still goes where it was aimed, it just arrives
+// slower and higher.
+//
+// Deliberately the same two distances as the NET_RISK_* ramp below, so both
+// consequences of jumping from deep - more net-fault risk AND less power -
+// ramp in together over the same stretch of court rather than at odds.
+export const SPIKE_POWER_FULL_DISTANCE = 2; // meters from the net: full power at/below this
+export const SPIKE_POWER_MIN_DISTANCE = 7; // meters from the net: weakest at/beyond this
+export const SPIKE_WEAK_DURATION = 1.1; // vs. 0.5 at full power - noticeably slower
+// vs. 1.2 at full power - a loopier, readable arc, but deliberately kept
+// under CATCHABLE_HEIGHT (2.0): an arc that peaks above it is briefly
+// *untouchable* rather than merely weak, which works against the whole point
+// of this ramp. Measured: at 2.4 the weakened spike was still unreturnable on
+// deep targets (15/20 defended), at 1.9 it is consistently defendable (20/20)
+// while a full-power spike stays a real weapon (11/20).
+export const SPIKE_WEAK_PEAK_HEIGHT = 1.9;
 
 // Jump-Smash: works from anywhere, anytime (not just near the net) - pressing
 // it always jumps. A light in-air drift (JUMP_ASSIST_RANGE above) nudges the

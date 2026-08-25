@@ -4,6 +4,7 @@ import {
   closestPointOnSegment,
   distance,
   length,
+  lerp,
   lerpVec2,
   normalize,
   sub,
@@ -42,8 +43,12 @@ import {
   SLOWMO_REAL_DURATION,
   SPIKE_DURATION,
   SPIKE_PEAK_HEIGHT,
+  SPIKE_POWER_FULL_DISTANCE,
+  SPIKE_POWER_MIN_DISTANCE,
   SPIKE_RANGE,
   SPIKE_TARGET_MARGIN,
+  SPIKE_WEAK_DURATION,
+  SPIKE_WEAK_PEAK_HEIGHT,
 } from '../game/constants';
 import { Ball } from './Ball';
 import { InputSnapshot } from '../input/InputManager';
@@ -74,7 +79,8 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  *   still used for; no swipe times out with the
  *   default (straight over the net). The further from the net the player was
  *   standing when they jumped, the higher the chance the spike nets out
- *   instead (see resolveSpike).
+ *   instead AND the less power it carries when it does go over (see
+ *   resolveSpike / spikeWeakness).
  * - Pass button: a controlled, medium touch straight to the AI teammate.
  *   Same "just be roughly nearby" principle as Hechten, but via a light,
  *   continuous walking-speed assist (ASSIST_RANGE) rather than a dash.
@@ -389,12 +395,17 @@ export class Player {
     }
   }
 
-  /** Resolves the jump-smash: a net-fault risk roll (scaled by how far from
-   * the net the player was standing when they jumped - see
-   * jumpStartNetDistance) decides between the hard aimed spike and a short,
-   * low shot that nets out and drops back on the player's own side (which the
-   * existing landed-in-which-half scoring in GameState already attributes
-   * correctly - no separate "fault" concept needed). */
+  /** Resolves the jump-smash. How far from the net the player was standing
+   * when they jumped (jumpStartNetDistance) drives two separate consequences,
+   * both ramping in over the same stretch of court:
+   *
+   * - a net-fault risk roll, deciding between the aimed spike and a short,
+   *   low shot that nets out and drops back on the player's own side (which
+   *   the existing landed-in-which-half scoring in GameState already
+   *   attributes correctly - no separate "fault" concept needed), and
+   * - the spike's own power (see spikeWeakness): struck at the net it keeps
+   *   its full, flat, fast form; from deep it arrives slower and loopier, and
+   *   so is genuinely defendable rather than a near-certain point. */
   private resolveSpike(ball: Ball): void {
     // The ball isn't frozen during slowmo_aim (see GameState.update) - it
     // keeps creeping along its original flight, heavily slowed but not
@@ -426,9 +437,10 @@ export class Player {
         toucher: 'player',
       });
     } else {
+      const weakness = this.spikeWeakness();
       ball.launch({ ...ball.pos }, this.computeSpikeTarget(this.aimDir), {
-        duration: SPIKE_DURATION,
-        peakHeight: SPIKE_PEAK_HEIGHT,
+        duration: lerp(SPIKE_DURATION, SPIKE_WEAK_DURATION, weakness),
+        peakHeight: lerp(SPIKE_PEAK_HEIGHT, SPIKE_WEAK_PEAK_HEIGHT, weakness),
         toucher: 'player',
       });
     }
@@ -436,6 +448,21 @@ export class Player {
     this.fallStartHeight = this.height;
     this.state = 'jumping_down';
     this.stateTimer = 0;
+  }
+
+  /** How much power this spike has lost to the distance the player took off
+   * from: 0 = struck at the net, full force; 1 = struck from
+   * SPIKE_POWER_MIN_DISTANCE or beyond, at its weakest. Linear in between.
+   * Read off jumpStartNetDistance - the distance at *takeoff*, not at the
+   * moment of contact - so the in-air drift toward the ball can never sneak a
+   * deep jump back up to full power. */
+  private spikeWeakness(): number {
+    return clamp(
+      (this.jumpStartNetDistance - SPIKE_POWER_FULL_DISTANCE) /
+        (SPIKE_POWER_MIN_DISTANCE - SPIKE_POWER_FULL_DISTANCE),
+      0,
+      1,
+    );
   }
 
   private enterFalling(): void {
