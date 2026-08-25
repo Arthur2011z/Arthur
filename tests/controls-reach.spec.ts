@@ -17,6 +17,7 @@ async function directUpdates(
     move?: { x: number; y: number };
     swipe?: { x: number; y: number } | null;
     jump?: boolean;
+    spike?: boolean;
     pass?: boolean;
     dive?: boolean;
     hit?: boolean;
@@ -36,6 +37,7 @@ async function directUpdates(
             move: i.move ?? { x: 0, y: 0 },
             swipe: i.swipe ?? null,
             jump: i.jump ?? false,
+            spike: i.spike ?? false,
             pass: i.pass ?? false,
             dive: i.dive ?? false,
             hit: i.hit ?? false,
@@ -103,7 +105,7 @@ test.describe('Hechten button: auto-aimed one-shot dash to the ball', () => {
       const g = (window as any).__game;
       g.state.player.update(
         0.016,
-        { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: false, dive: true, hit: false },
+        { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: true, hit: false },
         g.state.ball,
         g.state.teammate.pos,
         false,

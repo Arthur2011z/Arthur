@@ -222,15 +222,15 @@ export class GameState {
 
   /** While the human holds serve: the ball tracks their position (free
    * movement still works), and only the Notfall-Schlag button (or the safety
-   * timeout) sends it over - swipe, jump, Hechten and Pass are withheld
-   * entirely so an accidental press can't race a zero-range action against
-   * the serve itself. */
+   * timeout) sends it over - swipe, jump/smash, Hechten and Pass are
+   * withheld entirely so an accidental press can't race a zero-range action
+   * against the serve itself. */
   private updateServeHold(dt: number, input: InputSnapshot): void {
     this.serveHoldTimer += dt;
 
     this.player.update(
       dt,
-      { move: input.move, swipe: null, jump: false, pass: false, dive: false, hit: false },
+      { move: input.move, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false },
       this.ball,
       this.teammate.pos,
       false,

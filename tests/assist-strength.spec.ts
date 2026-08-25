@@ -41,7 +41,7 @@ async function autoMovement(page: Page, action: Action, gap: number): Promise<nu
         { duration: 8, peakHeight: 0.4, toucher: null },
       );
 
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
       const press = { ...noInput, [action]: true };
       const step = (input: any) => {
         g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
@@ -129,7 +129,7 @@ test.describe('Automatische Bewegungsunterstützung: a fine correction, not a wa
 
       g.state.player.update(
         0.016,
-        { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: true, dive: false, hit: false },
+        { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: true, dive: false, hit: false },
         g.state.ball,
         g.state.teammate.pos,
         false,

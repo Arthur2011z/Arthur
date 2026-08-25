@@ -82,7 +82,7 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
       g.state.player.pos.x = 4;
       g.state.player.pos.y = 11.5;
       g.state.player.state = 'active';
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
       // First call consumes the Hechten press and enters 'diving'; the second
       // is where updateDiving's own contact check actually runs and resolves
       // it - exactly like two consecutive real animation frames 16ms apart.

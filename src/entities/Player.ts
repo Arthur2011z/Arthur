@@ -151,13 +151,13 @@ export class Player {
         }
         break;
       case 'jumping_up':
-        this.updateJumpingUp(dt, ball);
+        this.updateJumpingUp(dt, input, ball);
         break;
       case 'slowmo_aim':
         this.updateSlowmoAim(dt, input, ball);
         break;
       case 'jumping_down':
-        this.updateJumpingDown(dt, ball);
+        this.updateJumpingDown(dt, input, ball);
         break;
     }
   }
@@ -355,7 +355,16 @@ export class Player {
     this.state = 'jumping_up';
   }
 
-  private updateJumpingUp(dt: number, ball: Ball): void {
+  private updateJumpingUp(dt: number, input: InputSnapshot, ball: Ball): void {
+    this.updateAirborneAim(input);
+
+    // The second Q press: hits the smash right now, but only if the ball is
+    // genuinely in reach at this instant. Checked BEFORE the automatic
+    // slow-motion entry below, because both can come true on the same frame
+    // and the press would otherwise be swallowed by the state change (it is
+    // edge-triggered, so it would be gone by the next frame).
+    if (this.trySpikeOnDemand(input, ball)) return;
+
     if (this.ballReachable(ball)) {
       this.enterSlowmoAim();
       return;
@@ -383,6 +392,12 @@ export class Player {
    * SLOWMO_REAL_DURATION has elapsed, so play can never stall on a missed
    * swipe. */
   private updateSlowmoAim(dt: number, input: InputSnapshot, ball: Ball): void {
+    this.updateAirborneAim(input);
+
+    // Keyboard: the second Q hits it, using whatever direction WASD is
+    // currently holding. Same in-reach requirement as everywhere else.
+    if (this.trySpikeOnDemand(input, ball)) return;
+
     if (input.swipe) {
       this.aimDir = normalize(input.swipe);
       this.resolveSpike(ball);
@@ -465,13 +480,37 @@ export class Player {
     );
   }
 
+  /** While airborne, the movement input stops being movement and becomes the
+   * smash's aim: WASD on the keyboard, or the joystick on touch. Ignores a
+   * neutral stick so releasing it mid-jump keeps the aim you already had
+   * rather than snapping back to the default. */
+  private updateAirborneAim(input: InputSnapshot): void {
+    if (length(input.move) > 0.001) this.aimDir = normalize(input.move);
+  }
+
+  /** The second Q press, from any airborne state. Fires the smash only when
+   * the ball is actually within reach at that exact moment - the same
+   * distance/height contact conditions every other action uses. A press into
+   * empty air does nothing at all: it neither fires nor interrupts the jump,
+   * so mistiming it costs the swing, not the rally. Returns whether the smash
+   * was played. */
+  private trySpikeOnDemand(input: InputSnapshot, ball: Ball): boolean {
+    if (!input.spike || !this.ballReachable(ball)) return false;
+    this.resolveSpike(ball);
+    return true;
+  }
+
   private enterFalling(): void {
     this.fallStartHeight = this.height;
     this.state = 'jumping_down';
     this.stateTimer = 0;
   }
 
-  private updateJumpingDown(dt: number, ball: Ball): void {
+  private updateJumpingDown(dt: number, input: InputSnapshot, ball: Ball): void {
+    this.updateAirborneAim(input);
+
+    if (this.trySpikeOnDemand(input, ball)) return;
+
     // A little extra forgiveness: a ball arriving just after the jump's peak
     // can still be smashed on the way down, rather than only during the rise.
     // ballReachable's lastToucher guard is what stops this from immediately
