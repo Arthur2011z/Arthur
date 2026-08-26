@@ -9,6 +9,9 @@ import {
   OPPONENT_ATTACK_DURATION,
   OPPONENT_ATTACK_PEAK_HEIGHT,
   OPPONENT_ATTACK_TARGET_MARGIN,
+  OPPONENT_DEFENSIVE_SPEED,
+  OPPONENT_HARD_BALL_DURATION,
+  OPPONENT_READY_SHADE,
   OPPONENT_BACK_ZONE_CENTER_Y,
   OPPONENT_BACK_ZONE_X,
   OPPONENT_ERROR_CHANCE,
@@ -117,9 +120,9 @@ export class OpponentAI {
         if (isLead && ball.state === 'flying' && ball.target.y <= NET_Y) {
           this.state = 'moving_to_ball';
         } else {
-          // Hold the zone: creep back to base rather than standing wherever
-          // the last rally happened to leave them.
-          this.driftToward(dt, this.homePos);
+          // Hold the zone - but shade toward the developing attack rather than
+          // standing rigidly on the zone centre (see readyPosition).
+          this.driftToward(dt, this.readyPosition(ball), OPPONENT_SPEED);
         }
         break;
       case 'moving_to_ball':
@@ -165,7 +168,30 @@ export class OpponentAI {
     // there is both what a real player does and visibly purposeful. The
     // contact check above still runs against the ball's live position every
     // frame, so a ball that comes within reach on the way is still played.
-    this.driftToward(dt, ball.target);
+    // Dig speed: a hard incoming ball is scrambled for, a normal-paced one is
+    // covered at cruising pace. Defence only - this never affects their own
+    // attack, which is unchanged.
+    const speed = ball.duration < OPPONENT_HARD_BALL_DURATION ? OPPONENT_DEFENSIVE_SPEED : OPPONENT_SPEED;
+    this.driftToward(dt, ball.target, speed);
+  }
+
+  /** Where to wait. While the ball is live on the human side an attack is
+   * being built, so the defender shades sideways toward it - lining up on the
+   * likely line of the hit instead of standing on its zone centre. Only x
+   * moves: the net/back zone split is what keeps their positioning legible,
+   * and shading depth as well would undo it. Any other time (ball dead, or
+   * already on their own side) the zone centre is the ready position. */
+  private readyPosition(ball: Ball): Vec2 {
+    const buildingAttack = ball.state === 'flying' && ball.pos.y > NET_Y;
+    if (!buildingAttack) return this.homePos;
+    return {
+      x: clamp(
+        this.homePos.x + (ball.pos.x - this.homePos.x) * OPPONENT_READY_SHADE,
+        this.radius,
+        COURT_WIDTH - this.radius,
+      ),
+      y: this.homePos.y,
+    };
   }
 
   /** Rolls between an error, an aggressive attack, and the safe default
@@ -221,19 +247,19 @@ export class OpponentAI {
       this.state = 'home';
       return;
     }
-    this.driftToward(dt, this.homePos);
+    this.driftToward(dt, this.homePos, OPPONENT_SPEED);
   }
 
   /** Smooth, constant-speed movement toward `target`, snapping the last
    * fraction of a metre so it settles instead of creeping in asymptotically. */
-  private driftToward(dt: number, target: Vec2): void {
+  private driftToward(dt: number, target: Vec2, speed: number): void {
     if (distance(this.pos, target) <= OPPONENT_RETURN_EPSILON) {
       this.pos = { ...target };
       return;
     }
     const dir = normalize({ x: target.x - this.pos.x, y: target.y - this.pos.y });
-    this.pos.x += dir.x * OPPONENT_SPEED * dt;
-    this.pos.y += dir.y * OPPONENT_SPEED * dt;
+    this.pos.x += dir.x * speed * dt;
+    this.pos.y += dir.y * speed * dt;
     this.pos = this.clampToOwnHalf(this.pos);
   }
 

@@ -328,6 +328,27 @@ export const OPPONENT_ATTACK_DURATION = 0.6;
 export const OPPONENT_ATTACK_PEAK_HEIGHT = 1.1;
 export const OPPONENT_ATTACK_TARGET_MARGIN = 0.6;
 export const OPPONENT_ERROR_CHANCE = 0.15;
+
+// --- Defence only -------------------------------------------------------
+// None of the following touches how the opponents ATTACK: their error rate,
+// attack rate and shot parameters above are deliberately untouched, so they
+// stay just as error-prone and beatable when it is their turn to hit.
+//
+// Scramble speed: against a genuinely hard incoming ball a defender digs at
+// more than its cruising pace. Applies only while chasing such a ball - the
+// walk back to base, and any normal-paced ball, still use OPPONENT_SPEED.
+export const OPPONENT_DEFENSIVE_SPEED = 5.5;
+// What counts as "hard": a flight arriving faster than this. A spike at the
+// net is 0.5s and a fully-weakened one 1.1s, so this catches the dangerous
+// half of the spike range plus the opponents' own attack pace, while a normal
+// return (1.9s) or serve (2.2s) is not a scramble.
+export const OPPONENT_HARD_BALL_DURATION = 1.2;
+// Anticipation: while the ball is still on the human side - i.e. an attack is
+// being built - the defenders shade sideways toward it instead of standing on
+// their zone centre, so they start the dig from a better place. 0 = never
+// move off the zone centre, 1 = line up exactly on the ball's column. Only x
+// shades; the net/back zone split itself is left intact.
+export const OPPONENT_READY_SHADE = 0.6;
 export const OPPONENT_FAULT_DURATION = 0.22;
 export const OPPONENT_FAULT_PEAK_HEIGHT = 0.4;
 export const OPPONENT_FAULT_OWN_SIDE_MARGIN = 0.3;
