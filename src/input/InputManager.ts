@@ -1,4 +1,5 @@
-import { Vec2 } from '../utils/math';
+import { Vec2, length, normalize } from '../utils/math';
+import { AIM_SWIPE_MAX_PX, AIM_SWIPE_MIN_PX, DEFAULT_AIM_STRENGTH } from '../game/constants';
 import { Buttons } from './Buttons';
 import { Joystick } from './Joystick';
 import { Keyboard } from './Keyboard';
@@ -26,6 +27,13 @@ export interface InputSnapshot {
   dive: boolean;
   /** True only on the frame the Notfall-Schlag button (or F) was pressed. */
   hit: boolean;
+  /** Live aim while a spike is being aimed: the direction to hit in, plus how
+   * hard, 0..1. Non-null on every frame the player is expressing an aim - a
+   * finger held down mid-swipe, or WASD/the joystick held. This is what the
+   * trajectory preview follows; it is NOT the trigger, which is still `swipe`
+   * (touch) or `spike` (the second Q). Null when no aim is being expressed, in
+   * which case the last aim stands. */
+  aim: { dir: Vec2; strength: number } | null;
 }
 
 /** Bundles all input - the joystick, the swipe gesture (on the canvas, spike
@@ -61,9 +69,11 @@ export class InputManager {
 
     const stick = this.joystick.vector;
     const keys = this.keyboard.moveVector;
+    const move = { x: stick.x + keys.x, y: stick.y + keys.y };
 
     return {
-      move: { x: stick.x + keys.x, y: stick.y + keys.y },
+      move,
+      aim: buildAim(this.swipe.drag, move),
       swipe: this.swipe.consumeSwipe(),
       // One Q edge feeds both fields; Player reads `jump` only while on the
       // ground and `spike` only while airborne, and those are mutually
@@ -75,4 +85,29 @@ export class InputManager {
       hit: btnHit || keyHit,
     };
   }
+}
+
+/** Turns whatever the player is currently expressing into an aim.
+ *
+ * A held swipe wins: its length is real information (how hard to hit), so it
+ * maps onto strength between AIM_SWIPE_MIN_PX and AIM_SWIPE_MAX_PX. A drag
+ * shorter than the minimum is not yet an aim at all - the player has barely
+ * moved, and snapping the preview to a jittery one-pixel direction would be
+ * noise rather than feedback.
+ *
+ * Otherwise WASD/the joystick provide direction only; they have no length to
+ * read, so they use DEFAULT_AIM_STRENGTH - which is exactly the full-strength
+ * shot those inputs produced before swipe length meant anything.
+ */
+function buildAim(drag: Vec2 | null, move: Vec2): { dir: Vec2; strength: number } | null {
+  if (drag) {
+    const px = length(drag);
+    if (px >= AIM_SWIPE_MIN_PX) {
+      const strength = Math.min(1, (px - AIM_SWIPE_MIN_PX) / (AIM_SWIPE_MAX_PX - AIM_SWIPE_MIN_PX));
+      return { dir: normalize(drag), strength };
+    }
+    return null;
+  }
+  if (length(move) > 0.001) return { dir: normalize(move), strength: DEFAULT_AIM_STRENGTH };
+  return null;
 }

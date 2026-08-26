@@ -29,6 +29,9 @@ function draw(): void {
   renderer.clear(ctx);
   renderer.drawCourt(ctx);
   renderer.drawLandingMarker(ctx, gameState.ball);
+  // Under the figures, over the court: the aim preview should read as being on
+  // the court, not pasted over the players.
+  renderer.drawAimPreview(ctx, gameState.player);
   renderer.drawTeammate(ctx, gameState.teammate);
   for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
   renderer.drawPlayer(ctx, gameState.player);

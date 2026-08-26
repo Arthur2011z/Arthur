@@ -68,9 +68,11 @@ test.describe('SwipeInput: gesture recognition on the canvas', () => {
       timeout: 500,
     });
 
-    // Aim hard to the right - the spike must follow the swipe.
+    // Aim diagonally right and toward the net - the spike must follow the
+    // swipe. (Purely sideways would no longer cross the net: the target is not
+    // clamped into the opponent court any more.)
     const { cx, cy } = await canvasCenter(page);
-    await swipe(page, { x: cx, y: cy }, { x: cx + 120, y: cy });
+    await swipe(page, { x: cx, y: cy }, { x: cx + 120, y: cy - 120 });
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1500,

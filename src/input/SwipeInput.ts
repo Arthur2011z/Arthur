@@ -21,9 +21,18 @@ const MAX_SWIPE_DURATION_MS = 600;
  * pointerup), so it reads instantly even inside the brief slow-motion aiming
  * window. One emission per pointer id; a further move of the same pointer
  * after that is ignored until a fresh pointerdown starts a new gesture.
+ *
+ * Alongside that one-shot emission it also exposes the LIVE drag (see `drag`),
+ * which keeps updating for as long as the pointer is held down. That is what
+ * the aim preview follows: the one-shot direction is what finally fires the
+ * spike, the live drag is what the player watches while deciding.
  */
 export class SwipeInput {
   private pending: Vec2 | null = null;
+  /** Live drag vector in CSS px from the pointerdown origin, or null when no
+   * pointer is down. Unlike `pending` this is NOT consumed and NOT limited to
+   * one emission - it tracks the finger for the whole gesture. */
+  private dragVector: Vec2 | null = null;
 
   private pointerId: number | null = null;
   private startX = 0;
@@ -42,6 +51,13 @@ export class SwipeInput {
     return v;
   }
 
+  /** The live drag in CSS px (from the pointerdown origin to where the pointer
+   * is now), or null if nothing is being dragged. Read every frame, never
+   * consumed. */
+  get drag(): Vec2 | null {
+    return this.dragVector;
+  }
+
   private onPointerDown = (e: PointerEvent): void => {
     if (this.pointerId !== null) return;
     this.pointerId = e.pointerId;
@@ -49,6 +65,7 @@ export class SwipeInput {
     this.startY = e.clientY;
     this.startTime = performance.now();
     this.emitted = false;
+    this.dragVector = { x: 0, y: 0 };
     this.surface.setPointerCapture(e.pointerId);
     this.surface.addEventListener('pointermove', this.onPointerMove);
     this.surface.addEventListener('pointerup', this.onPointerEnd);
@@ -56,10 +73,15 @@ export class SwipeInput {
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (e.pointerId !== this.pointerId || this.emitted) return;
+    if (e.pointerId !== this.pointerId) return;
 
     const dx = e.clientX - this.startX;
     const dy = e.clientY - this.startY;
+    // The live drag keeps tracking even after the one-shot emission below has
+    // fired, so the preview follows the finger for the whole gesture.
+    this.dragVector = { x: dx, y: dy };
+
+    if (this.emitted) return;
     const dist = Math.hypot(dx, dy);
     const elapsed = performance.now() - this.startTime;
     if (dist < MIN_SWIPE_DISTANCE_PX || elapsed > MAX_SWIPE_DURATION_MS) return;
@@ -71,6 +93,7 @@ export class SwipeInput {
   private onPointerEnd = (e: PointerEvent): void => {
     if (e.pointerId !== this.pointerId) return;
     this.pointerId = null;
+    this.dragVector = null;
     this.surface.removeEventListener('pointermove', this.onPointerMove);
     this.surface.removeEventListener('pointerup', this.onPointerEnd);
     this.surface.removeEventListener('pointercancel', this.onPointerEnd);

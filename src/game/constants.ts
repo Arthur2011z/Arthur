@@ -98,7 +98,35 @@ export const ASSIST_SPEED_MULTIPLIER = 1;
 // only the ~0.1m needed to bring it inside HIT_RANGE, then contact fires.
 export const JUMP_ASSIST_RANGE = 0.9;
 
-export const SPIKE_RANGE = 5;
+// How far a spike is aimed, at full swipe strength. Big enough that a
+// full-blooded swipe from an attacking position can carry the ball past the
+// opponents' baseline - i.e. genuinely out. That is deliberate: see
+// computeSpikeTarget, which no longer clamps the target into the court.
+export const SPIKE_RANGE = 9;
+// ...and at the shortest swipe that still registers. A flick drops the ball
+// in just past the net; a full drag sends it deep, with the risk that comes
+// with that.
+export const SPIKE_MIN_RANGE = 3;
+
+// --- Aim swipe -----------------------------------------------------------
+// Drag length (CSS px) mapped onto swipe strength 0..1.
+export const AIM_SWIPE_MIN_PX = 30;
+export const AIM_SWIPE_MAX_PX = 220;
+// Strength used when the aim comes from something with no length to it - the
+// keyboard's WASD or the joystick. 1 = the full-strength shot, which is what
+// those inputs produced before swipe length meant anything.
+export const DEFAULT_AIM_STRENGTH = 1;
+// Swipe length also nudges the PACE, on top of the net-distance ramp. Kept
+// deliberately secondary: the net-distance rule spans 0.5s..1.1s (a factor of
+// 2.2) and remains the dominant term, while this only stretches the result by
+// up to 25% at the shortest swipe. At full strength the factor is exactly 1,
+// so a full swipe reproduces the pure net-distance value.
+export const SPIKE_SWIPE_SLOW_FACTOR = 1.25;
+// Nobody puts the ball exactly where they aimed. Small enough that aiming is
+// still clearly worth doing, big enough to feel.
+export const SPIKE_SCATTER_RADIUS = 0.55;
+// Polyline resolution of the live trajectory preview.
+export const AIM_PREVIEW_SEGMENTS = 28;
 
 export const WIN_SCORE = 21;
 export const WIN_MARGIN = 2;

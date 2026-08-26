@@ -144,16 +144,22 @@ test.describe('Tastatur-Steuerung', () => {
       timeout: 700,
     });
 
+    // D and W together: right AND toward the net. A purely sideways aim would
+    // no longer cross - the spike target is not clamped into the opponent
+    // court any more.
     await page.keyboard.down('KeyD');
+    await page.keyboard.down('KeyW');
     await page.waitForTimeout(60);
     const aimed = await state(page);
-    expect(aimed.aimDir.x).toBeGreaterThan(0.9); // aim now points right
+    expect(aimed.aimDir.x).toBeGreaterThan(0.5); // aim now points right...
+    expect(aimed.aimDir.y).toBeLessThan(-0.5); // ...and toward the net
 
     await page.keyboard.press('KeyQ');
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1000,
     });
     await page.keyboard.up('KeyD');
+    await page.keyboard.up('KeyW');
 
     const after = await state(page);
     expect(after.ball.target.x).toBeGreaterThan(5); // struck to the right

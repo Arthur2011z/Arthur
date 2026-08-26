@@ -4,6 +4,7 @@ import {
   closestPointOnSegment,
   distance,
   length,
+  lerp,
   lerpVec2,
   normalize,
   sub,
@@ -45,14 +46,29 @@ import {
   SET_NET_APPROACH_Y,
   SET_NET_BLEND,
   SLOWMO_REAL_DURATION,
+  SPIKE_MIN_RANGE,
   SPIKE_RANGE,
+  SPIKE_SCATTER_RADIUS,
+  SPIKE_SWIPE_SLOW_FACTOR,
   SPIKE_TARGET_MARGIN,
+  DEFAULT_AIM_STRENGTH,
 } from '../game/constants';
 import { Ball } from './Ball';
+import type { AimPreview } from './Ball';
 import { spikeShot } from '../game/spikePower';
 import { InputSnapshot } from '../input/InputManager';
 
 export type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'slowmo_aim' | 'jumping_down';
+
+/** Nudges a landing point by a small random offset - uniformly over a disc of
+ * SPIKE_SCATTER_RADIUS, so the shot is honest rather than machine-perfect. The
+ * sqrt is what makes it uniform over the AREA; without it the offsets would
+ * bunch toward the centre and the scatter would barely read. */
+function scatter(target: Vec2): Vec2 {
+  const angle = random() * Math.PI * 2;
+  const radius = Math.sqrt(random()) * SPIKE_SCATTER_RADIUS;
+  return { x: target.x + Math.cos(angle) * radius, y: target.y + Math.sin(angle) * radius };
+}
 
 /** Default spike direction (straight toward the net), used if the slow-motion
  * aim window times out without a swipe. */
@@ -102,6 +118,14 @@ export class Player {
   /** Current spike aim direction, set by the aim-swipe during slowmo_aim
    * (exposed for the renderer's aim indicator). */
   aimDir: Vec2 = { ...DEFAULT_AIM_DIR };
+  /** How hard the current aim would hit, 0..1 - the swipe's own length (see
+   * InputSnapshot.aim). Drives how far the spike is aimed and, secondarily,
+   * its pace. */
+  aimStrength: number = DEFAULT_AIM_STRENGTH;
+  /** The trajectory the spike would fly if it were struck right now, or null
+   * when no aim is being taken. Recomputed every frame of the aim window so it
+   * tracks the swipe live; read by the renderer to draw the preview. */
+  aimPreview: AimPreview | null = null;
 
   private stateTimer = 0;
   private approachStart: Vec2 = { ...this.pos };
@@ -412,6 +436,35 @@ export class Player {
     this.stateTimer = 0;
   }
 
+  /** The flight the spike would take if struck this instant: launched from the
+   * ball's own live position and height, aimed by the current swipe. Shares
+   * spikeShot and computeSpikeTarget with the real shot, so the preview cannot
+   * drift away from what actually happens. The random scatter is deliberately
+   * NOT previewed - it is what makes the shot imperfect, and showing it would
+   * be showing the player a dice roll that has not been made yet. */
+  private buildAimPreview(ball: Ball): AimPreview {
+    const shot = this.spikeShotForCurrentAim();
+    return {
+      from: { ...ball.pos },
+      target: this.computeSpikeTarget(this.aimDir, this.aimStrength),
+      duration: shot.duration,
+      peakHeight: shot.peakHeight,
+      initialHeight: ball.height,
+    };
+  }
+
+  /** The spike's flight parameters for the aim currently held. Net distance at
+   * takeoff is the dominant term (spikeShot); the swipe's length only stretches
+   * the duration, by up to SPIKE_SWIPE_SLOW_FACTOR at the shortest swipe and
+   * by nothing at all at full strength. */
+  private spikeShotForCurrentAim(): { duration: number; peakHeight: number } {
+    const base = spikeShot(this.jumpStartNetDistance);
+    return {
+      duration: base.duration * lerp(SPIKE_SWIPE_SLOW_FACTOR, 1, this.aimStrength),
+      peakHeight: base.peakHeight,
+    };
+  }
+
   /** Real-time aim window (GameState passes this the same unscaled dt it
    * always does - only the ball's own update() is slowed while this state is
    * active, see GameState.update). A swipe sets the aim and resolves right
@@ -420,6 +473,11 @@ export class Player {
    * swipe. */
   private updateSlowmoAim(dt: number, input: InputSnapshot, ball: Ball): void {
     this.updateAirborneAim(input);
+    // Recomputed every frame so the drawn curve follows the swipe live, and is
+    // exactly the shot that firing right now would produce - same target, same
+    // duration, same arc (scatter aside, which is by definition unknowable in
+    // advance).
+    this.aimPreview = this.buildAimPreview(ball);
 
     // Keyboard: the second Q hits it, using whatever direction WASD is
     // currently holding. Same in-reach requirement as everywhere else.
@@ -449,6 +507,9 @@ export class Player {
    *   its full, flat, fast form; from deep it arrives slower and loopier, and
    *   so is genuinely defendable rather than a near-certain point. */
   private resolveSpike(ball: Ball): void {
+    // The aim window is over either way - nothing left to preview.
+    this.aimPreview = null;
+
     // The ball isn't frozen during slowmo_aim (see GameState.update) - it
     // keeps creeping along its original flight, heavily slowed but not
     // stopped, so a fast original shot (or a long aim window) can drift it
@@ -479,8 +540,9 @@ export class Player {
         toucher: 'player',
       });
     } else {
-      const shot = spikeShot(this.jumpStartNetDistance);
-      ball.launch({ ...ball.pos }, this.computeSpikeTarget(this.aimDir), {
+      const shot = this.spikeShotForCurrentAim();
+      const aimed = this.computeSpikeTarget(this.aimDir, this.aimStrength);
+      ball.launch({ ...ball.pos }, scatter(aimed), {
         duration: shot.duration,
         peakHeight: shot.peakHeight,
         toucher: 'player',
@@ -497,7 +559,9 @@ export class Player {
    * neutral stick so releasing it mid-jump keeps the aim you already had
    * rather than snapping back to the default. */
   private updateAirborneAim(input: InputSnapshot): void {
-    if (length(input.move) > 0.001) this.aimDir = normalize(input.move);
+    if (!input.aim) return;
+    this.aimDir = input.aim.dir;
+    this.aimStrength = input.aim.strength;
   }
 
   /** The second Q press, from any airborne state. Fires the smash only when
@@ -569,16 +633,15 @@ export class Player {
     });
   }
 
-  private computeSpikeTarget(aimDir: Vec2): Vec2 {
+  /** Where the spike is aimed. Deliberately NOT clamped into the opponent
+   * court: a spike may be hit out, and it is the player's job - not the game's
+   * - to keep it in. The swipe's length sets how far it is aimed, between
+   * SPIKE_MIN_RANGE (a flick, dropping it in short) and SPIKE_RANGE (a full
+   * drag, deep enough to sail past the baseline if mis-aimed). */
+  private computeSpikeTarget(aimDir: Vec2, strength: number): Vec2 {
     const dir = normalize(aimDir);
-    const raw = {
-      x: this.pos.x + dir.x * SPIKE_RANGE,
-      y: this.pos.y + dir.y * SPIKE_RANGE,
-    };
-    return {
-      x: clamp(raw.x, SPIKE_TARGET_MARGIN, COURT_WIDTH - SPIKE_TARGET_MARGIN),
-      y: clamp(raw.y, SPIKE_TARGET_MARGIN, NET_Y - SPIKE_TARGET_MARGIN),
-    };
+    const range = lerp(SPIKE_MIN_RANGE, SPIKE_RANGE, clamp(strength, 0, 1));
+    return { x: this.pos.x + dir.x * range, y: this.pos.y + dir.y * range };
   }
 
   private netFaultTarget(ball: Ball): Vec2 {

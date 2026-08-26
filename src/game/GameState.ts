@@ -9,6 +9,7 @@ import {
   AUTO_SERVE_DELAY,
   AUTO_SERVE_DURATION,
   AUTO_SERVE_PEAK_HEIGHT,
+  COURT_LENGTH,
   COURT_WIDTH,
   HUMAN_SERVE_DURATION,
   HUMAN_SERVE_PEAK_HEIGHT,
@@ -162,16 +163,42 @@ export class GameState {
     return chooseResponsibleOpponent(this.ball, this.opponents);
   }
 
-  /** A flight completing untouched is a landing: the side it landed on failed
-   * to return it, so the other team scores. */
+  private landedOutOfBounds(): boolean {
+    const { x, y } = this.ball.pos;
+    return x < 0 || x > COURT_WIDTH || y < 0 || y > COURT_LENGTH;
+  }
+
+  /** The team that did NOT play `toucher`'s shot. An untouched ball (only
+   * possible before anyone has played the current rally) falls back to the
+   * in-bounds rule's answer, since nobody can be blamed for hitting it out. */
+  private opposingTeam(toucher: BallToucher): Team {
+    if (toucher === null) return this.receivingSideLoses();
+    return toucher === 'player' || toucher === 'teammate' ? 'opponents' : 'human';
+  }
+
+  /** Who wins when the ball lands IN: the side it came down on failed to dig
+   * it, so the other side scores. */
+  private receivingSideLoses(): Team {
+    return this.ball.pos.y > NET_Y ? 'opponents' : 'human';
+  }
+
+  /** A flight completing untouched is a landing. Two ways it can score:
+   *
+   * - OUT: it came down outside the court lines. Whoever hit it out loses the
+   *   point, regardless of which side of the net it came down on. The spike is
+   *   the only shot that can do this - it is deliberately not clamped into the
+   *   court (see Player.computeSpikeTarget), which is exactly what makes it a
+   *   risk worth taking. Every other shot in the game aims within a margin.
+   * - IN: the side it landed on failed to return it, so the other team scores.
+   */
   private handleBallLanded(): void {
-    const landedInHumanHalf = this.ball.pos.y > NET_Y;
-    if (landedInHumanHalf) {
-      this.score.opponents += 1;
-      this.servingTeam = 'opponents';
-    } else {
+    const winner = this.landedOutOfBounds() ? this.opposingTeam(this.ball.lastToucher) : this.receivingSideLoses();
+    if (winner === 'human') {
       this.score.human += 1;
       this.servingTeam = 'human';
+    } else {
+      this.score.opponents += 1;
+      this.servingTeam = 'opponents';
     }
 
     if (this.score.human >= WIN_SCORE && this.score.human - this.score.opponents >= WIN_MARGIN) {
@@ -232,7 +259,7 @@ export class GameState {
 
     this.player.update(
       dt,
-      { move: input.move, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false },
+      { move: input.move, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false },
       this.ball,
       this.teammate.pos,
       false,

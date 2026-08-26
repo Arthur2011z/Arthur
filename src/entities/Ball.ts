@@ -9,6 +9,24 @@ export type BallToucher = 'player' | 'teammate' | 'opponent1' | 'opponent2' | nu
  * real landing. */
 export type BallFlightState = 'idle' | 'flying' | 'held';
 
+/** Height of a flight at progress `u` (0..1). Split out as a pure function so
+ * the aim preview can draw exactly the arc the ball will actually fly - one
+ * formula, not a lookalike that could drift out of sync with update(). */
+export function flightHeightAt(u: number, peakHeight: number, initialHeight: number): number {
+  return peakHeight * 4 * u * (1 - u) + initialHeight * (1 - u);
+}
+
+/** A flight that has not been launched yet - everything needed to draw the
+ * exact arc a shot would take. Same fields launch() consumes, so a preview and
+ * the real thing cannot describe different curves. */
+export interface AimPreview {
+  from: Vec2;
+  target: Vec2;
+  duration: number;
+  peakHeight: number;
+  initialHeight: number;
+}
+
 export interface LaunchOptions {
   duration: number;
   peakHeight: number;
@@ -62,7 +80,7 @@ export class Ball {
     this.elapsed = Math.min(this.elapsed + dt, this.flightDuration);
     const u = this.flightDuration > 0 ? this.elapsed / this.flightDuration : 1;
     this.pos = lerpVec2(this.start, this.target, u);
-    this.height = this.peakHeight * 4 * u * (1 - u) + this.initialHeight * (1 - u);
+    this.height = flightHeightAt(u, this.peakHeight, this.initialHeight);
     if (u >= 1) {
       this.state = 'idle';
     }

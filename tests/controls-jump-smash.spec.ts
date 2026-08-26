@@ -128,7 +128,11 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
       timeout: 500,
     });
 
-    await swipeOnCanvas(page, 120, 0); // aim hard to the right
+    // Diagonally right and toward the net. A purely sideways aim would no
+    // longer cross at all: the spike target is not clamped into the opponent
+    // court any more (that is what makes out-balls possible), so the direction
+    // has to actually point over the net for the ball to go there.
+    await swipeOnCanvas(page, 120, -120);
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1500,
@@ -156,7 +160,10 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
       timeout: 2000,
     });
     const after = await getState(page);
-    expect(after.ball.target.x).toBeCloseTo(4, 0); // straight ahead - no swipe was made
+    // Straight ahead - no swipe was made - but no longer to the millimetre:
+    // every spike now lands with a small random scatter around where it was
+    // aimed (SPIKE_SCATTER_RADIUS 0.55m).
+    expect(Math.abs(after.ball.target.x - 4)).toBeLessThanOrEqual(0.55);
     expect(after.ball.target.y).toBeLessThan(8);
   });
 
