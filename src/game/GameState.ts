@@ -11,8 +11,6 @@ import {
   AUTO_SERVE_PEAK_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
-  HUMAN_SERVE_DURATION,
-  HUMAN_SERVE_PEAK_HEIGHT,
   HUMAN_SERVE_TIMEOUT,
   MAX_TEAM_TOUCHES,
   NET_Y,
@@ -46,8 +44,10 @@ export class GameState {
   score = { human: 0, opponents: 0 };
   phase: GamePhase = 'playing';
   winner: Team | null = null;
-  /** Non-null while the human is holding serve, waiting for their
-   * Notfall-Schlag press. */
+  /** Non-null for as long as the human team is in the serve routine: standing
+   * at the baseline waiting for the Aufschlag press, and on through the toss,
+   * the jump and the aim window, right up to the moment the ball is struck.
+   * The UI reads this to decide which buttons to show (see main.ts). */
   awaitingServe: Team | null = null;
 
   private ballIdleTimer = 0;
@@ -74,8 +74,15 @@ export class GameState {
       return;
     }
 
-    if (this.awaitingServe !== null) {
-      this.updateServeHold(dt, input);
+    // Serve preparation (ball in hand / in the toss) runs its own reduced
+    // update: no idle-serve timer, no touch counting, no actions but moving
+    // and serving. The moment the server springs after the toss it becomes an
+    // ordinary Jump-Smash and the normal loop below takes over - which is what
+    // gives the serve the identical slow-motion aim window, live trajectory
+    // preview, swipe-length power, scatter and out-balls without duplicating
+    // any of it.
+    if (this.player.state === 'serve_ready' || this.player.state === 'serve_toss') {
+      this.updateServePreparation(dt, input);
       return;
     }
 
@@ -83,6 +90,7 @@ export class GameState {
     const prevToucher = this.ball.lastToucher;
 
     this.player.update(dt, input, this.ball, this.teammate.pos, this.mustCrossNet('human'));
+    this.syncServeMode();
     // The ball's own flight is what visibly carries the "Zeitlupe": while the
     // player is mid-aim (slowmo_aim), it's fed a drastically scaled-down dt so
     // it barely creeps along its flight for the (real-time) duration of the
@@ -92,7 +100,7 @@ export class GameState {
     this.teammate.update(
       dt,
       this.ball,
-      { pos: this.player.pos, state: this.player.state, hasPendingContactInput: this.player.hasPendingContactInput },
+      this.playerInfo(),
       this.mustCrossNet('human'),
       // So the teammate's own attack can aim at the gap their formation leaves.
       this.opponents.map((o) => o.pos),
@@ -217,8 +225,9 @@ export class GameState {
   }
 
   /** Dispatches the next serve to whoever won the last rally: the opponents
-   * auto-serve immediately, the human instead holds the ball until they
-   * press Notfall-Schlag to send it (or a fallback timeout elapses). */
+   * auto-serve immediately, the human instead goes into the serve routine -
+   * the ball in hand at the baseline, the serve UI up, waiting for the
+   * Aufschlag press. */
   private beginServe(servingTeam: Team): void {
     this.ballIdleTimer = 0;
     this.rallyTouches = { team: null, count: 0 };
@@ -227,6 +236,7 @@ export class GameState {
     } else {
       this.awaitingServe = 'human';
       this.serveHoldTimer = 0;
+      this.player.enterServeReady();
       this.ball.pos = { ...this.player.pos }; // snap immediately, no first-frame pop
     }
   }
@@ -249,45 +259,58 @@ export class GameState {
     });
   }
 
-  /** While the human holds serve: the ball tracks their position (free
-   * movement still works), and only the Notfall-Schlag button (or the safety
-   * timeout) sends it over - swipe, jump/smash, Hechten and Pass are
-   * withheld entirely so an accidental press can't race a zero-range action
-   * against the serve itself. */
-  private updateServeHold(dt: number, input: InputSnapshot): void {
+  /** The serve preparation phase (player.state serve_ready / serve_toss): the
+   * ball is in the server's hand, or already tossed with the jump about to
+   * follow. Only two inputs exist here - moving along the baseline, and the
+   * serve itself. Everything else is withheld outright rather than merely
+   * hidden, so a stray keypress cannot fire an action that has no meaning at
+   * the baseline (and cannot race the serve).
+   *
+   * The idle-serve timer is deliberately not running during this phase: the
+   * ball sitting idle in a server's hand must not trigger the auto-serve
+   * fallback. The HUMAN_SERVE_TIMEOUT below is that phase's own safety net. */
+  private updateServePreparation(dt: number, input: InputSnapshot): void {
     this.serveHoldTimer += dt;
 
     this.player.update(
       dt,
-      { move: input.move, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false },
+      {
+        move: input.move,
+        aim: null,
+        swipe: null,
+        jump: false,
+        spike: false,
+        pass: false,
+        dive: false,
+        hit: false,
+        // The fallback keeps the game from ever getting permanently stuck on a
+        // serve that is never pressed - it starts the routine exactly as a
+        // press would, rather than teleporting the ball over the net.
+        serve: input.serve || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT,
+      },
       this.ball,
       this.teammate.pos,
       false,
     );
-    this.ball.pos = { ...this.player.pos };
-    this.teammate.update(
-      dt,
-      this.ball,
-      { pos: this.player.pos, state: this.player.state, hasPendingContactInput: this.player.hasPendingContactInput },
-      false,
-    );
+    this.syncServeMode();
+    this.ball.update(dt);
+    this.teammate.update(dt, this.ball, this.playerInfo(), false, this.opponents.map((o) => o.pos));
     for (const opponent of this.opponents) opponent.update(dt, this.ball, false);
-
-    if (input.hit || this.serveHoldTimer >= HUMAN_SERVE_TIMEOUT) {
-      this.fireHumanServe();
-    }
   }
 
-  private fireHumanServe(): void {
-    const target: Vec2 = {
-      x: SERVE_MARGIN + random() * (COURT_WIDTH - 2 * SERVE_MARGIN),
-      y: SERVE_MARGIN + random() * (NET_Y - 2 * SERVE_MARGIN),
+  /** The serve UI is up for exactly as long as the player is in the serve
+   * routine - Player owns that fact (it ends it the instant the ball is
+   * struck, or the attempt is over), this only mirrors it. */
+  private syncServeMode(): void {
+    this.awaitingServe = this.player.isServing ? 'human' : null;
+  }
+
+  private playerInfo() {
+    return {
+      pos: this.player.pos,
+      state: this.player.state,
+      hasPendingContactInput: this.player.hasPendingContactInput,
+      isServing: this.player.isServing,
     };
-    this.ball.launch({ ...this.player.pos }, target, {
-      duration: HUMAN_SERVE_DURATION,
-      peakHeight: HUMAN_SERVE_PEAK_HEIGHT,
-      toucher: 'player',
-    });
-    this.awaitingServe = null;
   }
 }

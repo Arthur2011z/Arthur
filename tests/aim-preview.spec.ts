@@ -15,7 +15,6 @@ import { distIndex } from './helpers';
  *    out loses the point.
  */
 
-const NET_Y = 8;
 const COURT_WIDTH = 8;
 const COURT_LENGTH = 16;
 const SPIKE_SCATTER_RADIUS = 0.55;

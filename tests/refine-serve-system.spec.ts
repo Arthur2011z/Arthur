@@ -54,15 +54,17 @@ async function dragJoystick(page: Page, dx: number, dy: number, holdMs: number) 
   await page.mouse.up();
 }
 
-async function tapHit(page: Page) {
-  const btn = page.locator('#hit-btn');
+async function tapServe(page: Page) {
+  const btn = page.locator('#serve-btn');
   const box = await btn.boundingBox();
-  if (!box) throw new Error('hit button not found');
+  if (!box) throw new Error('serve button not found');
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
 test.describe('Refine 5: real serve system', () => {
-  test('holding human serve: the ball follows the player until Notfall-Schlag sends it over', async ({ page }) => {
+  test('holding human serve: the ball follows the player until the Aufschlag button sends it over', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
@@ -72,15 +74,18 @@ test.describe('Refine 5: real serve system', () => {
     expect(held.ball.state).toBe('idle');
     expect(held.ball.pos).toEqual(held.player.pos);
 
-    // Free movement still works, and the ball follows.
+    // Sideways movement along the baseline still works, and the ball follows.
+    // (Forward movement no longer does - see serve-system.spec.ts.)
     await dragJoystick(page, 40, 0, 300);
     const afterMove = await getState(page);
     expect(afterMove.player.pos.x).toBeGreaterThan(held.player.pos.x);
     expect(afterMove.ball.pos).toEqual(afterMove.player.pos);
 
-    await tapHit(page);
+    // The serve is now its own routine - toss, jump, aim window, strike - so
+    // the press starts it rather than launching the ball outright.
+    await tapServe(page);
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 1000,
+      timeout: 5000,
     });
     const afterServe = await getState(page);
     expect(afterServe.awaitingServe).toBeNull();
@@ -94,8 +99,10 @@ test.describe('Refine 5: real serve system', () => {
 
     await winRallyForHuman(page);
 
+    // The fallback now starts the routine exactly as a press would, so the
+    // strike lands ~1.7s after the 5s timeout rather than instantly.
     await page.waitForFunction(() => (window as any).__game.state.awaitingServe === null, undefined, {
-      timeout: 8000,
+      timeout: 12000,
     });
     const after = await getState(page);
     expect(after.ball.state).toBe('flying');

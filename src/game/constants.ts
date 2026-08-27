@@ -149,13 +149,55 @@ export const AUTO_SERVE_DELAY = 2;
 export const AUTO_SERVE_DURATION = 2.2; // slowed down for reaction time - see HIT_DURATION's note
 export const AUTO_SERVE_PEAK_HEIGHT = 3;
 
-// Human serve: the ball rests "in hand" (tracks the player) until the
-// Notfall-Schlag button sends it over - generous, so normal play never feels
-// rushed - or this fallback timeout elapses, so the game can never get
-// permanently stuck.
+// Human serve: the ball rests "in hand" (tracks the player) until the serve
+// button starts the routine - generous, so normal play never feels rushed - or
+// this fallback timeout elapses, so the game can never get permanently stuck.
 export const HUMAN_SERVE_TIMEOUT = 5; // seconds
-export const HUMAN_SERVE_DURATION = 2.2; // seconds - same easy, reactable arc as the opponent auto-serve
-export const HUMAN_SERVE_PEAK_HEIGHT = 3; // meters
+
+// The serve routine itself: press once, and the ball is tossed straight up
+// while the player jumps to meet it at the top. The strike is then an ordinary
+// Jump-Smash - same slow-motion aim window, same live trajectory preview, same
+// swipe-length power, same scatter, same possibility of hitting it out.
+export const SERVE_TOSS_DURATION = 1.4; // whole up-and-down of the toss
+export const SERVE_TOSS_PEAK_HEIGHT = 2.8; // above CATCHABLE_HEIGHT, so the ball is briefly out of reach at the top
+// How long after the toss the player launches into the jump. Tuned so the jump
+// peaks just as the ball drops back through CATCHABLE_HEIGHT - i.e. contact
+// happens at the top of the jump, not on the way up with the ball still
+// climbing.
+export const SERVE_JUMP_DELAY = 0.65;
+// While preparing to serve the player is pinned to their own baseline and may
+// only move along it. This is the y they are held at.
+export const SERVE_BASELINE_Y = COURT_LENGTH - PLAYER_RADIUS;
+
+// How far a serve is aimed - the serve's own version of SPIKE_MIN_RANGE /
+// SPIKE_RANGE, and the one thing about the strike that is NOT shared with the
+// ordinary Jump-Smash.
+//
+// It has to be its own band because of where a serve is struck from. The
+// baseline sits SERVE_BASELINE_Y - NET_Y = 7.65m from the net, so the spike
+// band (3..9m) spends almost all of itself merely reaching it: measured, a
+// full-strength straight swipe landed at y=6.65 - a dink 1.35m past the net -
+// and any diagonal at all (a 45-degree swipe reaches only 6.36m forward)
+// failed to cross at all. That is not a serve.
+//
+// These two span the same 0..1 swipe strength over the distances that
+// actually matter from back there, so everything the swipe controls behaves
+// exactly as it does for a spike - it just covers a serve's distances:
+// the shortest swipe drops the ball in just over the net, a full one carries
+// it past the opponents' baseline, i.e. genuinely out. As with the spike the
+// target is never clamped into the court (see Player.computeSpikeTarget) - the
+// live trajectory preview is what tells the player where it is going.
+export const SERVE_MIN_RANGE = 8.5; // straight ahead: lands 0.85m past the net
+export const SERVE_MAX_RANGE = 16.5; // straight ahead: 0.85m past their baseline - out
+// What the serve is aimed at when the player expresses no aim at all - no
+// swipe, no stick - and the aim window simply times out. DEFAULT_AIM_STRENGTH
+// (1, the spike's default) would be full range, which from the baseline is a
+// serve that sails out on its own: an automatic fault for doing nothing, which
+// is not a choice the player made. This lands it deep but comfortably in
+// (straight ahead: y = 1.95, ~2m inside their baseline). Any aim the player
+// DOES express still applies exactly as expressed - there is no correction,
+// and a full-strength swipe still goes out.
+export const SERVE_DEFAULT_AIM_STRENGTH = 0.65;
 
 // Pass button: a controlled, medium touch straight to the AI teammate -
 // available any time the ball is in HIT_RANGE (or brought into it via

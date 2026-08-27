@@ -45,6 +45,8 @@ export interface PlayerInfo {
   pos: Vec2;
   state: PlayerState;
   hasPendingContactInput: boolean;
+  /** Whether the player is mid-serve-routine (see Player.isServing). */
+  isServing?: boolean;
 }
 
 /** Whether the human player - not the AI teammate - should be the one to
@@ -73,6 +75,11 @@ export interface PlayerInfo {
 function playerHasPriority(ball: Ball, player: PlayerInfo, teammatePos: Vec2): boolean {
   if (ball.state !== 'flying') return false;
   if (ball.lastToucher === 'player') return false;
+  // A serve belongs to the server, unconditionally. The toss goes straight up
+  // from the baseline and the teammate's back-zone base is well within
+  // TEAMMATE_REACT_RADIUS of it, so without this the teammate would sprint in
+  // and poach its own partner's serve out of the air.
+  if (player.isServing) return true;
   if (player.state === 'diving') return true;
   if (player.hasPendingContactInput && distance(player.pos, ball.pos) <= ASSIST_RANGE) return true;
   return distance(player.pos, ball.pos) + TEAMMATE_YIELD_MARGIN < distance(teammatePos, ball.pos);
@@ -101,6 +108,21 @@ function computeZoneHome(playerPos: Vec2): Vec2 {
  * wait at the landing spot rather than running into the ball early. */
 function isSetUpForUs(ball: Ball): boolean {
   return ball.lastToucher === 'player' && ball.target.y > NET_Y;
+}
+
+/** A ball our own player has already sent over the net is not ours to touch:
+ * it is on its way to the opponents, and stepping into its path only throws
+ * our own shot away. This is the mirror image of isSetUpForUs - same shot,
+ * other side of the net.
+ *
+ * Measured on the serve, which is where it actually bites: the serve is struck
+ * at the baseline and flies the entire length of the court, passing within
+ * ~2.05m of the teammate's back-zone base on the way - inside
+ * TEAMMATE_REACT_RADIUS. Without this guard the teammate reliably stepped in
+ * and dug its own partner's serve, which therefore never reached the
+ * opponents at all. */
+function ownShotHeadingOver(ball: Ball): boolean {
+  return ball.lastToucher === 'player' && ball.target.y <= NET_Y;
 }
 
 /** Where to aim an attack: the in-bounds spot furthest from every opponent -
@@ -203,6 +225,7 @@ export class TeammateAI {
    * placed for. */
   private shouldReact(ball: Ball, player: PlayerInfo): boolean {
     if (ball.state !== 'flying' || ball.lastToucher === 'teammate') return false;
+    if (ownShotHeadingOver(ball)) return false;
     if (playerHasPriority(ball, player, this.pos)) return false;
     // A ball the player just played into our own half is a pass to us, by
     // definition - go for it regardless of the reaction radius. That radius is
@@ -236,7 +259,7 @@ export class TeammateAI {
     // the current zone home, which already leans toward the net when the
     // player is covering the back - exactly the "get ready for the next
     // contact" behavior asked for.
-    if (playerHasPriority(ball, player, this.pos)) {
+    if (playerHasPriority(ball, player, this.pos) || ownShotHeadingOver(ball)) {
       this.state = 'returning';
       return;
     }

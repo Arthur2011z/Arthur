@@ -44,6 +44,10 @@ function draw(): void {
 const loop = new GameLoop((dt) => {
   if (hud.consumeRestart()) gameState.restart();
   gameState.update(dt, input.snapshot());
+  // Serve UI: while the human team is preparing to serve, the four action
+  // buttons give way to the single Aufschlag button, and back again the moment
+  // the ball is struck and the rally is running.
+  input.setServeMode(gameState.awaitingServe !== null);
   hud.update(gameState.score, gameState.phase, gameState.winner);
   draw();
 });

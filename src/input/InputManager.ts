@@ -27,6 +27,9 @@ export interface InputSnapshot {
   dive: boolean;
   /** True only on the frame the Notfall-Schlag button (or F) was pressed. */
   hit: boolean;
+  /** True only on the frame the Aufschlag button (or Space/Q) was pressed.
+   * Only ever acted on while preparing to serve - it starts the toss. */
+  serve: boolean;
   /** Live aim while a spike is being aimed: the direction to hit in, plus how
    * hard, 0..1. Non-null on every frame the player is expressing an aim - a
    * finger held down mid-swipe, or WASD/the joystick held. This is what the
@@ -61,6 +64,7 @@ export class InputManager {
     const btnPass = this.buttons.consumePass();
     const btnDive = this.buttons.consumeDive();
     const btnHit = this.buttons.consumeHit();
+    const btnServe = this.buttons.consumeServe();
 
     const keyQ = this.keyboard.consumeQ();
     const keyPass = this.keyboard.consumePass();
@@ -83,7 +87,19 @@ export class InputManager {
       pass: btnPass || keyPass,
       dive: btnDive || keyDive,
       hit: btnHit || keyHit,
+      // On the keyboard the serve reuses the two keys that are meaningless
+      // while standing at the baseline anyway: Space (Hechten) and Q (jump).
+      // Player only reads this in serve_ready, so they keep their normal jobs
+      // everywhere else.
+      serve: btnServe || keyDive || keyQ,
     };
+  }
+
+  /** Switches the on-screen UI between the serve layout (one single Aufschlag
+   * button) and the normal four action buttons. Driven every frame from the
+   * game's own serve state - see main.ts. */
+  setServeMode(active: boolean): void {
+    this.buttons.setServeMode(active);
   }
 }
 

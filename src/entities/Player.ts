@@ -46,6 +46,13 @@ import {
   SET_NET_APPROACH_Y,
   SET_NET_BLEND,
   SLOWMO_REAL_DURATION,
+  SERVE_BASELINE_Y,
+  SERVE_DEFAULT_AIM_STRENGTH,
+  SERVE_JUMP_DELAY,
+  SERVE_MAX_RANGE,
+  SERVE_MIN_RANGE,
+  SERVE_TOSS_DURATION,
+  SERVE_TOSS_PEAK_HEIGHT,
   SPIKE_MIN_RANGE,
   SPIKE_RANGE,
   SPIKE_SCATTER_RADIUS,
@@ -58,7 +65,19 @@ import type { AimPreview } from './Ball';
 import { spikeShot } from '../game/spikePower';
 import { InputSnapshot } from '../input/InputManager';
 
-export type PlayerState = 'active' | 'diving' | 'recovering' | 'jumping_up' | 'slowmo_aim' | 'jumping_down';
+export type PlayerState =
+  | 'active'
+  | 'diving'
+  | 'recovering'
+  | 'jumping_up'
+  | 'slowmo_aim'
+  | 'jumping_down'
+  /** Preparing to serve: ball in hand, movement restricted to sliding along
+   * the own baseline, waiting for the serve press. */
+  | 'serve_ready'
+  /** The ball has been tossed straight up and the player is about to spring
+   * after it (see SERVE_JUMP_DELAY). */
+  | 'serve_toss';
 
 /** Nudges a landing point by a small random offset - uniformly over a disc of
  * SPIKE_SCATTER_RADIUS, so the shot is honest rather than machine-perfect. The
@@ -68,6 +87,20 @@ function scatter(target: Vec2): Vec2 {
   const angle = random() * Math.PI * 2;
   const radius = Math.sqrt(random()) * SPIKE_SCATTER_RADIUS;
   return { x: target.x + Math.cos(angle) * radius, y: target.y + Math.sin(angle) * radius };
+}
+
+/** The serve stance: pinned to the own baseline, and never outside the side
+ * lines. Both are hard walls rather than soft nudges - y is *set*, not eased,
+ * so no accumulated forward drift can ever survive a frame, and x is clamped
+ * to the same [radius, width - radius] band the rest of the game uses, so the
+ * player can neither slip through a side line nor slide on beyond it however
+ * long the stick is held. Applied on entering serve_ready and again after
+ * every single movement step. */
+function clampToBaseline(p: Vec2): Vec2 {
+  return {
+    x: clamp(p.x, PLAYER_RADIUS, COURT_WIDTH - PLAYER_RADIUS),
+    y: SERVE_BASELINE_Y,
+  };
 }
 
 /** Default spike direction (straight toward the net), used if the slow-motion
@@ -138,6 +171,12 @@ export class Player {
    * net-fault risk (see resolveSpike). */
   private jumpStartNetDistance = 0;
 
+  /** True for the whole serve routine - from entering serve_ready right up to
+   * the moment the ball is actually struck (or the attempt is over). This is
+   * what the serve UI is switched on by, and what keeps the AI teammate from
+   * poaching the server's own toss. */
+  private serving = false;
+
   private passBuffered = false;
   private passBufferAge = 0;
   private hitBuffered = false;
@@ -185,7 +224,77 @@ export class Player {
       case 'jumping_down':
         this.updateJumpingDown(dt, input, ball);
         break;
+      case 'serve_ready':
+        this.updateServeReady(dt, input, ball);
+        break;
+      case 'serve_toss':
+        this.updateServeToss(dt, ball);
+        break;
     }
+  }
+
+  /** Puts the player into serve preparation: ball in hand, pinned to the
+   * baseline. Called by GameState when this team wins the right to serve. */
+  enterServeReady(): void {
+    this.state = 'serve_ready';
+    this.serving = true;
+    this.stateTimer = 0;
+    this.height = 0;
+    this.aimPreview = null;
+    this.aimDir = { ...DEFAULT_AIM_DIR };
+    this.aimStrength = SERVE_DEFAULT_AIM_STRENGTH;
+    this.clearPendingInputs();
+    this.pos = clampToBaseline(this.pos);
+  }
+
+  /** True while the serve has been set up but not yet struck - i.e. for as
+   * long as the serving UI should be showing. Covers the whole routine: the
+   * wait, the toss, the jump and the aim window. */
+  get isServing(): boolean {
+    return this.serving;
+  }
+
+  /** Waiting to serve. Only two things are possible here: sliding along the
+   * baseline, and pressing serve. Every other action is simply not reachable
+   * from this state, which is what makes the serve UI honest - the buttons are
+   * hidden AND the actions behind them are unavailable. */
+  private updateServeReady(dt: number, input: InputSnapshot, ball: Ball): void {
+    this.applyServeMovement(dt, input.move);
+    // The ball rests in the server's hand.
+    ball.pos = { ...this.pos };
+    if (input.serve) this.startServeToss(ball);
+  }
+
+  /** Tosses the ball straight up and starts the clock on the jump. */
+  private startServeToss(ball: Ball): void {
+    const from = { ...this.pos };
+    ball.launch(from, { ...from }, {
+      duration: SERVE_TOSS_DURATION,
+      peakHeight: SERVE_TOSS_PEAK_HEIGHT,
+      toucher: null,
+    });
+    this.state = 'serve_toss';
+    this.stateTimer = 0;
+  }
+
+  /** The beat between toss and jump. No contact is checked here on purpose:
+   * the toss starts at ground level, so without this wait the ball would be
+   * "in reach" the instant it left the hand and the aim window would open
+   * before the ball had gone anywhere. */
+  private updateServeToss(dt: number, ball: Ball): void {
+    this.stateTimer += dt;
+    if (this.stateTimer >= SERVE_JUMP_DELAY) this.tryStartJump(ball);
+  }
+
+  /** Movement while preparing to serve: along the baseline only. Forward
+   * motion into the court is dropped outright rather than clamped afterwards,
+   * and the side lines are a hard wall (see clampToBaseline). */
+  private applyServeMovement(dt: number, moveVector: Vec2): void {
+    const lateralOnly = { x: moveVector.x, y: 0 };
+    const dir = normalize(lateralOnly);
+    const magnitude = Math.min(1, length(lateralOnly));
+    this.pos.x += dir.x * PLAYER_SPEED * magnitude * dt;
+    this.pos = clampToBaseline(this.pos);
   }
 
   private updateActive(
@@ -509,6 +618,11 @@ export class Player {
   private resolveSpike(ball: Ball): void {
     // The aim window is over either way - nothing left to preview.
     this.aimPreview = null;
+    // ...and so is the serve, either way: struck, or missed and gone. Kept set
+    // until the shot itself has been built below, since computeSpikeTarget
+    // reads it - then cleared, which is what hands the UI back to the normal
+    // action buttons (see isServing).
+    const isServe = this.serving;
 
     // The ball isn't frozen during slowmo_aim (see GameState.update) - it
     // keeps creeping along its original flight, heavily slowed but not
@@ -517,6 +631,7 @@ export class Player {
     // contact is ever allowed to fire from a position the player didn't
     // actually reach - let the ball fly on untouched instead.
     if (!this.ballReachable(ball)) {
+      this.serving = false;
       this.fallStartHeight = this.height;
       this.state = 'jumping_down';
       this.stateTimer = 0;
@@ -531,7 +646,15 @@ export class Player {
       1,
     );
     const risk = riskT * NET_RISK_MAX;
-    const faulted = random() < risk;
+    // A serve is exempt from the net-fault roll. It is by definition struck
+    // from the baseline, i.e. at the far end of the risk ramp, where the roll
+    // would net out more than half of all serves - and unlike a rally smash,
+    // that risk was never a choice the player made: they cannot serve from
+    // anywhere else. It would also make the live trajectory preview a lie,
+    // since the roll happens after and regardless of what the preview showed.
+    // Everything else about the serve strike IS the ordinary smash: aim,
+    // swipe-length power, scatter, and the possibility of hitting it out.
+    const faulted = !isServe && random() < risk;
 
     if (faulted) {
       ball.launch({ ...ball.pos }, this.netFaultTarget(ball), {
@@ -549,6 +672,7 @@ export class Player {
       });
     }
 
+    this.serving = false;
     this.fallStartHeight = this.height;
     this.state = 'jumping_down';
     this.stateTimer = 0;
@@ -603,6 +727,10 @@ export class Player {
       this.height = 0;
       this.state = 'active';
       this.stateTimer = 0;
+      // Safety net for a serve jump that never got near the tossed ball at
+      // all (so resolveSpike never ran): the attempt is over, hand the UI
+      // back. Without this the serve buttons would stay up forever.
+      this.serving = false;
     }
   }
 
@@ -637,10 +765,16 @@ export class Player {
    * court: a spike may be hit out, and it is the player's job - not the game's
    * - to keep it in. The swipe's length sets how far it is aimed, between
    * SPIKE_MIN_RANGE (a flick, dropping it in short) and SPIKE_RANGE (a full
-   * drag, deep enough to sail past the baseline if mis-aimed). */
+   * drag, deep enough to sail past the baseline if mis-aimed).
+   *
+   * A serve uses the same mapping over its own distances (SERVE_MIN_RANGE..
+   * SERVE_MAX_RANGE) - see those constants for why the spike band cannot work
+   * from the baseline. */
   private computeSpikeTarget(aimDir: Vec2, strength: number): Vec2 {
     const dir = normalize(aimDir);
-    const range = lerp(SPIKE_MIN_RANGE, SPIKE_RANGE, clamp(strength, 0, 1));
+    const range = this.serving
+      ? lerp(SERVE_MIN_RANGE, SERVE_MAX_RANGE, clamp(strength, 0, 1))
+      : lerp(SPIKE_MIN_RANGE, SPIKE_RANGE, clamp(strength, 0, 1));
     return { x: this.pos.x + dir.x * range, y: this.pos.y + dir.y * range };
   }
 

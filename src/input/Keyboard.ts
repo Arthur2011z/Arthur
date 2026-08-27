@@ -20,6 +20,11 @@ const MOVE_KEYS: Record<string, Vec2> = {
  *   E        Pass
  *   F        Notfall-Schlag
  *
+ * While preparing to serve, Space and Q both start the serve instead (the
+ * keyboard equivalent of the single on-screen Aufschlag button) - neither has
+ * anything else to do standing at the baseline. That mapping lives in
+ * InputManager, not here: this class only reports which key was pressed.
+ *
  * Q is reported as a single edge (see consumeQ). It is InputManager that maps
  * that one edge onto both the `jump` and `spike` snapshot fields; Player then
  * reads whichever applies to the state it is actually in - `jump` only on the

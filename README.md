@@ -40,9 +40,32 @@ eigenständige Seite verteilen.
   Kontakt passiert erst, wenn der Ball wirklich in Reichweite ist.
 - **Notfall-Schlag** (kleiner Button): einfacher, schwacher Schlag übers Netz von
   überall, ohne Sprung — die Notlösung, wenn der Spieler in Bedrängnis ist.
+- **Aufschlag-Knopf**: erscheint nur im Aufschlag-Modus, und dann als **einziger**
+  Knopf — die vier normalen Aktions-Knöpfe sind so lange komplett ausgeblendet.
+  Ein Druck startet die ganze Routine von selbst: Ball wird senkrecht hochgeworfen,
+  der Spieler springt hinterher, und oben öffnet sich dieselbe Zeitlupe mit derselben
+  Flugbahn-Vorschau wie beim Schmetterschlag. Während der Aufschlag-Vorbereitung kann
+  sich der Spieler ausschließlich seitlich entlang der eigenen Grundlinie bewegen;
+  die Seitenlinien sind eine feste Wand. Sobald der Ball geschlagen ist, blendet die
+  Oberfläche sofort zurück auf die vier normalen Knöpfe.
 
-Gewischt wird ausschließlich fürs Hechten und für die Ziel-Richtung während der
-Zeitlupe — sonst nirgends.
+Gewischt wird ausschließlich für die Ziel-Richtung während der Zeitlupe (Schmetter-
+schlag **und** Aufschlag) — sonst nirgends.
+
+### Tastatur
+
+Touch und Tastatur sind gleichzeitig aktiv, keins schaltet das andere ab.
+
+| Taste | Aktion |
+| --- | --- |
+| `W` `A` `S` `D` | Laufen; in der Luft bestimmen sie stattdessen die Schlagrichtung |
+| `Leertaste` | Hechten |
+| `Q` | erster Druck: Sprung — zweiter Druck in der Luft: Schmetterschlag-Treffer |
+| `E` | Pass |
+| `F` | Notfall-Schlag |
+
+Im Aufschlag-Modus lösen `Leertaste` und `Q` stattdessen den Aufschlag aus, und
+`A`/`D` schieben den Spieler seitlich an der Grundlinie entlang (`W`/`S` tun nichts).
 
 ## Spielregeln
 
@@ -53,8 +76,16 @@ Zeitlupe — sonst nirgends.
 - **Netz-Regel**: kein Spieler (beide Teams) darf während des normalen Spiels über die
   Netzlinie in die gegnerische Hälfte laufen.
 - **Echtes Aufschlag-System**: nach jedem Punkt Aufschlagwechsel an das Team, das den
-  letzten Punkt gewonnen hat. Bei eigenem Aufschlag hält der Spieler den Ball, bis der
-  Notfall-Schlag-Button gedrückt wird (oder ein Fallback-Timeout abläuft).
+  letzten Punkt gewonnen hat. Bei eigenem Aufschlag geht das Spiel in einen eigenen
+  Aufschlag-Zustand mit eigener Oberfläche (siehe Aufschlag-Knopf oben); der Ball
+  bleibt in der Hand des Spielers, bis aufgeschlagen wird (oder ein Fallback-Timeout
+  die Routine von selbst startet). Der Aufschlagschlag ist ein normaler
+  Sprung-Schmetterschlag: Wisch-Distanz bestimmt die Kraft, es gibt Streuung, und ein
+  zu weit gezogener Aufschlag geht regulär ins Aus — ohne jede automatische Korrektur.
+  Einzige Ausnahme zum Schmetterschlag: das Netzfehler-Risiko entfällt beim Aufschlag
+  (er wird zwangsläufig von der Grundlinie geschlagen, wo dieses Risiko am höchsten
+  wäre), und die Ziel-Reichweite hat eine eigene, auf die Grundlinien-Distanz
+  angepasste Spanne.
 - **KI-Mitspieler**: deckt dynamisch die Zone (Netz vs. hinten) ab, in der sich der
   Spieler gerade *nicht* befindet — keine starre Grundposition. Reagiert nur, wenn der
   Ball wirklich in seine Nähe kommt oder auf ihn zufliegt. Legt fast immer zum Spieler
