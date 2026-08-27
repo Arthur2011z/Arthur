@@ -38,7 +38,7 @@ async function spikeFrom(page: Page, netDist: number, ballOffsetY = 0.05) {
         { duration: 5, peakHeight: 0.5, toucher: null },
       );
 
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (dt: number, input = noInput) => {
         g.state.player.update(dt, input, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt);

@@ -218,7 +218,7 @@ test.describe('Sprung-Schmetterschlag: works anywhere, opens a slow-motion aim w
     const result = await page.evaluate(() => {
       const SLOWMO_FACTOR = 0.18; // mirror src/game/constants.ts
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (dt: number, input = noInput) => {
         g.state.player.update(dt, input, g.state.ball, g.state.teammate.pos, false);
         const ballDt = g.state.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt;

@@ -11,6 +11,11 @@ const viewportEl = document.getElementById('viewport') as HTMLDivElement;
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const overlay = document.getElementById('overlay') as HTMLDivElement;
 
+// Each blocker's wall is drawn in their own figure colour, so it is always
+// obvious which of the two put it up.
+const PLAYER_BLOCK_COLOR = '#e63946';
+const TEAMMATE_BLOCK_COLOR = '#2a9d8f';
+
 const maybeCtx = canvas.getContext('2d');
 if (!maybeCtx) throw new Error('2D canvas context not available');
 const ctx: CanvasRenderingContext2D = maybeCtx;
@@ -35,6 +40,14 @@ function draw(): void {
   renderer.drawTeammate(ctx, gameState.teammate);
   for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
   renderer.drawPlayer(ctx, gameState.player);
+  // Block walls last of the figures, so the bar sits over the net line and
+  // over whoever is standing at it.
+  if (gameState.player.isBlocking) {
+    renderer.drawBlockWall(ctx, gameState.player.pos, gameState.player.height, PLAYER_BLOCK_COLOR);
+  }
+  if (gameState.teammate.isBlocking) {
+    renderer.drawBlockWall(ctx, gameState.teammate.pos, gameState.teammate.height, TEAMMATE_BLOCK_COLOR);
+  }
   // Ball drawn last (on top): while holding serve it sits exactly on the
   // player's position and would otherwise be fully hidden behind the larger
   // player token.

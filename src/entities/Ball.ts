@@ -4,7 +4,7 @@ import { COURT_WIDTH, NET_Y } from '../game/constants';
 export type BallToucher = 'player' | 'teammate' | 'opponent1' | 'opponent2' | null;
 /** 'idle': resting, untouched, ready for the next serve (scoring reacts to
  * reaching this from 'flying'). 'flying': in a parabolic arc. 'held': briefly
- * frozen mid-air by a successful dive-catch, on its way to being relaunched -
+ * frozen mid-air on its way to being relaunched -
  * distinct from 'idle' precisely so that transient freeze isn't mistaken for a
  * real landing. */
 export type BallFlightState = 'idle' | 'flying' | 'held';

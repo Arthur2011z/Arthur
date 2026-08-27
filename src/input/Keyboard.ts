@@ -15,7 +15,7 @@ const MOVE_KEYS: Record<string, Vec2> = {
  * neither disables the other.
  *
  *   W A S D  run on the ground; while airborne they aim the smash instead
- *   Space    Hechten (dive) - same auto-aimed dash as the on-screen button
+ *   Space    Block - same net wall as the on-screen Block button
  *   Q        first press jumps; a second press while airborne hits the smash
  *   E        Pass
  *   F        Notfall-Schlag
@@ -34,7 +34,7 @@ const MOVE_KEYS: Record<string, Vec2> = {
 export class Keyboard {
   private readonly held = new Set<string>();
 
-  private divePending = false;
+  private blockPending = false;
   private qPending = false;
   private passPending = false;
   private hitPending = false;
@@ -62,9 +62,9 @@ export class Keyboard {
   }
 
   /** Edge-triggered read: true only on the frame Space was pressed. */
-  consumeDive(): boolean {
-    const v = this.divePending;
-    this.divePending = false;
+  consumeBlock(): boolean {
+    const v = this.blockPending;
+    this.blockPending = false;
     return v;
   }
 
@@ -103,7 +103,7 @@ export class Keyboard {
 
     switch (e.code) {
       case 'Space':
-        this.divePending = true;
+        this.blockPending = true;
         e.preventDefault(); // Space would otherwise scroll the page
         break;
       case 'KeyQ':

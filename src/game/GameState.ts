@@ -281,7 +281,7 @@ export class GameState {
         jump: false,
         spike: false,
         pass: false,
-        dive: false,
+        block: false,
         hit: false,
         // The fallback keeps the game from ever getting permanently stuck on a
         // serve that is never pressed - it starts the routine exactly as a
@@ -311,6 +311,7 @@ export class GameState {
       state: this.player.state,
       hasPendingContactInput: this.player.hasPendingContactInput,
       isServing: this.player.isServing,
+      isBlocking: this.player.isBlocking,
     };
   }
 }

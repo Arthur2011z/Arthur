@@ -11,8 +11,8 @@ export interface InputSnapshot {
   move: Vec2;
   /** Swipe direction recognized this frame, used solely to aim the spike
    * during the Jump-Smash's slow-motion window (slowmo_aim); null if none.
-   * Hechten is a button now (see `dive`), so a swipe outside that window has
-   * no effect at all. */
+   * Every other action is a button, so a swipe outside that window has no
+   * effect at all. */
   swipe: Vec2 | null;
   /** True only on the frame the Sprung-Schmetterschlag was started - the
    * on-screen jump button, or a Q press made while on the ground. */
@@ -23,8 +23,8 @@ export interface InputSnapshot {
   spike: boolean;
   /** True only on the frame the Pass button (or E) was pressed. */
   pass: boolean;
-  /** True only on the frame the Hechten button (or Space) was pressed. */
-  dive: boolean;
+  /** True only on the frame the Block button (or Space) was pressed. */
+  block: boolean;
   /** True only on the frame the Notfall-Schlag button (or F) was pressed. */
   hit: boolean;
   /** True only on the frame the Aufschlag button (or Space/Q) was pressed.
@@ -62,13 +62,13 @@ export class InputManager {
     // frame and fire late.
     const btnJump = this.buttons.consumeJump();
     const btnPass = this.buttons.consumePass();
-    const btnDive = this.buttons.consumeDive();
+    const btnBlock = this.buttons.consumeBlock();
     const btnHit = this.buttons.consumeHit();
     const btnServe = this.buttons.consumeServe();
 
     const keyQ = this.keyboard.consumeQ();
     const keyPass = this.keyboard.consumePass();
-    const keyDive = this.keyboard.consumeDive();
+    const keyBlock = this.keyboard.consumeBlock();
     const keyHit = this.keyboard.consumeHit();
 
     const stick = this.joystick.vector;
@@ -85,13 +85,13 @@ export class InputManager {
       jump: btnJump || keyQ,
       spike: keyQ,
       pass: btnPass || keyPass,
-      dive: btnDive || keyDive,
+      block: btnBlock || keyBlock,
       hit: btnHit || keyHit,
       // On the keyboard the serve reuses the two keys that are meaningless
-      // while standing at the baseline anyway: Space (Hechten) and Q (jump).
+      // while standing at the baseline anyway: Space (Block) and Q (jump).
       // Player only reads this in serve_ready, so they keep their normal jobs
       // everywhere else.
-      serve: btnServe || keyDive || keyQ,
+      serve: btnServe || keyBlock || keyQ,
     };
   }
 

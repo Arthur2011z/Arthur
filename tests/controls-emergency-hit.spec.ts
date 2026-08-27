@@ -83,7 +83,14 @@ test.describe('Notfall-Schlag: small, no-jump, always-safe fallback', () => {
     // actually near ground level - within CATCHABLE_HEIGHT - at the moment
     // it passes through the player, instead of sailing overhead at ~2.7m
     // right as it crosses their position.
-    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4, 1);
+    //
+    // The flight starts at y=18 rather than y=21 so the ball reaches the
+    // player 0.86s in. It used to start at 21, putting contact 1.41s after the
+    // launch - past INPUT_BUFFER_WINDOW (1.2s), i.e. outside the window this
+    // test is about. It only ever passed because the button click's own
+    // round-trip ate the difference, and failed whenever the machine was busy
+    // enough for that margin (~40ms) to vanish.
+    await launchBall(page, { x: 1, y: 18 }, { x: 1, y: 4 }, 4, 1);
 
     await tapButton(page, 'hit-btn');
     const rightAfterPress = await getState(page);

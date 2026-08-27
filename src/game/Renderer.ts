@@ -3,7 +3,16 @@ import { OpponentAI } from '../entities/OpponentAI';
 import { Player } from '../entities/Player';
 import { TeammateAI } from '../entities/TeammateAI';
 import { Vec2 } from '../utils/math';
-import { AIM_PREVIEW_SEGMENTS, BALL_RADIUS, COURT_LENGTH, COURT_WIDTH, LANDING_MARKER_RADIUS, NET_Y } from './constants';
+import {
+  AIM_PREVIEW_SEGMENTS,
+  BALL_RADIUS,
+  BLOCK_HALF_WIDTH,
+  BLOCK_PEAK_HEIGHT,
+  COURT_LENGTH,
+  COURT_WIDTH,
+  LANDING_MARKER_RADIUS,
+  NET_Y,
+} from './constants';
 
 const SAND_COLOR = '#e8c481';
 const LINE_COLOR = '#1c4d6b';
@@ -163,7 +172,46 @@ export class Renderer {
   }
 
   drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {
-    this.drawToken(ctx, teammate.pos, teammate.radius, TEAMMATE_COLOR);
+    if (teammate.height > 0) {
+      ctx.fillStyle = BALL_SHADOW_COLOR;
+      ctx.beginPath();
+      ctx.ellipse(teammate.pos.x, teammate.pos.y, teammate.radius * 0.9, teammate.radius * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const lifted: Vec2 = { x: teammate.pos.x, y: teammate.pos.y - teammate.height };
+    this.drawToken(ctx, lifted, teammate.radius, TEAMMATE_COLOR);
+  }
+
+  /** The block wall itself, drawn on the net line while a blocker has it up:
+   * a bar spanning exactly the lateral reach the block actually covers
+   * (BLOCK_HALF_WIDTH either side), lifted and faded in with the block's own
+   * height so it rises and drops with the move. Without this the block would
+   * be invisible in a top-down view - the whole move is vertical. */
+  drawBlockWall(ctx: CanvasRenderingContext2D, pos: Vec2, height: number, color: string): void {
+    if (height <= 0) return;
+    const raised = height / BLOCK_PEAK_HEIGHT;
+
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.45 * raised;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.16;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pos.x - BLOCK_HALF_WIDTH, NET_Y - height);
+    ctx.lineTo(pos.x + BLOCK_HALF_WIDTH, NET_Y - height);
+    ctx.stroke();
+
+    // Two short uprights back to the net line, so the bar reads as being held
+    // up above the net rather than floating on the sand behind it.
+    ctx.lineWidth = 0.05;
+    ctx.globalAlpha = 0.3 * raised;
+    ctx.beginPath();
+    for (const dx of [-BLOCK_HALF_WIDTH, BLOCK_HALF_WIDTH]) {
+      ctx.moveTo(pos.x + dx, NET_Y);
+      ctx.lineTo(pos.x + dx, NET_Y - height);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawOpponent(ctx: CanvasRenderingContext2D, opponent: OpponentAI): void {

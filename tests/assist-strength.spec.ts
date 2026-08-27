@@ -8,7 +8,9 @@ import { distIndex } from './helpers';
  *
  *   Pass / Notfall-Schlag  ASSIST_RANGE       1.0m  (was 2.2m)
  *   Sprung-Schmetterschlag JUMP_ASSIST_RANGE  0.9m  (was 1.6m)
- *   Hechten                REACH_RANGE        2.0m  (was 3.0m)
+ *
+ * Block is deliberately absent from this list: it moves the player by exactly
+ * zero metres under every circumstance, which block.spec.ts asserts directly.
  *
  * Measured as: how far does the game move the player, with the joystick
  * completely untouched, when the given action is triggered with the ball a
@@ -16,7 +18,7 @@ import { distIndex } from './helpers';
  * action simply doesn't engage, and the player has to close the gap manually.
  */
 
-type Action = 'dive' | 'pass' | 'hit' | 'jump';
+type Action = 'pass' | 'hit' | 'jump';
 
 /** Returns how many metres the game moved the player on its own (no joystick
  * input at all) for `action`, with a near-stationary ball `gap` metres toward
@@ -41,7 +43,7 @@ async function autoMovement(page: Page, action: Action, gap: number): Promise<nu
         { duration: 8, peakHeight: 0.4, toucher: null },
       );
 
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const press = { ...noInput, [action]: true };
       const step = (input: any) => {
         g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
@@ -49,7 +51,7 @@ async function autoMovement(page: Page, action: Action, gap: number): Promise<nu
       };
 
       step(press);
-      // Pass/Notfall are held (they buffer anyway); dive/jump are one-shot.
+      // Pass/Notfall are held (they buffer anyway); jump is one-shot.
       const follow = action === 'pass' || action === 'hit' ? press : noInput;
       for (let i = 0; i < 90; i++) {
         step(follow);
@@ -90,18 +92,6 @@ test.describe('Automatische Bewegungsunterstützung: a fine correction, not a wa
     expect(await autoMovement(page, 'jump', 1.5)).toBe(0);
   });
 
-  test('Hechten still covers real ground, but is capped at REACH_RANGE', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(distIndex);
-
-    // A dive is meant to cover ground - that is the whole point of it.
-    expect(await autoMovement(page, 'dive', 1.8)).toBeGreaterThan(1);
-
-    // But not from anywhere: past REACH_RANGE it does not engage at all.
-    expect(await autoMovement(page, 'dive', 2.2)).toBe(0);
-    expect(await autoMovement(page, 'dive', 3.0)).toBe(0);
-  });
-
   test('the assist walks at exactly the player\'s own speed, never faster', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
@@ -129,7 +119,7 @@ test.describe('Automatische Bewegungsunterstützung: a fine correction, not a wa
 
       g.state.player.update(
         0.016,
-        { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: true, dive: false, hit: false },
+        { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: true, block: false, hit: false },
         g.state.ball,
         g.state.teammate.pos,
         false,

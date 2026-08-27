@@ -30,7 +30,7 @@ async function aimFrames(page: Page, netDist: number, aims: { dir: { x: number; 
       for (const o of g.state.opponents) o.update = () => {};
       (window as any).__setRandom(() => 0.99);
 
-      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (i: any = noInput) => {
         g.state.player.update(0.016, i, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);
@@ -74,7 +74,7 @@ async function spikeOnce(page: Page, netDist: number, dir: { x: number; y: numbe
       const g = (window as any).__game;
       g.state.teammate.update = () => {};
       for (const o of g.state.opponents) o.update = () => {};
-      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (i: any = noInput) => {
         g.state.player.update(0.016, i, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);
@@ -263,7 +263,7 @@ test.describe('Schmetterschlag: live trajectory preview, swipe power, scatter, o
 
     const r = await page.evaluate(() => {
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       g.state.restart();
       g.state.teammate.update = () => {};
       g.state.player.update = () => {};
@@ -303,7 +303,7 @@ test.describe('Schmetterschlag: live trajectory preview, swipe power, scatter, o
 
     const r = await page.evaluate(() => {
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, aim: null, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       g.state.restart();
       g.state.teammate.update = () => {};
       g.state.player.update = () => {};

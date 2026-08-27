@@ -72,7 +72,7 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     // from its home at (5.6, 11)) - otherwise the teammate itself would race
     // in and catch a ball this close to the player's own position first.
     await teleportPlayer(page, { x: 1, y: 15 });
-    // Ball right next to the player, well inside HIT_RANGE - no Sprung/Hecht
+    // Ball right next to the player, well inside HIT_RANGE - no Sprung/Block
     // needed at all, this is plain in-range contact.
     await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
 
@@ -103,7 +103,7 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
 
     const after = await getState(page);
     expect(after.ball.state).toBe('flying');
-    expect(after.player.state).toBe('active'); // Pass doesn't require or trigger a jump/dive
+    expect(after.player.state).toBe('active'); // Pass doesn't require or trigger a jump/block
     // Aimed at the teammate's own column, but pulled toward the net so they
     // receive it in an attacking position (SET_NET_*) - the same set-up the
     // teammate gives the player, mirrored.
@@ -136,14 +136,17 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     // Far corner (see the test above for why - keeps the teammate from
     // racing in first).
     await teleportPlayer(page, { x: 1, y: 15 });
-    // Ball starts deep behind the player and drifts slowly down through
-    // their position toward the opponent half - it only enters HIT_RANGE
-    // roughly a second in, giving the "too early" check below a comfortable
-    // margin against round-trip timing. Low peakHeight (1m, vs. the helper's
-    // 3m default) so the ball is actually near ground level - and so within
-    // CATCHABLE_HEIGHT - at the moment it passes through the player, instead
-    // of sailing overhead at ~2.7m right as it crosses their position.
-    await launchBall(page, { x: 1, y: 21 }, { x: 1, y: 4 }, 4, 1);
+    // Ball starts behind the player and drifts slowly down through their
+    // position toward the opponent half - it only enters HIT_RANGE 0.86s in,
+    // giving the "too early" check below a comfortable margin against
+    // round-trip timing while still resolving inside INPUT_BUFFER_WINDOW
+    // (1.2s). It used to start at y=21, i.e. 1.41s out - past that window, so
+    // the test only ever passed because the click's own round-trip ate the
+    // difference. Low peakHeight (1m, vs. the helper's 3m default) so the ball
+    // is actually near ground level - and so within CATCHABLE_HEIGHT - at the
+    // moment it passes through the player, instead of sailing overhead at
+    // ~2.7m right as it crosses their position.
+    await launchBall(page, { x: 1, y: 18 }, { x: 1, y: 4 }, 4, 1);
 
     await tapButton(page, 'pass-btn');
     const rightAfterPress = await getState(page);

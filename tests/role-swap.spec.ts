@@ -85,7 +85,7 @@ test.describe('Rollentausch: player sets, teammate attacks', () => {
       g.state.teammate.pos.y = 13;
       g.state.player.state = 'active';
       g.state.ball.launch({ x: 1, y: 14.8 }, { x: 1, y: 4 }, { duration: 5, peakHeight: 0.3, toucher: null });
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       for (let i = 0; i < 5 && g.state.ball.lastToucher !== 'player'; i++) {
         g.state.player.update(0.016, { ...noInput, pass: true }, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(0.016);

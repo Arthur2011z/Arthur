@@ -7,9 +7,8 @@ const MAX_SWIPE_DURATION_MS = 600;
 
 /**
  * Recognizes a swipe gesture directly on the game canvas - the one and only
- * gesture surface in the game (Hechten in Player.active, and the spike's
- * aim-swipe in Player.slowmo_aim; which one applies is decided by whoever
- * reads the emitted direction, based on the player's current state).
+ * gesture surface in the game, and used for exactly one thing: the spike's
+ * aim-swipe during Player.slowmo_aim. Every action is a button.
  *
  * Attached to the canvas element itself, not the #overlay div: #overlay has
  * pointer-events:none except on its direct children (the joystick hit-zone,

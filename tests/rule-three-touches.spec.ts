@@ -33,7 +33,7 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
     await page.goto(distIndex);
 
     // Simulates "this team already touched it twice" directly on the running
-    // GameState, exactly as a real rally (dive-pass to teammate, teammate
+    // GameState, exactly as a real rally (pass to teammate, teammate
     // set to player) would leave it - GameState.mustCrossNet() reads this
     // same field every frame.
     await page.evaluate(() => {
@@ -68,37 +68,6 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
     });
     expect(state.target.x).toBeCloseTo(state.teammate.x, 0);
     expect(state.target.y).toBeCloseTo(state.teammate.y, 0);
-  });
-
-  test('a Hechten-dive contact on the mandatory final touch also crosses the net instead of passing', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(distIndex);
-
-    const result = await page.evaluate(() => {
-      const g = (window as any).__game;
-      g.state.ball.launch({ x: 4, y: 11.5 }, { x: 4, y: 1 }, { duration: 3, peakHeight: 3, toucher: null });
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = 11.5;
-      g.state.player.state = 'active';
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
-      // First call consumes the Hechten press and enters 'diving'; the second
-      // is where updateDiving's own contact check actually runs and resolves
-      // it - exactly like two consecutive real animation frames 16ms apart.
-      g.state.player.update(
-        0.016,
-        { ...noInput, dive: true },
-        g.state.ball,
-        g.state.teammate.pos,
-        true, // mustCrossNet
-      );
-      g.state.player.update(0.016, noInput, g.state.ball, g.state.teammate.pos, true);
-      return { target: { ...g.state.ball.target }, lastToucher: g.state.ball.lastToucher };
-    });
-
-    expect(result.lastToucher).toBe('player');
-    expect(result.target.y).toBeLessThan(8);
   });
 
   test("the AI teammate sets over the net instead of to the player on the team's mandatory final touch", async ({

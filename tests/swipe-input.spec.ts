@@ -16,7 +16,8 @@ async function canvasCenter(page: Page) {
   return { cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
 }
 
-/** The ball/player setup that used to make a swipe "up" a valid Hechten. */
+/** A reachable ball right in front of the player - the setup a swipe used
+ * to act on back when gestures triggered actions. */
 async function setUpReachableBall(page: Page) {
   await page.evaluate(() => {
     const g = (window as any).__game;
@@ -28,14 +29,14 @@ async function setUpReachableBall(page: Page) {
 }
 
 test.describe('SwipeInput: gesture recognition on the canvas', () => {
-  test('a swipe no longer triggers Hechten - that is the dive button now', async ({ page }) => {
+  test('a swipe on its own triggers no action at all - every action is a button', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
     await setUpReachableBall(page);
 
     const { cx, cy } = await canvasCenter(page);
     // Swipe "up" on screen (toward the net, straight at the ball) - well past
-    // the 40px threshold, and exactly the gesture that used to dive.
+    // the 40px threshold, and the exact gesture that used to trigger an action.
     await swipe(page, { x: cx, y: cy + 100 }, { x: cx, y: cy - 20 });
     await page.waitForTimeout(200);
 

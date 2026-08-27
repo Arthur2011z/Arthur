@@ -12,10 +12,9 @@ import { distIndex } from './helpers';
  * priority check (playerHasPriority in TeammateAI.ts), consulted both when
  * entering 'moving_to_ball' and every frame while already in it:
  *
- *   1. player mid-Hechten-dive -> unconditional player priority
- *   2. player has Pass/Notfall-Schlag pressed AND is within ASSIST_RANGE of
+ *   1. player has Pass/Notfall-Schlag pressed AND is within ASSIST_RANGE of
  *      the ball -> player priority
- *   3. otherwise -> whoever is currently closer to the ball's live position
+ *   2. otherwise -> whoever is currently closer to the ball's live position
  */
 
 /** Counts every [BallContact] line, tagged by which entity fired it. */
@@ -65,8 +64,8 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
 
     await page.evaluate(() => {
       const g = (window as any).__game;
-      // Player stubbed idle: nothing pressed, not diving - so only the
-      // proximity rule is in play, which is exactly what the margin governs.
+      // Player stubbed idle: nothing pressed - so only the proximity rule is
+      // in play, which is exactly what the margin governs.
       g.state.player.update = () => {};
       for (const o of g.state.opponents) o.update = () => {};
 
@@ -131,40 +130,6 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
     expect(contacts.filter((l) => l.includes('teammate')).length).toBe(0);
   });
 
-  test('does not take a ball while the player is mid-Hechten-dive, even standing much closer to it', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(distIndex);
-    const contacts = collectContacts(page);
-
-    await page.evaluate(() => {
-      const g = (window as any).__game;
-      // Player.update is stubbed so 'diving' stays pinned for the whole
-      // flight: a real dive only lasts DIVE_DASH_DURATION (0.22s), far
-      // shorter than any observable flight, so pinning it is the only way to
-      // isolate the priority decision actually under test here.
-      g.state.player.update = () => {};
-      for (const o of g.state.opponents) o.update = () => {};
-
-      g.state.player.pos.x = 4.5;
-      g.state.player.pos.y = 12.5;
-      g.state.player.state = 'diving';
-
-      // Ball aimed squarely at the teammate's own base - it is by far the
-      // closer of the two, and would certainly have taken this before.
-      const home = { ...g.state.teammate.homePos };
-      g.state.teammate.pos.x = home.x;
-      g.state.teammate.pos.y = home.y;
-      g.state.teammate.state = 'home';
-      g.state.ball.launch({ x: home.x, y: home.y - 2 }, { x: home.x, y: home.y }, { duration: 1.6, peakHeight: 1, toucher: null });
-    });
-
-    await page.waitForTimeout(2500);
-
-    expect(contacts.filter((l) => l.includes('teammate')).length).toBe(0);
-  });
-
   test('control: still takes a ball that is genuinely its own (player far away, idle)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
@@ -175,7 +140,7 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
       g.state.player.update = () => {};
       for (const o of g.state.opponents) o.update = () => {};
 
-      // Player in the far corner, nothing pressed, not diving - this ball is
+      // Player in the far corner, nothing pressed - this ball is
       // unambiguously the teammate's to play.
       g.state.player.pos.x = 1;
       g.state.player.pos.y = 15;
@@ -219,9 +184,18 @@ test.describe('Bugfix 5: the AI teammate yields to the player instead of stealin
     const committed = await page.evaluate(() => (window as any).__game.state.teammate.state);
     expect(committed).toBe('moving_to_ball'); // sanity: it really did commit
 
-    // Now the player dives for it - the teammate must abandon its approach.
+    // Now the player claims it - up onto the ball with Pass buffered, which
+    // is the priority rule that actually exists. (player.update is stubbed, so
+    // the buffer is shadowed directly rather than pressed.) The teammate must
+    // abandon its approach.
     await page.evaluate(() => {
-      (window as any).__game.state.player.state = 'diving';
+      const g = (window as any).__game;
+      g.state.player.pos.x = g.state.ball.pos.x;
+      g.state.player.pos.y = g.state.ball.pos.y;
+      Object.defineProperty(g.state.player, 'hasPendingContactInput', {
+        get: () => true,
+        configurable: true,
+      });
     });
 
     await page.waitForFunction(() => (window as any).__game.state.teammate.state !== 'moving_to_ball', undefined, {

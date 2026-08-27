@@ -98,12 +98,17 @@ test.describe('Step 5: AI teammate home/base logic', () => {
     // Emergency save always goes over the net into the opponent half.
     expect(afterContact.ball.target.y).toBeLessThan(8);
 
-    // And afterwards, heads back home.
-    await page.waitForFunction(() => (window as any).__game.state.teammate.state === 'home', undefined, {
+    // And afterwards it heads for the NET, not back to base: it has just put
+    // the ball over, so by definition an attack is now being built against us
+    // and the teammate goes to block it (see TeammateAI's 'to_net').
+    await page.waitForFunction(() => (window as any).__game.state.teammate.state === 'to_net', undefined, {
       timeout: 3000,
     });
-    const afterReturn = await getState(page);
-    expect(afterReturn.teammate.pos).toEqual(home);
+    await page.waitForFunction(() => (window as any).__game.state.teammate.pos.y <= 8.6, undefined, {
+      timeout: 3000,
+    });
+    const afterSave = await getState(page);
+    expect(afterSave.teammate.pos.y).toBeLessThan(home.y); // genuinely moved up
   });
 
   test('bugfix: a normal-paced pass from across the court is never misread as an emergency', async ({

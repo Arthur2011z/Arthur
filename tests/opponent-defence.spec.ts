@@ -102,7 +102,7 @@ test.describe('Gegner-KI: better defence, unchanged attack', () => {
     // scramble speed and the anticipatory shading it is reached.
     const returned = await page.evaluate(() => {
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       g.state.teammate.update = () => {};
       g.state.player.update = () => {};
       (window as any).__setRandom(() => 0.5); // opponents play a plain return
@@ -137,7 +137,7 @@ test.describe('Gegner-KI: better defence, unchanged attack', () => {
     // pushed too far.
     const returned = await page.evaluate(() => {
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       g.state.teammate.update = () => {};
       g.state.player.update = () => {};
       (window as any).__setRandom(() => 0.5);

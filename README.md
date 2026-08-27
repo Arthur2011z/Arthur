@@ -23,11 +23,14 @@ eigenständige Seite verteilen.
 
 - **Steuerknüppel** (unten links): freie Bewegung in der eigenen Feldhälfte. Stoppt
   sofort beim Loslassen.
-- **Wisch-Geste auf dem Spielfeld** (Hechten): grob in Richtung eines ankommenden,
-  entfernten Balls wischen — der Spieler hechtet automatisch dorthin, nur so weit wie
-  für diesen Ball nötig, bis maximal zur Reichweitengrenze. Ballkontakt löst
-  automatisch einen kontrollierten Pass zum Mitspieler aus (oder einen Schlag übers
-  Netz, falls es der Pflicht-Endkontakt des Teams ist).
+- **Block-Knopf**: stellt an Ort und Stelle eine Blockwand am Netz auf. Der Knopf
+  bewegt den Spieler keinen Zentimeter — er fängt nur dann etwas ab, wenn der Spieler
+  ohnehin schon nah genug am Netz steht (1,5 m). Ein gegnerischer Angriffsschlag, der
+  in diesem Moment durch die Blockzone kommt, prallt hart und steil direkt zurück auf
+  die Seite des Angreifers — ausdrücklich keine normale Ballannahme. Ein hoher Lob
+  segelt über den Block hinweg, ein kurzer Ball geht darunter durch: der Block schlägt
+  Angriffe, keine Bälle mit Bogen. Es gibt kein Nachlaufen und keine Erholungspause;
+  während des Blocks ist keine andere Aktion möglich.
 - **Sprung-Schmetterschlag** (großer Haupt-Button): funktioniert von überall auf dem
   Feld, springt sofort. Trifft der Ball den Spieler in der Luft, tritt eine kurze,
   deutlich spürbare Zeitlupe ein (Spieler *und* Ball synchron verlangsamt) — währenddessen
@@ -59,7 +62,7 @@ Touch und Tastatur sind gleichzeitig aktiv, keins schaltet das andere ab.
 | Taste | Aktion |
 | --- | --- |
 | `W` `A` `S` `D` | Laufen; in der Luft bestimmen sie stattdessen die Schlagrichtung |
-| `Leertaste` | Hechten |
+| `Leertaste` | Block |
 | `Q` | erster Druck: Sprung — zweiter Druck in der Luft: Schmetterschlag-Treffer |
 | `E` | Pass |
 | `F` | Notfall-Schlag |
@@ -86,6 +89,13 @@ Im Aufschlag-Modus lösen `Leertaste` und `Q` stattdessen den Aufschlag aus, und
   (er wird zwangsläufig von der Grundlinie geschlagen, wo dieses Risiko am höchsten
   wäre), und die Ziel-Reichweite hat eine eigene, auf die Grundlinien-Distanz
   angepasste Spanne.
+- **Blocken**: sobald das eigene Team den Ball übers Netz gespielt hat, baut der Gegner
+  einen Angriff auf. Der KI-Mitspieler erkennt das selbstständig, läuft von sich aus ans
+  Netz auf die Spalte des Balls und stellt den Block, sobald ein harter Angriff kommt —
+  ohne dass der Spieler etwas drückt. Der Spieler kann sich dadurch nach hinten in die
+  Feldverteidigung zurückziehen. Bei einem langsamen Lob bricht die KI den Block ab und
+  nimmt den Ball stattdessen regulär an. Es blockt immer nur einer von beiden: blockt der
+  Spieler selbst, bleibt der Mitspieler im Feld.
 - **KI-Mitspieler**: deckt dynamisch die Zone (Netz vs. hinten) ab, in der sich der
   Spieler gerade *nicht* befindet — keine starre Grundposition. Reagiert nur, wenn der
   Ball wirklich in seine Nähe kommt oder auf ihn zufliegt. Legt fast immer zum Spieler
@@ -109,8 +119,7 @@ Commit-Historie):
 1. Steuerknüppel-Bewegung
 2. Ballphysik (saubere Parabel-Flugbahn, konsistent über die gesamte Flugzeit)
 3. Eingabe-Schicht: Wisch-Geste + Sprung-Schmetterschlag-/Pass-/Notfall-Schlag-Buttons
-4. Wisch-Hechten, Sprung-Schmetterschlag mit Zeitlupe + Netzrisiko, Notfall-Schlag,
-   3-Kontakte-Regel
+4. Sprung-Schmetterschlag mit Zeitlupe + Netzrisiko, Notfall-Schlag, 3-Kontakte-Regel
 5. KI-Mitspieler mit dynamischer Zonen-Abdeckung
 6. Gegner-KI mit Angriff und Fehleranfälligkeit
 7. Punktesystem (Rally-Point bis 21), echtes Aufschlagsystem, Netz-Kollision ✅ fertig

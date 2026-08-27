@@ -4,7 +4,7 @@ import { distIndex } from './helpers';
 /**
  * Keyboard scheme:
  *   W A S D  run on the ground; while airborne they aim the smash
- *   Space    Hechten
+ *   Space    Block
  *   Q        first press jumps; a second press while airborne hits the smash
  *   E        Pass
  *   F        Notfall-Schlag
@@ -55,50 +55,68 @@ async function state(page: Page) {
 }
 
 test.describe('Tastatur-Steuerung', () => {
-  test('Space triggers Hechten - the same auto-aimed dive as the on-screen button', async ({ page }) => {
+  test('Space triggers Block - the same net wall as the on-screen Block button', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 900 });
     await page.goto(distIndex);
     await stubAi(page);
 
-    // 1.5m from the ball: inside REACH_RANGE, no direction input given.
-    await place(page, 10.5, -1.5);
+    await place(page, 8.5, -4); // at the net, ball nowhere near
+    const before = await state(page);
+    expect(before.playerState).toBe('active');
 
-    // Record every state the player passes through, from inside the page. The
-    // dash itself is now very short (a 1.5m dive lasts ~0.14s), far too brief
-    // to reliably catch by polling across a browser round-trip - so sample it
-    // on every animation frame instead of racing it.
+    // Record every state and height the player passes through, from inside the
+    // page: the block only lasts BLOCK_DURATION (0.55s), too brief to catch
+    // reliably by polling across a browser round-trip.
     await page.evaluate(() => {
       const g = (window as any).__game;
       (window as any).__states = [] as string[];
+      (window as any).__heights = [] as number[];
       const tick = () => {
         (window as any).__states.push(g.state.player.state);
+        (window as any).__heights.push(g.state.player.height);
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     });
 
     await page.keyboard.press('Space');
-    await page.waitForTimeout(1200); // dash + recovery + margin
+    await page.waitForTimeout(1200); // block + margin
 
     const seen: string[] = await page.evaluate(() => (window as any).__states);
-    expect(seen).toContain('diving');
-    expect(seen).toContain('recovering'); // the pause afterwards still happens
+    const heights: number[] = await page.evaluate(() => (window as any).__heights);
+    expect(seen).toContain('blocking');
     expect(seen[seen.length - 1]).toBe('active'); // and control comes back
 
-    // 'diving' must come before 'recovering' - a real dash, then the pause.
-    expect(seen.indexOf('diving')).toBeLessThan(seen.indexOf('recovering'));
+    // The block goes UP - that is the whole move - and comes back down.
+    expect(Math.max(...heights)).toBeCloseTo(0.85, 2); // BLOCK_PEAK_HEIGHT
+    expect(heights[heights.length - 1]).toBe(0);
+
+    // Nothing of the old dive survives: the player never moved, and there is
+    // no recovery pause afterwards.
+    const after = await state(page);
+    expect(after.pos.x).toBeCloseTo(before.pos.x, 6);
+    expect(after.pos.y).toBeCloseTo(before.pos.y, 6);
+    expect(seen).not.toContain('diving');
+    expect(seen).not.toContain('recovering');
   });
 
-  test('Space does nothing when the ball is out of REACH_RANGE', async ({ page }) => {
+  test('Space blocks from anywhere, but only intercepts at the net', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 900 });
     await page.goto(distIndex);
     await stubAi(page);
 
-    await place(page, 14, -5); // 5m away, well past REACH_RANGE (2m)
+    // Deep in the back court - far past BLOCK_NET_DISTANCE (1.5m).
+    await place(page, 14, -5);
     await page.keyboard.press('Space');
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(100);
 
-    expect((await state(page)).playerState).toBe('active');
+    // The move still plays (the button is never dead)...
+    expect((await state(page)).playerState).toBe('blocking');
+    await page.waitForTimeout(700);
+    // ...and ends cleanly, having touched nothing.
+    const after = await state(page);
+    expect(after.playerState).toBe('active');
+    expect(after.ball.lastToucher).toBeNull();
   });
 
   test('Q jumps exactly once - holding it does not re-trigger', async ({ page }) => {
@@ -176,7 +194,7 @@ test.describe('Tastatur-Steuerung', () => {
     const result = await page.evaluate(() => {
       const SLOWMO_FACTOR = 0.18;
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (input = noInput) => {
         g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);
@@ -221,7 +239,7 @@ test.describe('Tastatur-Steuerung', () => {
     const result = await page.evaluate(() => {
       const SLOWMO_FACTOR = 0.18;
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (input = noInput) => {
         g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);
@@ -260,7 +278,7 @@ test.describe('Tastatur-Steuerung', () => {
     const result = await page.evaluate(() => {
       const SLOWMO_FACTOR = 0.18;
       const g = (window as any).__game;
-      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
       const step = (input = noInput) => {
         g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
         g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);
@@ -355,7 +373,7 @@ test.describe('Tastatur-Steuerung', () => {
       page.evaluate((netDist) => {
         const SLOWMO_FACTOR = 0.18;
         const g = (window as any).__game;
-        const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, dive: false, hit: false };
+        const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
         const step = (input = noInput) => {
           g.state.player.update(0.016, input, g.state.ball, g.state.teammate.pos, false);
           g.state.ball.update(g.state.player.state === 'slowmo_aim' ? 0.016 * SLOWMO_FACTOR : 0.016);

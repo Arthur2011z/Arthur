@@ -13,14 +13,13 @@ import { random } from '../utils/random';
 import {
   ASSIST_RANGE,
   ASSIST_SPEED_MULTIPLIER,
+  BLOCK_DURATION,
+  BLOCK_NET_DISTANCE,
+  BLOCK_RETURN_DURATION,
+  BLOCK_RETURN_PEAK_HEIGHT,
   CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
-  DIVE_MAX_DURATION,
-  DIVE_MIN_DURATION,
-  DIVE_PEAK_HEIGHT,
-  DIVE_RECOVERY_DURATION,
-  DIVE_SPEED,
   HIT_DURATION,
   HIT_PEAK_HEIGHT,
   HIT_RANGE,
@@ -42,7 +41,6 @@ import {
   PLAYER_SPEED,
   PLAYER_START_POS,
   RANDOM_TARGET_MARGIN,
-  REACH_RANGE,
   SET_NET_APPROACH_Y,
   SET_NET_BLEND,
   SLOWMO_REAL_DURATION,
@@ -62,13 +60,15 @@ import {
 } from '../game/constants';
 import { Ball } from './Ball';
 import type { AimPreview } from './Ball';
+import { ballIsBlockable, blockHeightAt, blockReboundTarget } from '../game/block';
 import { spikeShot } from '../game/spikePower';
 import { InputSnapshot } from '../input/InputManager';
 
 export type PlayerState =
   | 'active'
-  | 'diving'
-  | 'recovering'
+  /** Wall up at the net (see updateBlocking). Immobile for its whole, short
+   * duration, and no other action is reachable from it. */
+  | 'blocking'
   | 'jumping_up'
   | 'slowmo_aim'
   | 'jumping_down'
@@ -111,13 +111,12 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  * The human-controlled player. Five inputs, exactly as specced:
  *
  * - the joystick: free movement within the player's own half.
- * - Hechten (dive button): sends the player into a one-shot dash to the
- *   nearest intercept point on the flying ball's remaining path - only as far
- *   as that ball actually needs, up to REACH_RANGE. The direction is derived
- *   entirely from the ball's own trajectory: neither the joystick nor a swipe
- *   has to point anywhere in particular. Resolves automatically on contact
- *   (pass to the teammate, or a safe over-net hit if that would be the team's
- *   mandatory final touch), and always ends in a short recovery pause.
+ * - Block button: throws a wall up at the net, on the spot. It moves the
+ *   player nowhere at all - it only intercepts while they are already within
+ *   BLOCK_NET_DISTANCE of the net, which is the whole positional requirement.
+ *   An opponent attack passing through the wall (see ballIsBlockable) rebounds
+ *   hard and steep straight back down onto the attacker's own side - pointedly
+ *   not a reception. A lob over the top or a dink underneath beats it.
  * - Sprung-Schmetterschlag (jump button): works from anywhere, any time.
  *   Jumps immediately, with a light automatic drift toward the ball's
  *   predicted intercept point (only within the much smaller
@@ -129,12 +128,11 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  *   standing when they jumped, the higher the chance the spike nets out
  *   instead AND the less power it carries when it does go over (see
  *   resolveSpike / spikeWeakness).
- * - Pass button: a controlled, medium touch straight to the AI teammate.
- *   Same "just be roughly nearby" principle as Hechten, but via a light,
- *   continuous walking-speed assist (ASSIST_RANGE) rather than a dash.
- *   (Note ASSIST_RANGE is deliberately small - see its own doc comment.)
- *   Auto-converts to a safe over-net hit if it would be the team's mandatory
- *   final touch.
+ * - Pass button: a controlled, medium touch straight to the AI teammate. The
+ *   player only has to be roughly nearby: a light, continuous walking-speed
+ *   assist (ASSIST_RANGE) closes the last stride. (Note ASSIST_RANGE is
+ *   deliberately small - see its own doc comment.) Auto-converts to a safe
+ *   over-net hit if it would be the team's mandatory final touch.
  * - Notfall-Schlag (small emergency button): same buffering/assist as Pass,
  *   but always a simple, weak hit to a safe spot over the net - from
  *   anywhere, no jump, always legal regardless of touch count.
@@ -163,9 +161,6 @@ export class Player {
   private stateTimer = 0;
   private approachStart: Vec2 = { ...this.pos };
   private approachTarget: Vec2 = { ...this.pos };
-  /** How long this particular dive's dash lasts - derived from the distance
-   * it has to cover at DIVE_SPEED, so every dive lunges at the same pace. */
-  private diveDuration = DIVE_MIN_DURATION;
   private fallStartHeight = 0;
   /** Distance from the net at the moment of takeoff - drives the spike's
    * net-fault risk (see resolveSpike). */
@@ -205,15 +200,8 @@ export class Player {
       case 'active':
         this.updateActive(dt, input, ball, teammatePos, mustCrossNet);
         break;
-      case 'diving':
-        this.updateDiving(dt, ball, teammatePos, mustCrossNet);
-        break;
-      case 'recovering':
-        this.stateTimer += dt;
-        if (this.stateTimer >= DIVE_RECOVERY_DURATION) {
-          this.state = 'active';
-          this.stateTimer = 0;
-        }
+      case 'blocking':
+        this.updateBlocking(dt, ball);
         break;
       case 'jumping_up':
         this.updateJumpingUp(dt, input, ball);
@@ -328,11 +316,12 @@ export class Player {
     }
     if (!assisted) this.applyMovement(dt, input.move);
 
-    if (input.dive) this.tryButtonDive(ball);
-
-    // tryButtonDive may have switched state to 'diving' - jump/resolve only
-    // apply if we're still active.
-    if (this.state !== 'active') return;
+    // Block takes the frame outright: it is a state of its own from which no
+    // other action is reachable, so nothing below can fire alongside it.
+    if (input.block) {
+      this.startBlock();
+      return;
+    }
 
     if (input.jump) {
       this.tryStartJump(ball);
@@ -340,7 +329,7 @@ export class Player {
     }
 
     if ((this.passBuffered || this.hitBuffered) && this.ballReachable(ball)) {
-      this.resolveContact(ball, teammatePos, mustCrossNet, 'button');
+      this.resolveContact(ball, teammatePos, mustCrossNet);
     }
   }
 
@@ -354,8 +343,7 @@ export class Player {
 
   /** Smooth, continuous walking-speed homing toward `target` - the "light"
    * correction used by Pass/Notfall-Schlag (ASSIST_RANGE) and, in
-   * updateJumpingUp, the Jump-Smash's in-air drift. Distinct from the
-   * Hechten dash, which is a single lerp over a fixed duration. */
+   * updateJumpingUp, the Jump-Smash's in-air drift. */
   private assistWalk(dt: number, target: Vec2): void {
     const dir = normalize(sub(target, this.pos));
     const speed = PLAYER_SPEED * ASSIST_SPEED_MULTIPLIER;
@@ -398,73 +386,81 @@ export class Player {
     return distance(this.pos, ball.pos) <= HIT_RANGE && ball.height <= CATCHABLE_HEIGHT;
   }
 
-  /** Hechten button: sends the player into a one-shot dash toward the nearest
-   * point of the flying ball's remaining path - the only ball there ever is,
-   * so "the relevant ball" needs no disambiguation. No aiming of any kind is
-   * required: neither the joystick nor a swipe direction is consulted, the
-   * dash target is derived purely from the ball's own trajectory. Silently
-   * does nothing if no ball is flying or its whole remaining path is farther
-   * than REACH_RANGE away - that's a dive the player physically can't make.
-   * Every dive ends in the 'recovering' state (see updateDiving), so there is
-   * always a short pause afterwards, whether or not it connected. */
-  private tryButtonDive(ball: Ball): void {
-    if (ball.state !== 'flying') return;
-
-    const intercept = closestPointOnSegment(this.pos, ball.pos, ball.target);
-    if (distance(this.pos, intercept) > REACH_RANGE) return;
-
-    this.approachStart = { ...this.pos };
-    this.approachTarget = intercept;
-    this.diveDuration = clamp(
-      distance(this.pos, intercept) / DIVE_SPEED,
-      DIVE_MIN_DURATION,
-      DIVE_MAX_DURATION,
-    );
-    this.height = 0;
-    this.stateTimer = 0;
-    this.state = 'diving';
+  /** Whether the player currently has the block wall up. Read by TeammateAI
+   * (so the two never both block the same attack and leave the court empty
+   * behind them) and by the renderer. */
+  get isBlocking(): boolean {
+    return this.state === 'blocking';
   }
 
-  private updateDiving(dt: number, ball: Ball, teammatePos: Vec2, mustCrossNet: boolean): void {
-    if (this.ballReachable(ball)) {
-      this.resolveContact(ball, teammatePos, mustCrossNet, 'hechten');
-      this.endDive();
+  /** How far the player is from the net right now. */
+  private get netDistance(): number {
+    return Math.max(0, this.pos.y - NET_Y);
+  }
+
+  /** Block button. Throws the wall up right where the player stands - it moves
+   * them nowhere, dashes nowhere, and costs no recovery pause afterwards. It
+   * always plays, from anywhere, so the button is never dead; whether it can
+   * actually intercept anything is decided per frame by how close to the net
+   * the player happens to be standing (see canBlockNow). Any Pass /
+   * Notfall-Schlag still sitting in the input buffer is dropped: the player
+   * asked for a block, and a block is not a reception. */
+  private startBlock(): void {
+    this.state = 'blocking';
+    this.stateTimer = 0;
+    this.height = 0;
+    this.aimPreview = null;
+    this.clearPendingInputs();
+  }
+
+  /** The wall is up. The player is immobile for its whole (short) duration and
+   * no other action is reachable from this state - that is what keeps the
+   * block cleanly separate from Pass, Jump-Smash and Notfall-Schlag. */
+  private updateBlocking(dt: number, ball: Ball): void {
+    this.stateTimer += dt;
+    this.height = blockHeightAt(this.stateTimer);
+
+    if (this.canBlockNow(ball)) {
+      this.rebound(ball);
       return;
     }
 
-    this.stateTimer += dt;
-    const u = clamp(this.stateTimer / this.diveDuration, 0, 1);
-
-    // Cubic ease-out: most of the ground is covered in the first instants and
-    // the dive then settles, which is what gives it the sharp launch of a real
-    // lunge rather than the even glide a linear ramp produces. At a quarter of
-    // the way through the dive is already ~58% of the way there.
-    const eased = 1 - (1 - u) ** 3;
-    this.pos = lerpVec2(this.approachStart, this.approachTarget, eased);
-    // Low hop, peaking mid-dive - purely visual (the renderer lifts the token
-    // and drops a shadow beneath it), never part of any contact check.
-    this.height = DIVE_PEAK_HEIGHT * 4 * u * (1 - u);
-
-    if (u >= 1) this.endDive();
+    if (this.stateTimer >= BLOCK_DURATION) this.endBlock();
   }
 
-  /** Ends a dive - whether it connected or not - into the recovery pause,
-   * with the hop reset so the player is back on the ground. */
-  private endDive(): void {
+  /** A block only intercepts while the player is genuinely at the net - the
+   * one thing the move asks of them positionally. Everything else about what
+   * the wall covers lives in ballIsBlockable, shared with the AI teammate. */
+  private canBlockNow(ball: Ball): boolean {
+    return this.netDistance <= BLOCK_NET_DISTANCE && ballIsBlockable(ball, this.pos);
+  }
+
+  /** The blocked ball: straight back down onto the attacker's own side, fast
+   * and steep. Deliberately unlike every reception in the game, which lifts
+   * the ball to a teammate or lobs it across the court. */
+  private rebound(ball: Ball): void {
+    this.logContact('block', ball);
+    ball.launch({ ...ball.pos }, blockReboundTarget(ball), {
+      duration: BLOCK_RETURN_DURATION,
+      peakHeight: BLOCK_RETURN_PEAK_HEIGHT,
+      toucher: 'player',
+    });
+    this.endBlock();
+  }
+
+  private endBlock(): void {
     this.height = 0;
-    this.state = 'recovering';
+    this.state = 'active';
     this.stateTimer = 0;
   }
 
-  /** Fires whatever the dive/Pass/Notfall-Schlag contact resolves to: a
+  /** Fires whatever a Pass/Notfall-Schlag contact resolves to: a
    * Notfall-Schlag if that was explicitly buffered, or if this touch must
    * legally cross the net (mandatory final team touch); a controlled pass to
-   * the teammate otherwise (the default for a bare Hechten with nothing
-   * buffered, and for a buffered Pass). `origin` is only for the debug log
-   * below - it doesn't affect which shot fires. */
-  private resolveContact(ball: Ball, teammatePos: Vec2, mustCrossNet: boolean, origin: 'hechten' | 'button'): void {
+   * the teammate otherwise. */
+  private resolveContact(ball: Ball, teammatePos: Vec2, mustCrossNet: boolean): void {
     const fired = this.hitBuffered || mustCrossNet ? 'notfall-schlag' : 'pass';
-    this.logContact(origin === 'hechten' ? 'hechten' : fired, ball);
+    this.logContact(fired, ball);
     if (fired === 'notfall-schlag') {
       this.fireHit(ball);
     } else {

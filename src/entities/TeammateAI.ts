@@ -3,12 +3,20 @@ import { random } from '../utils/random';
 import {
   ASSIST_RANGE,
   BACK_ZONE_CENTER_Y,
+  BLOCK_DURATION,
+  BLOCK_RETURN_DURATION,
+  BLOCK_RETURN_PEAK_HEIGHT,
   CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
   EMERGENCY_DURATION_THRESHOLD,
   HIT_RANGE,
   NET_Y,
+  OPPONENT_HARD_BALL_DURATION,
+  TEAMMATE_BLOCK_APPROACH_SPEED,
+  TEAMMATE_BLOCK_LEAD_DISTANCE,
+  TEAMMATE_BLOCK_READY_DISTANCE,
+  TEAMMATE_BLOCK_STANCE_Y,
   NET_ZONE_CENTER_Y,
   PLAYER_RADIUS,
   PLAYER_START_POS,
@@ -33,20 +41,25 @@ import {
   ZONE_SPLIT_Y,
 } from '../game/constants';
 import { Ball } from './Ball';
+import { ballIsBlockable, blockHeightAt, blockReboundTarget } from '../game/block';
 import { spikeShot } from '../game/spikePower';
 import type { PlayerState } from './Player';
 
-type TeammateState = 'home' | 'moving_to_ball' | 'returning';
+type TeammateState = 'home' | 'moving_to_ball' | 'returning' | 'to_net' | 'blocking';
 
 /** The bits of live player state TeammateAI needs to decide ball-contact
- * priority (see playerHasPriority) - deliberately narrower than a full
- * Player reference. */
+ * priority (see playerHasPriority) and whether to go and block - deliberately
+ * narrower than a full Player reference. */
 export interface PlayerInfo {
   pos: Vec2;
   state: PlayerState;
   hasPendingContactInput: boolean;
   /** Whether the player is mid-serve-routine (see Player.isServing). */
   isServing?: boolean;
+  /** Whether the player already has the block wall up (see Player.isBlocking).
+   * If they do, the teammate does not block too - one blocker, one defender,
+   * or the whole court behind the net is empty. */
+  isBlocking?: boolean;
 }
 
 /** Whether the human player - not the AI teammate - should be the one to
@@ -59,9 +72,6 @@ export interface PlayerInfo {
  * granting them priority over it would only stall the teammate - which matters
  * now that a Pass is deliberately aimed away from the teammate, toward the net.
  *
- * - mid-Hechten-dive: since only one ball is ever in flight at a time, a
- *   dive is always toward *this* ball - unconditional priority regardless
- *   of who's technically closer at this exact instant.
  * - Pass/Notfall-Schlag pressed (or still buffered) AND the player is
  *   already within their own ASSIST_RANGE homing distance of the ball - so
  *   about to close the gap and resolve it themselves.
@@ -80,7 +90,6 @@ function playerHasPriority(ball: Ball, player: PlayerInfo, teammatePos: Vec2): b
   // TEAMMATE_REACT_RADIUS of it, so without this the teammate would sprint in
   // and poach its own partner's serve out of the air.
   if (player.isServing) return true;
-  if (player.state === 'diving') return true;
   if (player.hasPendingContactInput && distance(player.pos, ball.pos) <= ASSIST_RANGE) return true;
   return distance(player.pos, ball.pos) + TEAMMATE_YIELD_MARGIN < distance(teammatePos, ball.pos);
 }
@@ -154,20 +163,29 @@ function attackTarget(opponentPositions: Vec2[]): Vec2 {
  * AI teammate: dynamically covers whichever zone (net/front vs. back) the
  * player currently isn't in (see computeZoneHome) instead of sitting at one
  * fixed spot. Only leaves that base when the ball is actually coming near it
- * or flying toward it (which also covers the human player's dive-pass, since
- * that always targets this teammate's position); plays it — a quick
- * emergency save if it arrived too fast/direct or this is the team's
- * mandatory final touch, otherwise a high set to the human player — then
- * heads back to base.
+ * or flying toward it; plays it — a quick emergency save if it arrived too
+ * fast/direct or this is the team's mandatory final touch, otherwise a high
+ * set to the human player — then heads back to base.
+ *
+ * It also blocks entirely on its own initiative, with nothing pressed. The
+ * moment our team sends the ball over the net an attack is being built: the
+ * teammate breaks off whatever it was doing, runs to the net on the ball's own
+ * column ('to_net'), and throws the wall up the instant a hard ball is struck
+ * back at us ('blocking'). A lob it deliberately does not block - it stands
+ * down and digs it instead. That is what frees the human player to drop back
+ * into the defence behind the block rather than covering the net themselves.
  */
 export class TeammateAI {
   pos: Vec2;
   radius = PLAYER_RADIUS;
   state: TeammateState = 'home';
+  /** Visual-only lift while blocking, mirroring Player.height. */
+  height = 0;
 
   /** The currently-targeted base position (see computeZoneHome) - recomputed
    * every update() from the live player position. */
   private targetHome: Vec2;
+  private blockTimer = 0;
 
   constructor() {
     this.targetHome = computeZoneHome(PLAYER_START_POS);
@@ -190,8 +208,19 @@ export class TeammateAI {
     this.targetHome = computeZoneHome(player.pos);
 
     switch (this.state) {
+      case 'blocking':
+        this.updateBlocking(dt, ball);
+        break;
+      case 'to_net':
+        this.updateToNet(dt, ball, player);
+        break;
       case 'home':
-        if (this.shouldReact(ball, player)) {
+        // Going to block outranks everything else: the window for getting to
+        // the net closes long before the attack is struck, so this decision
+        // cannot wait for the ball to actually come at us.
+        if (this.shouldPrepareBlock(ball, player)) {
+          this.state = 'to_net';
+        } else if (this.shouldReact(ball, player)) {
           this.state = 'moving_to_ball';
         } else {
           // Situational positioning, not a static spot: keep drifting toward
@@ -203,9 +232,131 @@ export class TeammateAI {
         this.updateMovingToBall(dt, ball, player, mustCrossNet, opponentPositions);
         break;
       case 'returning':
-        this.updateReturning(dt);
+        // React straight out of 'returning' as well, not only once home has
+        // been reached. The teammate now passes through this state after every
+        // block and every stood-down block approach, and a ball arriving
+        // during the walk back would otherwise simply drop.
+        if (this.shouldPrepareBlock(ball, player)) this.state = 'to_net';
+        else if (this.shouldReact(ball, player)) this.state = 'moving_to_ball';
+        else this.updateReturning(dt);
         break;
     }
+  }
+
+  /** Whether the teammate currently has the block wall up - read by the
+   * renderer and by tests. */
+  get isBlocking(): boolean {
+    return this.state === 'blocking';
+  }
+
+  /** An attack is being built against us: our team has put the ball over and
+   * it is on its way to an opponent, who will play it straight back. That is
+   * the only warning there ever is - the opponents strike the instant they
+   * reach the ball - so the run to the net has to start here, well before
+   * anything is coming at us.
+   *
+   * Never while the human player is already blocking: two blockers at the net
+   * leave nobody at all in the court behind them. */
+  private shouldPrepareBlock(ball: Ball, player: PlayerInfo): boolean {
+    if (player.isBlocking) return false;
+    if (ball.state !== 'flying') return false;
+    if (ball.lastToucher === 'opponent1' || ball.lastToucher === 'opponent2') return false;
+    return ball.target.y <= NET_Y;
+  }
+
+  /** On the way to the net, shading onto the ball's own column - the line the
+   * attack will most likely come down. Run at scramble pace: arriving late is
+   * the same as not going at all. */
+  private updateToNet(dt: number, ball: Ball, player: PlayerInfo): void {
+    if (player.isBlocking || ball.state !== 'flying') {
+      this.state = 'returning';
+      return;
+    }
+
+    const struck = ball.lastToucher === 'opponent1' || ball.lastToucher === 'opponent2';
+    if (!struck && ball.target.y > NET_Y) {
+      // The ball is no longer on its way over: one of us touched it again and
+      // it is coming back into our own half, so there is no attack to block
+      // after all. Stand down, or the teammate camps at the net while the ball
+      // it should be playing drops behind it.
+      this.state = 'returning';
+      return;
+    }
+
+    if (struck) {
+      // The attack has been played. A hard ball is blocked; anything slower is
+      // a lob that would sail over the block anyway, so stand down and dig it.
+      const blockable = ball.target.y > NET_Y && ball.duration <= OPPONENT_HARD_BALL_DURATION;
+      if (!blockable) {
+        this.state = 'returning';
+        return;
+      }
+
+      // Not up yet: keep sliding along with the ball's live column. The attack
+      // travels diagonally, so the hitter's column and the column the ball
+      // actually comes through the net on are two different places - jumping on
+      // the former is jumping next to the ball. Measured: an attack from x=5
+      // toward x=2.6 crosses the net around x=3.8, i.e. 1.2m away, just outside
+      // the block's own BLOCK_HALF_WIDTH of 1.1.
+      if (NET_Y - ball.pos.y > TEAMMATE_BLOCK_LEAD_DISTANCE) {
+        this.driftToward(dt, this.blockStance(ball), TEAMMATE_BLOCK_APPROACH_SPEED);
+        return;
+      }
+
+      // Committing point: up now, or not at all.
+      if (distance(this.pos, this.blockStance(ball)) <= TEAMMATE_BLOCK_READY_DISTANCE) {
+        this.state = 'blocking';
+        this.blockTimer = 0;
+        this.height = 0;
+      } else {
+        this.state = 'returning';
+      }
+      return;
+    }
+
+    this.driftToward(dt, this.blockStance(ball), TEAMMATE_BLOCK_APPROACH_SPEED);
+  }
+
+  /** Where to stand to block this ball: right off the net, in its column. */
+  private blockStance(ball: Ball): Vec2 {
+    return {
+      x: clamp(ball.pos.x, this.radius, COURT_WIDTH - this.radius),
+      y: TEAMMATE_BLOCK_STANCE_Y,
+    };
+  }
+
+  /** The wall is up. Same shared zone/rebound/animation definitions the human
+   * player's block uses, so the two can never behave differently. */
+  private updateBlocking(dt: number, ball: Ball): void {
+    this.blockTimer += dt;
+    this.height = blockHeightAt(this.blockTimer);
+
+    if (ballIsBlockable(ball, this.pos)) {
+      console.log('[BallContact] teammate block', {
+        distance: Number(Math.abs(ball.pos.x - this.pos.x).toFixed(3)),
+        height: Number(ball.height.toFixed(3)),
+        hitRange: HIT_RANGE,
+        catchableHeight: CATCHABLE_HEIGHT,
+        conditionA_distanceOk: true,
+        conditionB_heightOk: true,
+        conditionC_inputActive: true, // AI has no button - the block itself is the commitment
+      });
+      ball.launch({ ...ball.pos }, blockReboundTarget(ball), {
+        duration: BLOCK_RETURN_DURATION,
+        peakHeight: BLOCK_RETURN_PEAK_HEIGHT,
+        toucher: 'teammate',
+      });
+      this.endBlock();
+      return;
+    }
+
+    if (this.blockTimer >= BLOCK_DURATION) this.endBlock();
+  }
+
+  private endBlock(): void {
+    this.height = 0;
+    this.blockTimer = 0;
+    this.state = 'returning';
   }
 
   /** Excludes the very ball the teammate itself just launched: playBall()
@@ -252,8 +403,8 @@ export class TeammateAI {
     }
 
     // The player may only have taken priority *after* the teammate was
-    // already committed to 'moving_to_ball' (e.g. they started a Hechten-dive
-    // mid-approach) - re-check every frame, not just on entry, and back off
+    // already committed to 'moving_to_ball' (e.g. they pressed Pass while
+    // standing on it) - re-check every frame, not just on entry, and back off
     // immediately rather than continuing to close in on (or catch) a ball
     // the player is now actively handling. 'returning' re-positions toward
     // the current zone home, which already leans toward the net when the
@@ -397,15 +548,15 @@ export class TeammateAI {
     this.driftToward(dt, this.targetHome);
   }
 
-  private driftToward(dt: number, target: Vec2): void {
+  private driftToward(dt: number, target: Vec2, speed: number = TEAMMATE_SPEED): void {
     const toTarget = distance(this.pos, target);
     if (toTarget <= TEAMMATE_RETURN_EPSILON) {
       this.pos = { ...target };
       return;
     }
     const dir = normalize({ x: target.x - this.pos.x, y: target.y - this.pos.y });
-    this.pos.x += dir.x * TEAMMATE_SPEED * dt;
-    this.pos.y += dir.y * TEAMMATE_SPEED * dt;
+    this.pos.x += dir.x * speed * dt;
+    this.pos.y += dir.y * speed * dt;
     this.pos = this.clampToOwnHalf(this.pos);
   }
 

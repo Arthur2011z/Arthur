@@ -1,6 +1,6 @@
 const JUMP_SIZE = 88; // px, primary action - jump-smash
 const PASS_SIZE = 76; // px, primary action - controlled pass
-const DIVE_SIZE = 68; // px, primary action - Hechten
+const BLOCK_SIZE = 68; // px, primary action - Block
 const HIT_SIZE = 56; // px, secondary/"emergency" action - small on purpose
 const SERVE_SIZE = 104; // px, the only button on screen while serving - big and unmissable
 
@@ -12,12 +12,12 @@ const SAFE_BOTTOM = `max(${EDGE}px, env(safe-area-inset-bottom))`;
 /** The four action buttons, bottom-right, in two rows - all reachable by
  * thumb without moving the hand:
  *
- *   [ Hechten ]  [ Notfall ]     <- upper row
+ *   [  Block  ]  [ Notfall ]     <- upper row
  *   [  Pass   ]  [ Schmetter ]   <- bottom row (Schmetter in the corner)
  *
  * These are the only discrete button presses in the game. The swipe gesture
- * (SwipeInput) is no longer an input for Hechten - it now serves solely to
- * aim the spike during the Jump-Smash's slow-motion window.
+ * (SwipeInput) is not an input for any of them - it serves solely to aim the
+ * spike during the Jump-Smash's slow-motion window.
  *
  * While the human team is preparing to serve, all four are hidden and a single
  * Aufschlag button takes their place (see setServeMode) - so there is exactly
@@ -26,13 +26,13 @@ const SAFE_BOTTOM = `max(${EDGE}px, env(safe-area-inset-bottom))`;
 export class Buttons {
   private jumpPending = false;
   private passPending = false;
-  private divePending = false;
+  private blockPending = false;
   private hitPending = false;
   private servePending = false;
 
   private readonly jumpEl: HTMLButtonElement;
   private readonly passEl: HTMLButtonElement;
-  private readonly diveEl: HTMLButtonElement;
+  private readonly blockEl: HTMLButtonElement;
   private readonly hitEl: HTMLButtonElement;
   private readonly serveEl: HTMLButtonElement;
   /** Mirrors the DOM so setServeMode is a no-op on the vast majority of frames
@@ -96,16 +96,16 @@ export class Buttons {
 
     // Upper row, left of Notfall - centered over Pass, the same row height as
     // Notfall so the two read as one row.
-    this.diveEl = document.createElement('button');
-    this.diveEl.id = 'dive-btn';
-    this.diveEl.type = 'button';
-    this.diveEl.textContent = 'Hechten';
-    Object.assign(this.diveEl.style, {
+    this.blockEl = document.createElement('button');
+    this.blockEl.id = 'block-btn';
+    this.blockEl.type = 'button';
+    this.blockEl.textContent = 'Block';
+    Object.assign(this.blockEl.style, {
       position: 'absolute',
-      right: `${EDGE + JUMP_SIZE + GAP + (PASS_SIZE - DIVE_SIZE) / 2}px`,
+      right: `${EDGE + JUMP_SIZE + GAP + (PASS_SIZE - BLOCK_SIZE) / 2}px`,
       bottom: `calc(${SAFE_BOTTOM} + ${JUMP_SIZE + ROW_GAP}px)`,
-      width: `${DIVE_SIZE}px`,
-      height: `${DIVE_SIZE}px`,
+      width: `${BLOCK_SIZE}px`,
+      height: `${BLOCK_SIZE}px`,
       borderRadius: '50%',
       border: '2px solid rgba(255, 255, 255, 0.5)',
       background: 'rgba(244, 162, 97, 0.85)',
@@ -138,12 +138,12 @@ export class Buttons {
 
     container.appendChild(this.passEl);
     container.appendChild(this.hitEl);
-    container.appendChild(this.diveEl);
+    container.appendChild(this.blockEl);
     container.appendChild(this.jumpEl);
     container.appendChild(this.serveEl);
     this.jumpEl.addEventListener('pointerdown', this.onJumpPointerDown);
     this.passEl.addEventListener('pointerdown', this.onPassPointerDown);
-    this.diveEl.addEventListener('pointerdown', this.onDivePointerDown);
+    this.blockEl.addEventListener('pointerdown', this.onBlockPointerDown);
     this.hitEl.addEventListener('pointerdown', this.onHitPointerDown);
     this.serveEl.addEventListener('pointerdown', this.onServePointerDown);
   }
@@ -159,13 +159,13 @@ export class Buttons {
     const normal = active ? 'none' : '';
     this.jumpEl.style.display = normal;
     this.passEl.style.display = normal;
-    this.diveEl.style.display = normal;
+    this.blockEl.style.display = normal;
     this.hitEl.style.display = normal;
     this.serveEl.style.display = active ? '' : 'none';
 
     this.jumpPending = false;
     this.passPending = false;
-    this.divePending = false;
+    this.blockPending = false;
     this.hitPending = false;
     this.servePending = false;
   }
@@ -185,11 +185,11 @@ export class Buttons {
     return v;
   }
 
-  /** Edge-triggered read: true only on the frame the Hechten button was
+  /** Edge-triggered read: true only on the frame the Block button was
    * pressed. */
-  consumeDive(): boolean {
-    const v = this.divePending;
-    this.divePending = false;
+  consumeBlock(): boolean {
+    const v = this.blockPending;
+    this.blockPending = false;
     return v;
   }
 
@@ -219,9 +219,9 @@ export class Buttons {
     this.passPending = true;
   };
 
-  private onDivePointerDown = (e: PointerEvent): void => {
+  private onBlockPointerDown = (e: PointerEvent): void => {
     e.preventDefault();
-    this.divePending = true;
+    this.blockPending = true;
   };
 
   private onHitPointerDown = (e: PointerEvent): void => {

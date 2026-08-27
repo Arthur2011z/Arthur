@@ -27,7 +27,7 @@ export const OPPONENT_SPEED = 3.8;
 
 // Interaction ranges, in meters.
 export const HIT_RANGE = 0.7;
-// Contact (Hechten/Pass/Schlag/Schmetterschlag/Zuspiel, for every entity -
+// Contact (Block/Pass/Schlag/Schmetterschlag/Zuspiel, for every entity -
 // player, teammate, opponent) additionally requires the ball's *current*
 // flight height to be at or below this - HIT_RANGE alone only checks the
 // ground-plane (x/y) distance to the ball's live position, which a high arc
@@ -38,43 +38,71 @@ export const HIT_RANGE = 0.7;
 // peakHeight compares against this.
 export const CATCHABLE_HEIGHT = 2.0;
 
-// Hechten (dive button): how far away the nearest point of the ball's
-// remaining flight path may be for the dive to engage at all. This is the
-// one-shot dash for balls just out of easy reach - distinct from the light
-// continuous ASSIST_RANGE homing used by Pass/Notfall-Schlag/Jump below. No
-// aim tolerance constant accompanies this any more: the dive is
-// button-triggered and its direction comes purely from the ball's own
-// trajectory, so there is no swipe (or joystick) direction left to grade.
+// --- Block ---------------------------------------------------------------
+// Blocken. No dash, no movement of any kind, no recovery pause: the block is
+// played standing still and is over as quickly as it went up.
 //
-// Reduced from 3 as part of the general trimming of automatic movement help
-// (see ASSIST_RANGE): a dive that covered 3m turned "get roughly near the
-// ball" into "press the button from anywhere nearby". At 2m the player has to
-// have done the running themselves before the dive can bail them out - it is
-// still a real dive, covering nearly 3x HIT_RANGE at roughly twice running
-// speed (2m over DIVE_DASH_DURATION vs. PLAYER_SPEED).
-export const REACH_RANGE = 2;
+// A block is played standing at the net. Pressing it never moves the player a
+// centimetre; instead it only intercepts anything at all while they are
+// already within this distance of the net. That is the entire positional
+// requirement, and what makes the move a read rather than a panic button.
+export const BLOCK_NET_DISTANCE = 1.5;
+// How long the wall stays up. The opponents' attack is a 0.6s flight that
+// crosses the net around halfway through it, so a block thrown up as the
+// attack is struck is still there when the ball arrives - while one pressed a
+// beat too early or too late is not.
+export const BLOCK_DURATION = 0.55;
+export const BLOCK_RISE_DURATION = 0.12;
+export const BLOCK_FALL_DURATION = 0.15;
+// Visual-only lift, the same mechanism as the jump's height - deliberately
+// higher than JUMP_PEAK_HEIGHT (0.6), since reaching above the net is the
+// whole point of the move.
+export const BLOCK_PEAK_HEIGHT = 0.85;
 
-// The dive is defined by its SPEED, not by a fixed duration. A fixed duration
-// (it used to be a flat 0.22s for every dive, however short) meant the dash
-// speed fell with the distance covered: a 0.8m dive crawled along at 3.6 m/s,
-// i.e. slower than simply walking there (PLAYER_SPEED 4.5), and a 0.3m one at
-// 1.4 m/s. Since most dives are short, the move almost always felt limp. With
-// a fixed speed every dive is an equally sharp lunge and only its length
-// varies.
-export const DIVE_SPEED = 11; // m/s - roughly 2.4x running speed
-// Floor and ceiling on the resulting duration: the floor keeps a near-zero
-// dive from being an invisible teleport, the ceiling is a safety net.
-export const DIVE_MIN_DURATION = 0.12;
-export const DIVE_MAX_DURATION = 0.3;
-// Visual-only hop (same mechanism as the jump's height): lifts the token and
-// casts a shadow under it, so the move reads as leaving the ground rather than
-// sliding along it.
-export const DIVE_PEAK_HEIGHT = 0.35;
-export const DIVE_RECOVERY_DURATION = 0.5;
+// The block zone, i.e. the wall itself. Laterally: how far to either side of
+// the blocker it reaches.
+export const BLOCK_HALF_WIDTH = 1.1;
+// Along the court: how near the net line the ball has to be as it passes
+// through. A block happens AT the net, never out in the court.
+export const BLOCK_NET_BAND = 1.2;
+// And vertically, the band a raised block actually covers. Under it the ball
+// slips beneath the block (a dink beats it), over it the ball sails past (a
+// high lob beats it). Tuned against the two things that actually cross the
+// net: the opponents' attack peaks at OPPONENT_ATTACK_PEAK_HEIGHT (1.1) and so
+// passes through the band, while their safe return peaks at
+// OPPONENT_RETURN_PEAK_HEIGHT (2.7) and clears it. The block therefore beats
+// attacks, not lobs.
+export const BLOCK_MIN_HEIGHT = 0.45;
+export const BLOCK_MAX_HEIGHT = 2.4;
+
+// A blocked ball is not "received": it rebounds, hard and steep, straight back
+// down onto the attacker's own side just past the net. Nothing else in the
+// game flies like this - the flattest shot otherwise is the full-power spike
+// at SPIKE_PEAK_HEIGHT (1.2), four times this arc.
+export const BLOCK_RETURN_DURATION = 0.45;
+export const BLOCK_RETURN_PEAK_HEIGHT = 0.3;
+export const BLOCK_RETURN_DEPTH = 1.6; // metres past the net, on the attacker's side
+export const BLOCK_RETURN_MARGIN = 0.4; // keeps the rebound inside the side lines
+
+// The AI teammate's own block: it reads a developing attack and goes to the
+// net by itself, with nothing pressed.
+// Where it stands to block - just off the net, on the ball's own column.
+export const TEAMMATE_BLOCK_STANCE_Y = NET_Y + 0.55;
+// Close enough to that stance to be able to jump into a block at all.
+export const TEAMMATE_BLOCK_READY_DISTANCE = 1;
+// How far out from the net the incoming attack has to be before the teammate
+// commits and jumps. Up to that point it keeps sliding along with the ball's
+// live column, because an attack travels diagonally: the column the hitter
+// struck from and the column the ball actually comes through the net on are
+// two different places. Comfortably outside BLOCK_NET_BAND, so the wall is
+// already up by the time the ball reaches the band.
+export const TEAMMATE_BLOCK_LEAD_DISTANCE = 1.8;
+// Getting to the net late is the same as not going, so the approach is run at
+// scramble pace rather than the teammate's cruising TEAMMATE_SPEED.
+export const TEAMMATE_BLOCK_APPROACH_SPEED = 5.5;
 
 // Light automatic "the AI nudges you the last bit of the way" correction used
-// by Pass and Notfall-Schlag: much shorter range than REACH_RANGE's dash,
-// walked smoothly rather than dashed.
+// by Pass and Notfall-Schlag: a short range, walked smoothly.
 //
 // Deliberately small. At the old 2.2m this stopped being a nudge and became
 // the primary way the player reached the ball: pressing Pass anywhere in the
@@ -210,7 +238,7 @@ export const PASS_PEAK_HEIGHT = 2.5;
 // "get it over somehow" fallback when in trouble.
 //
 // This and every other *routine* ball flight in the game (both serves, Pass/
-// Hechten, the AI teammate's set and emergency-set, the opponent's normal
+// the Pass, the AI teammate's set and emergency-set, the opponent's normal
 // return) were slowed down together, on request, so the ball spends
 // noticeably more time in the air and everyone (human or AI) has real time to
 // move to the landing spot. The two deliberately fast/hard shots - the
@@ -300,18 +328,17 @@ export const NET_FAULT_OWN_SIDE_MARGIN = 0.3;
 
 // AI teammate: reacts only once the ball is within this radius of its current
 // position or of where the ball is actually headed (ball.target) - covers both
-// "comes near" and "flies toward them" (including the human player's dive-pass,
-// which always targets the teammate's position directly).
+// "comes near" and "flies toward them".
 export const TEAMMATE_REACT_RADIUS = 2.5;
 
 // How much closer to the ball the player must be than the teammate before the
 // teammate defers to them on proximity alone (see playerHasPriority's third
 // rule in TeammateAI). Without a margin here, a player a mere centimeter
 // closer already claimed the ball - including when they had no intention of
-// playing it at all (nothing pressed, not diving), so the teammate would stand
+// playing it at all (nothing pressed at all), so the teammate would stand
 // by and let balls drop. This is deliberately only the *proximity* rule's
-// tolerance: an active claim (mid-Hechten-dive, or Pass/Notfall-Schlag pressed
-// within ASSIST_RANGE) still wins outright, at any distance, with no margin
+// tolerance: an active claim (Pass/Notfall-Schlag pressed within
+// ASSIST_RANGE) still wins outright, at any distance, with no margin
 // required. Sits between HIT_RANGE and ASSIST_RANGE: large enough that a
 // near-tie goes to the teammate (who will actually play it), small enough that
 // a genuinely better-placed player still gets their ball.

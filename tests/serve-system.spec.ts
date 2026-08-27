@@ -24,7 +24,7 @@ const PLAYER_RADIUS = 0.35;
 const SERVE_BASELINE_Y = 16 - PLAYER_RADIUS; // COURT_LENGTH - PLAYER_RADIUS
 const SPIKE_SCATTER_RADIUS = 0.55;
 
-const ACTION_BUTTONS = ['jump-btn', 'pass-btn', 'dive-btn', 'hit-btn'];
+const ACTION_BUTTONS = ['jump-btn', 'pass-btn', 'block-btn', 'hit-btn'];
 
 async function buttonVisibility(page: Page) {
   return page.evaluate((ids) => {
@@ -214,7 +214,7 @@ test.describe('Aufschlag: its own UI mode, its own routine, its own movement rul
       const g = (window as any).__game.state;
       const input = {
         move: { x: 0, y: 0 }, aim: null, swipe: null,
-        jump: false, spike: false, pass: false, dive: false, hit: false, serve: false,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
       };
       g.update(0.016, { ...input, serve: true }); // start the toss
 
@@ -248,7 +248,7 @@ test.describe('Aufschlag: its own UI mode, its own routine, its own movement rul
 
       const base = {
         move: { x: 0, y: 0 }, aim: null, swipe: null,
-        jump: false, spike: false, pass: false, dive: false, hit: false, serve: false,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
       };
       const step = (dt: number, move: { x: number; y: number }) =>
         g.player.update(dt, { ...base, move }, g.ball, g.teammate.pos, false);
@@ -406,10 +406,17 @@ test.describe('Aufschlag: its own UI mode, its own routine, its own movement rul
 
     const result = await page.evaluate(() => {
       const g = (window as any).__game.state;
+      // The opponents are stubbed out. A ball aimed past their baseline still
+      // passes within reach of the back defender on its way there, so whether
+      // one of them happens to dig it before it lands comes down to the
+      // serve's own scatter - a coin flip that has nothing to do with what
+      // this test is about, which is the scoring rule for a ball that DOES
+      // land out.
+      for (const o of g.opponents) o.update = () => {};
       const before = { ...g.score };
       const base = {
         move: { x: 0, y: 0 }, aim: null, swipe: null,
-        jump: false, spike: false, pass: false, dive: false, hit: false, serve: false,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
       };
       // Full-strength, straight over the net: from the baseline that is
       // SERVE_MAX_RANGE, which deliberately carries past the far baseline.
