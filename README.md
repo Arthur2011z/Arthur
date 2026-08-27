@@ -43,6 +43,16 @@ eigenständige Seite verteilen.
   Kontakt passiert erst, wenn der Ball wirklich in Reichweite ist.
 - **Notfall-Schlag** (kleiner Button): einfacher, schwacher Schlag übers Netz von
   überall, ohne Sprung — die Notlösung, wenn der Spieler in Bedrängnis ist.
+- **Bewegungs-Boost**: jeder Druck auf Pass oder Notfall-Schlag löst zusätzlich einen
+  kurzen Tempo-Schub aus — 0,4 s lang 50 % schneller als die normale Laufgeschwindigkeit
+  (4,5 → 6,75 m/s), danach sofort wieder normal. Er löst **immer** aus, ohne jede
+  Bedingung: egal ob der Ball erreichbar ist, ob überhaupt einer fliegt oder ob das Tempo
+  gebraucht wird. Er beschleunigt ausschließlich die Bewegung, die ohnehin stattfindet —
+  die Richtung des Steuerknüppels oder die bestehende leichte Korrekturbewegung. Er
+  steuert nichts, vergrößert keine Reichweite und ändert nichts daran, dass ein
+  Ballkontakt nur bei tatsächlicher Berührung zustande kommt: er hilft nur, schneller
+  hinzukommen. Das ersetzt das entfernte Hechten als Hilfe für Bälle, die knapp außerhalb
+  der bequemen Reichweite liegen.
 - **Aufschlag-Knopf**: erscheint nur im Aufschlag-Modus, und dann als **einziger**
   Knopf — die vier normalen Aktions-Knöpfe sind so lange komplett ausgeblendet.
   Ein Druck startet die ganze Routine von selbst: Ball wird senkrecht hochgeworfen,

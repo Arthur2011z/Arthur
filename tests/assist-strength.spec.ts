@@ -92,44 +92,79 @@ test.describe('Automatische Bewegungsunterstützung: a fine correction, not a wa
     expect(await autoMovement(page, 'jump', 1.5)).toBe(0);
   });
 
-  test('the assist walks at exactly the player\'s own speed, never faster', async ({ page }) => {
+  test('the assist never out-runs manual control - boosted or not', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // ASSIST_SPEED_MULTIPLIER is 1.0 now (it was 1.15, i.e. the automatic
-    // correction physically out-ran manual control). Measured directly: one
-    // frame of held Pass with the ball inside ASSIST_RANGE but outside
-    // HIT_RANGE must move the player exactly PLAYER_SPEED * dt.
-    const perFrame = await page.evaluate(() => {
+    // ASSIST_SPEED_MULTIPLIER is 1.0 (it was 1.15, i.e. the automatic
+    // correction physically out-ran manual control). That invariant is now
+    // measured against manual running rather than against a hard-coded number,
+    // because the Bewegungs-Boost lifts BOTH by the same factor for its first
+    // MOVE_BOOST_DURATION (0.4s) - the press that starts an assist is also the
+    // press that arms the boost, so the two can only be compared like for like.
+    const r = await page.evaluate(() => {
       const g = (window as any).__game;
       g.state.teammate.update = () => {};
       for (const o of g.state.opponents) o.update = () => {};
+      const noInput = { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: false, block: false, hit: false };
 
-      const startY = 12;
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = startY;
-      g.state.player.state = 'active';
-      // 0.9m away: inside ASSIST_RANGE (1.0), outside HIT_RANGE (0.7), so the
-      // assist walk runs and no contact fires on this frame.
-      g.state.ball.launch(
-        { x: 4, y: startY - 0.9 },
-        { x: 4.05, y: startY - 0.9 },
-        { duration: 8, peakHeight: 0.4, toucher: null },
-      );
+      /** One frame of movement, with the ball placed `gap` metres toward the
+       * net (Infinity = nowhere near, so no assist runs). `warmUp` frames run
+       * first, out of assist range, to let the boost expire. */
+      const oneFrame = (gap: number, move: { x: number; y: number }, warmUp: number) => {
+        const startY = 12;
+        g.state.player.pos.x = 4;
+        g.state.player.pos.y = startY;
+        g.state.player.state = 'active';
+        const far = { x: 40, y: 40 };
+        g.state.ball.launch(far, { ...far }, { duration: 30, peakHeight: 0.4, toucher: null });
 
-      g.state.player.update(
-        0.016,
-        { move: { x: 0, y: 0 }, swipe: null, jump: false, spike: false, pass: true, block: false, hit: false },
-        g.state.ball,
-        g.state.teammate.pos,
-        false,
-      );
-      return startY - g.state.player.pos.y;
+        // Press once, then run the warm-up frames with the ball out of reach.
+        g.state.player.update(0.016, { ...noInput, pass: true }, g.state.ball, g.state.teammate.pos, false);
+        for (let i = 0; i < warmUp; i++) {
+          g.state.player.update(0.016, noInput, g.state.ball, g.state.teammate.pos, false);
+        }
+        // Now put the ball where this measurement wants it and take one frame.
+        g.state.player.pos.y = startY;
+        if (Number.isFinite(gap)) {
+          g.state.ball.launch(
+            { x: 4, y: startY - gap }, { x: 4.05, y: startY - gap },
+            { duration: 30, peakHeight: 0.4, toucher: null },
+          );
+        }
+        const before = g.state.player.pos.y;
+        g.state.player.update(0.016, { ...noInput, move }, g.state.ball, g.state.teammate.pos, false);
+        return { step: before - g.state.player.pos.y, boosting: g.state.player.isBoosting };
+      };
+
+      const stick = { x: 0, y: -1 }; // straight toward the net, full deflection
+      return {
+        // 0.9m: inside ASSIST_RANGE (1.0), outside HIT_RANGE (0.7) - the assist
+        // walk runs and no contact fires on this frame.
+        assistBoosted: oneFrame(0.9, { x: 0, y: 0 }, 0),
+        manualBoosted: oneFrame(Infinity, stick, 0),
+        // 30 frames = 0.48s: past MOVE_BOOST_DURATION, still inside
+        // INPUT_BUFFER_WINDOW (1.2s), so the Pass is buffered but unboosted.
+        assistPlain: oneFrame(0.9, { x: 0, y: 0 }, 30),
+        manualPlain: oneFrame(Infinity, stick, 30),
+      };
     });
 
     const PLAYER_SPEED = 4.5; // mirror src/game/constants.ts
-    expect(perFrame).toBeCloseTo(PLAYER_SPEED * 0.016, 5);
-    // Explicitly: not the old 1.15x multiplier.
-    expect(perFrame).toBeLessThan(PLAYER_SPEED * 1.15 * 0.016);
+
+    // Sanity: the two pairs really were taken in the states they claim.
+    expect(r.assistBoosted.boosting).toBe(true);
+    expect(r.manualBoosted.boosting).toBe(true);
+    expect(r.assistPlain.boosting).toBe(false);
+    expect(r.manualPlain.boosting).toBe(false);
+
+    // The invariant: assisted movement is exactly manual movement, never more.
+    expect(r.assistBoosted.step).toBeCloseTo(r.manualBoosted.step, 6);
+    expect(r.assistPlain.step).toBeCloseTo(r.manualPlain.step, 6);
+
+    // ...and unboosted that is exactly the player's own running speed - not
+    // the old 1.15x multiplier.
+    expect(r.assistPlain.step).toBeCloseTo(PLAYER_SPEED * 0.016, 5);
+    expect(r.assistPlain.step).toBeLessThan(PLAYER_SPEED * 1.15 * 0.016);
   });
 });

@@ -25,6 +25,8 @@ import {
   HIT_RANGE,
   INPUT_BUFFER_WINDOW,
   JUMP_ASSIST_RANGE,
+  MOVE_BOOST_DURATION,
+  MOVE_BOOST_MULTIPLIER,
   JUMP_FALL_DURATION,
   JUMP_PEAK_HEIGHT,
   JUMP_RISE_DURATION,
@@ -172,6 +174,9 @@ export class Player {
    * poaching the server's own toss. */
   private serving = false;
 
+  /** Time left on the Bewegungs-Boost window (see updateMoveBoost). */
+  private boostTimer = 0;
+
   private passBuffered = false;
   private passBufferAge = 0;
   private hitBuffered = false;
@@ -195,6 +200,7 @@ export class Player {
     mustCrossNet: boolean,
   ): void {
     this.updateInputBuffers(dt, input);
+    this.updateMoveBoost(dt, input);
 
     switch (this.state) {
       case 'active':
@@ -232,6 +238,7 @@ export class Player {
     this.aimDir = { ...DEFAULT_AIM_DIR };
     this.aimStrength = SERVE_DEFAULT_AIM_STRENGTH;
     this.clearPendingInputs();
+    this.boostTimer = 0; // a boost from the last rally has no business here
     this.pos = clampToBaseline(this.pos);
   }
 
@@ -336,20 +343,55 @@ export class Player {
   private applyMovement(dt: number, moveVector: Vec2): void {
     const dir = normalize(moveVector);
     const magnitude = Math.min(1, length(moveVector));
-    this.pos.x += dir.x * PLAYER_SPEED * magnitude * dt;
-    this.pos.y += dir.y * PLAYER_SPEED * magnitude * dt;
+    const speed = this.moveSpeed;
+    this.pos.x += dir.x * speed * magnitude * dt;
+    this.pos.y += dir.y * speed * magnitude * dt;
     this.pos = this.clampToOwnHalf(this.pos);
   }
 
   /** Smooth, continuous walking-speed homing toward `target` - the "light"
-   * correction used by Pass/Notfall-Schlag (ASSIST_RANGE) and, in
-   * updateJumpingUp, the Jump-Smash's in-air drift. */
+   * correction used by Pass/Notfall-Schlag within ASSIST_RANGE. (The
+   * Jump-Smash's own in-air drift does not go through here; it lerps over the
+   * jump's fixed duration, see updateJumpingUp.) */
   private assistWalk(dt: number, target: Vec2): void {
     const dir = normalize(sub(target, this.pos));
-    const speed = PLAYER_SPEED * ASSIST_SPEED_MULTIPLIER;
+    // moveSpeed rather than PLAYER_SPEED so the boost carries the assist too -
+    // otherwise pressing Pass would speed up manual running but not the very
+    // correction that same press triggers. ASSIST_SPEED_MULTIPLIER is
+    // unchanged at 1.0: the assist is still never faster than the player's own
+    // running, boosted or not.
+    const speed = this.moveSpeed * ASSIST_SPEED_MULTIPLIER;
     this.pos.x += dir.x * speed * dt;
     this.pos.y += dir.y * speed * dt;
     this.pos = this.clampToOwnHalf(this.pos);
+  }
+
+  /** The Bewegungs-Boost: a fixed MOVE_BOOST_DURATION window of extra pace,
+   * armed by any Pass or Notfall-Schlag press.
+   *
+   * Unconditional by design - it never asks whether a ball is in flight,
+   * whether it is reachable, or whether the pace is actually needed. It also
+   * runs its clock down no matter what happens in between: catching the ball,
+   * missing it, blocking, jumping. A press mid-boost simply restarts the
+   * window rather than extending it.
+   *
+   * Decay first, arm second, so a press always yields the full window even on
+   * the frame an older one would have expired. */
+  private updateMoveBoost(dt: number, input: InputSnapshot): void {
+    this.boostTimer = Math.max(0, this.boostTimer - dt);
+    if (input.pass || input.hit) this.boostTimer = MOVE_BOOST_DURATION;
+  }
+
+  /** Whether the boost window is currently open (exposed for tests). */
+  get isBoosting(): boolean {
+    return this.boostTimer > 0;
+  }
+
+  /** The pace every piece of ground movement runs at this frame - the
+   * joystick's and the assist's alike. The ONLY thing the boost changes:
+   * direction, ranges and contact conditions are all untouched by it. */
+  private get moveSpeed(): number {
+    return PLAYER_SPEED * (this.boostTimer > 0 ? MOVE_BOOST_MULTIPLIER : 1);
   }
 
   /** Remembers a fresh Pass/Notfall-Schlag press for INPUT_BUFFER_WINDOW

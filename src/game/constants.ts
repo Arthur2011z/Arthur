@@ -101,6 +101,23 @@ export const TEAMMATE_BLOCK_LEAD_DISTANCE = 1.8;
 // scramble pace rather than the teammate's cruising TEAMMATE_SPEED.
 export const TEAMMATE_BLOCK_APPROACH_SPEED = 5.5;
 
+// --- Bewegungs-Boost -----------------------------------------------------
+// A short burst of extra pace, armed by pressing Pass or Notfall-Schlag. It
+// is the help for balls sitting just outside comfortable reach.
+//
+// Deliberately dumb, and that is the point: it fires on EVERY press, with no
+// check of whether the ball is reachable, whether one is even in flight, or
+// whether the extra pace is needed. There is nothing to read and nothing to
+// game - press, and you move faster for a fixed moment.
+//
+// It is a pure speed multiplier on the movement the game would have produced
+// anyway - the joystick's own direction, or the existing ASSIST_RANGE
+// correction (see Player.updateActive). It steers nothing, extends no range,
+// and touches no contact condition: a boosted player still only plays a ball
+// they physically reach (see Player.ballReachable).
+export const MOVE_BOOST_DURATION = 0.4; // seconds - fixed, regardless of outcome
+export const MOVE_BOOST_MULTIPLIER = 1.5; // +50% over PLAYER_SPEED
+
 // Light automatic "the AI nudges you the last bit of the way" correction used
 // by Pass and Notfall-Schlag: a short range, walked smoothly.
 //
