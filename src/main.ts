@@ -33,6 +33,7 @@ function draw(): void {
   // ball goes on top of everything: it is the one thing that must never be
   // hidden.
   renderer.drawNet(ctx, court);
+  renderer.drawBlockZone(ctx, court, gameState.player);
   renderer.drawBall(ctx, court, gameState.ball);
 }
 

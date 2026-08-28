@@ -7,20 +7,17 @@ import { debugLog } from './Debug';
 /**
  * Does the ball's hitbox overlap this athlete's right now?
  *
- * The athlete is a vertical capsule: a circle of `radius` on the ground,
- * reaching from their feet up to `reachHeight` (which grows with a jump). The
- * ball is a sphere. This is the *only* definition of "the ball is touching
- * this player" in the game - every action, from a pass to a block to a serve,
- * waits for exactly this to become true.
+ * The athlete's shape comes from Athlete.hitbox - a vertical cylinder that a
+ * blocker reshapes to reach across the net. The ball is a sphere. This is the
+ * *only* definition of "the ball is touching this player" in the game: every
+ * action, from a pass to a block to a serve, waits for exactly this to become
+ * true, and nothing anywhere may act on the ball without it.
  */
 export function ballTouches(ball: Ball, athlete: Athlete): boolean {
-  const horizontal = Math.hypot(ball.pos.x - athlete.pos.x, ball.pos.y - athlete.pos.y);
-  if (horizontal > athlete.radius + ball.radius) return false;
-
-  const ceiling = athlete.reachHeight + ball.radius;
-  // A player in the air cannot play a ball that is below their own feet.
-  const floor = Math.max(0, athlete.jumpHeight - ball.radius);
-  return ball.pos.z <= ceiling && ball.pos.z >= floor;
+  const box = athlete.hitbox;
+  const horizontal = Math.hypot(ball.pos.x - box.center.x, ball.pos.y - box.center.y);
+  if (horizontal > box.radius + ball.radius) return false;
+  return ball.pos.z <= box.ceiling + ball.radius && ball.pos.z >= box.floor - ball.radius;
 }
 
 /**

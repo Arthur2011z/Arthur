@@ -7,6 +7,16 @@ export type AthleteId = 'player' | 'teammate' | 'opponent1' | 'opponent2';
 /** What the renderer should draw. Purely cosmetic - no rule depends on it. */
 export type Pose = 'idle' | 'running' | 'jumping' | 'blocking' | 'swinging' | 'serving';
 
+/** The volume an athlete can play the ball in - see Athlete.hitbox. */
+export interface Hitbox {
+  center: Vec2;
+  radius: number;
+  /** Lowest ball height that can be reached, in meters. */
+  floor: number;
+  /** Highest ball height that can be reached, in meters. */
+  ceiling: number;
+}
+
 /**
  * Everything that is true of all four figures on the court: where they stand,
  * how tall they can reach, and the walls they cannot pass.
@@ -36,6 +46,22 @@ export class Athlete {
   /** Top of this athlete's reach right now, in meters above the sand. */
   get reachHeight(): number {
     return PLAYER_REACH_HEIGHT + this.jumpHeight;
+  }
+
+  /**
+   * The volume this athlete can currently play the ball in: a vertical
+   * cylinder from `floor` to `ceiling`. Subclasses reshape it - a blocker's
+   * reaches across the net and starts at the tape - but every contact in the
+   * game is still tested against this one shape.
+   */
+  get hitbox(): Hitbox {
+    return {
+      center: { ...this.pos },
+      radius: this.radius,
+      // A player in the air cannot play a ball below their own feet.
+      floor: Math.max(0, this.jumpHeight),
+      ceiling: this.reachHeight,
+    };
   }
 
   /** Moves along `dir` (court space, magnitude 0..1) and clamps back inside

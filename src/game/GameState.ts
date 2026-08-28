@@ -149,8 +149,15 @@ export class GameState {
     atMs: number,
     ctx: PlayerContext,
   ): boolean {
-    const played = athlete instanceof Player ? athlete.playBall(ball, atMs, ctx) : false;
-    if (!played) return false;
+    const kind = athlete instanceof Player ? athlete.playBall(ball, atMs, ctx) : null;
+    if (!kind) return false;
+
+    // A block is judged by a different rule than a normal contact: it costs no
+    // touch and lets the blocker play the next ball.
+    if (kind === 'block') {
+      this.rally.registerBlock(athlete);
+      return true;
+    }
 
     const fault = this.rally.registerTouch(athlete);
     if (fault) this.awardPoint(fault);

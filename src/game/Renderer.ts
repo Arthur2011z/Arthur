@@ -1,5 +1,6 @@
 import { Athlete } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
+import { Player } from '../entities/Player';
 import { Vec2 } from '../utils/math';
 import { Court } from './Court';
 import {
@@ -20,6 +21,8 @@ const NET_MESH_COLOR = 'rgba(28, 28, 28, 0.55)';
 const NET_TAPE_COLOR = '#f4f4f0';
 const SHADOW_COLOR = 'rgba(0, 0, 0, 0.22)';
 const BALL_COLOR = '#fbfaf5';
+const BLOCK_ZONE_FILL = 'rgba(255, 255, 255, 0.30)';
+const BLOCK_ZONE_EDGE = 'rgba(255, 255, 255, 0.85)';
 
 const TEAM_COLORS: Record<string, string> = {
   player: '#e63946',
@@ -181,6 +184,34 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(feet.x, headY - headR * 0.3, headR, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /**
+   * The wall a raised block puts up, drawn from the blocker's actual hitbox
+   * so what the player sees is what the physics tests against - including the
+   * part that reaches across the net.
+   */
+  drawBlockZone(ctx: CanvasRenderingContext2D, court: Court, player: Player): void {
+    if (!player.blocking) return;
+    const box = player.hitbox;
+
+    const base = court.toScreenElevated(box.center, box.floor);
+    const top = court.toScreenElevated(box.center, box.ceiling);
+    const halfWidth = (box.radius + BALL_RADIUS) * court.scale;
+
+    ctx.save();
+    ctx.fillStyle = BLOCK_ZONE_FILL;
+    ctx.strokeStyle = BLOCK_ZONE_EDGE;
+    ctx.lineWidth = Math.max(1.5, court.scale * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(base.x - halfWidth, base.y);
+    ctx.lineTo(base.x + halfWidth, base.y);
+    ctx.lineTo(top.x + halfWidth, top.y);
+    ctx.lineTo(top.x - halfWidth, top.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** The ball plus a ground shadow. The shadow is the anchor: it sits at the

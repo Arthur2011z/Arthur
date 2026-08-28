@@ -2,6 +2,10 @@ import { Athlete } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
 import { Vec2, Vec3, clamp, dot } from '../utils/math';
 import {
+  BLOCK_DAMPING,
+  BLOCK_DOWNWARD,
+  BLOCK_LATERAL_KEEP,
+  BLOCK_MIN_SPEED,
   COURT_LENGTH,
   COURT_WIDTH,
   EMERGENCY_DEEP_DEPTH,
@@ -9,6 +13,7 @@ import {
   EMERGENCY_SHORT_DEPTH,
   EMERGENCY_SPEED_JITTER,
   EMERGENCY_SPREAD_RAD,
+  NET_HEIGHT,
   NET_Y,
   PASS_ARRIVAL_HEIGHT,
   PASS_NET_DEPTH,
@@ -53,6 +58,29 @@ export function passShot(passer: Athlete, ball: Ball, partner: Athlete): Vec3 {
  * but the shot itself is scattered afterwards and never corrected, so a
  * mis-hit can and does land out.
  */
+/**
+ * Block: the ball is rejected rather than played. It goes straight back the
+ * way it came, driven downward, and reads nothing like a normal dig.
+ *
+ * How hard it is driven down depends on how far above the tape it was caught.
+ * A ball met barely at net height is pushed back gently, because hammering it
+ * downward from there would only bury it in the net; one met well above the
+ * tape is put straight into the sand. That keeps the block rewarding when it
+ * is well timed without turning a marginal one into a self-inflicted fault.
+ */
+export function blockShot(blocker: Athlete, ball: Ball): Vec3 {
+  const forward = towardNet(blocker);
+  const incoming = Math.hypot(ball.vel.x, ball.vel.y);
+  const rebound = Math.max(BLOCK_MIN_SPEED, incoming * BLOCK_DAMPING);
+  const clearance = Math.max(0, ball.pos.z - NET_HEIGHT);
+
+  return {
+    x: ball.vel.x * BLOCK_LATERAL_KEEP,
+    y: forward.y * rebound,
+    z: -Math.min(BLOCK_DOWNWARD, 1 + clearance * 12),
+  };
+}
+
 export function emergencyShot(hitter: Athlete, ball: Ball, aim: Vec2 | null): Vec3 {
   const forward = towardNet(hitter);
 

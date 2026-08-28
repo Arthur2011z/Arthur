@@ -140,6 +140,42 @@ export const EMERGENCY_SPEED_JITTER = 0.05;
 export const SWING_POSE_DURATION = 0.25;
 
 // ---------------------------------------------------------------------------
+// Block. Unlike every other action, the block is a *state* rather than a
+// buffered instant: the arms go up and stay up for BLOCK_WINDOW, and anything
+// that comes through the zone in that time is rejected.
+//
+// That is not an exception to the contact rule. The block state never touches
+// the ball; it only changes the shape of the blocker's hitbox. The rebound
+// still happens in exactly the substep the ball and that hitbox overlap.
+// ---------------------------------------------------------------------------
+/** How close to the net a player must be for a block to be possible at all. */
+export const BLOCK_NET_RANGE = 1.3;
+export const BLOCK_WINDOW = 0.55;
+export const BLOCK_COOLDOWN = 0.45;
+export const BLOCK_JUMP_HEIGHT = 0.8;
+export const BLOCK_RISE = 0.12;
+export const BLOCK_FALL = 0.18;
+
+/** How far the blocker reaches across the net, and how much wider the raised
+ * arms make them. Without the overreach the ball would have to be on the
+ * blocker's own side already, which is far too late to block anything. */
+export const BLOCK_OVERREACH = 0.45;
+export const BLOCK_WIDTH_BONUS = 0.18;
+
+/** Only balls at or above the tape can be blocked - a block is played over
+ * the net, not scooped from underneath it. */
+export const BLOCK_FLOOR = NET_HEIGHT;
+
+/** Fraction of the incoming speed sent back, and the floor under it so a soft
+ * ball is still returned with authority. */
+export const BLOCK_DAMPING = 0.55;
+export const BLOCK_MIN_SPEED = 5;
+/** How hard a well-cleared block is driven downward, and how much of the
+ * incoming sideways motion is carried through. */
+export const BLOCK_DOWNWARD = 4.5;
+export const BLOCK_LATERAL_KEEP = 0.35;
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 export const WIN_SCORE = 21;
