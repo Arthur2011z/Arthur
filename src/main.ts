@@ -14,46 +14,41 @@ const maybeCtx = canvas.getContext('2d');
 if (!maybeCtx) throw new Error('2D canvas context not available');
 const ctx: CanvasRenderingContext2D = maybeCtx;
 
-const court = new Court(viewportEl, canvas, ctx);
+const court = new Court(canvas, ctx);
 const renderer = new Renderer();
-const input = new InputManager(overlay);
+// The whole viewport doubles as the swipe surface; the overlay's controls sit
+// on top of it and stop their own pointer events from reaching it.
+const input = new InputManager(overlay, viewportEl, court);
 const hud = new Hud(overlay);
 const gameState = new GameState();
 
-function resize(): void {
-  court.resize();
-}
-
 function draw(): void {
-  renderer.clear(ctx);
-  renderer.drawCourt(ctx);
-  renderer.drawLandingMarker(ctx, gameState.ball);
-  renderer.drawTeammate(ctx, gameState.teammate);
-  for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
-  renderer.drawPlayer(ctx, gameState.player);
-  // Ball drawn last (on top): while holding serve it sits exactly on the
-  // player's position and would otherwise be fully hidden behind the larger
-  // player token.
-  renderer.drawBall(ctx, gameState.ball);
+  renderer.clear(ctx, court);
+  renderer.drawCourt(ctx, court);
+  for (const athlete of gameState.athletes) renderer.drawAthlete(ctx, court, athlete);
+  // The net is drawn last so figures standing right at it pass behind the
+  // mesh, which is what sells it as a real vertical obstacle.
+  renderer.drawNet(ctx, court);
 }
 
 const loop = new GameLoop((dt) => {
-  if (hud.consumeRestart()) gameState.restart();
   gameState.update(dt, input.snapshot());
+  renderer.advance(dt);
   hud.update(gameState.score, gameState.phase, gameState.winner);
+  hud.setHint(input.mode);
   draw();
 });
 
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', resize);
-resize();
+window.addEventListener('resize', () => court.resize());
+window.addEventListener('orientationchange', () => court.resize());
+court.resize();
 loop.start();
 
 // Debug hook for automated (Playwright) tests: harmless in a locally-opened
 // single-file build, never sent anywhere.
 declare global {
   interface Window {
-    __game?: { state: GameState; court: Court };
+    __game?: { state: GameState; court: Court; input: InputManager };
   }
 }
-window.__game = { state: gameState, court };
+window.__game = { state: gameState, court, input };

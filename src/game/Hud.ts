@@ -11,6 +11,7 @@ export class Hud {
   private readonly overlayEl: HTMLDivElement;
   private readonly winnerTextEl: HTMLDivElement;
   private readonly restartBtn: HTMLButtonElement;
+  private readonly hintEl: HTMLDivElement;
   private restartPending = false;
 
   constructor(container: HTMLElement) {
@@ -73,6 +74,29 @@ export class Hud {
     this.overlayEl.appendChild(this.winnerTextEl);
     this.overlayEl.appendChild(this.restartBtn);
     container.appendChild(this.overlayEl);
+
+    this.hintEl = document.createElement('div');
+    this.hintEl.id = 'control-hint';
+    Object.assign(this.hintEl.style, {
+      position: 'absolute',
+      bottom: 'max(10px, env(safe-area-inset-bottom))',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      color: 'rgba(255, 255, 255, 0.72)',
+      font: '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    container.appendChild(this.hintEl);
+  }
+
+  /** Spells out the controls for whichever input device is currently in use,
+   * so switching between phone and desktop never leaves the player guessing. */
+  setHint(mode: 'touch' | 'keyboard'): void {
+    this.hintEl.textContent =
+      mode === 'keyboard'
+        ? 'WASD Laufen · E Pass · F Notfall · Leertaste Block · Q Schmettern'
+        : '';
   }
 
   /** Edge-triggered read: true only on the frame Restart was pressed. */
@@ -96,6 +120,7 @@ export class Hud {
 
   private onRestartPointerDown = (e: PointerEvent): void => {
     e.preventDefault();
+    e.stopPropagation(); // must not also register as an aiming swipe
     this.restartPending = true;
   };
 }

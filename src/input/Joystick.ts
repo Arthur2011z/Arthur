@@ -22,7 +22,10 @@ export class Joystick {
   private readonly knob: HTMLDivElement;
   private pointerId: number | null = null;
 
-  constructor(container: HTMLElement) {
+  constructor(
+    container: HTMLElement,
+    private readonly onActivity: () => void,
+  ) {
     this.hitZone = document.createElement('div');
     this.hitZone.id = 'joystick-hitzone';
     Object.assign(this.hitZone.style, {
@@ -35,6 +38,9 @@ export class Joystick {
       alignItems: 'center',
       justifyContent: 'center',
       touchAction: 'none',
+      // See Buttons.createButton(): the controls layer is pointer-transparent,
+      // each control opts back in for itself.
+      pointerEvents: 'auto',
     } satisfies Partial<CSSStyleDeclaration>);
 
     const base = document.createElement('div');
@@ -70,6 +76,11 @@ export class Joystick {
 
   private onPointerDown = (e: PointerEvent): void => {
     if (this.pointerId !== null) return;
+    // The swipe surface sits behind the whole overlay; a touch that grabs the
+    // stick must never also be read as an aiming swipe.
+    e.preventDefault();
+    e.stopPropagation();
+    this.onActivity();
     this.pointerId = e.pointerId;
     this.hitZone.setPointerCapture(e.pointerId);
     this.hitZone.addEventListener('pointermove', this.onPointerMove);

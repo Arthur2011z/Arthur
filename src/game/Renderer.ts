@@ -1,138 +1,237 @@
-import { Ball } from '../entities/Ball';
-import { OpponentAI } from '../entities/OpponentAI';
-import { Player } from '../entities/Player';
-import { TeammateAI } from '../entities/TeammateAI';
+import { Athlete } from '../entities/Athlete';
 import { Vec2 } from '../utils/math';
-import { BALL_RADIUS, COURT_LENGTH, COURT_WIDTH, LANDING_MARKER_RADIUS, NET_Y } from './constants';
+import { Court } from './Court';
+import { COURT_LENGTH, COURT_WIDTH, NET_HEIGHT, NET_Y, Z_SCREEN_FACTOR } from './constants';
 
+const SURROUND_COLOR = '#0b3d5c';
 const SAND_COLOR = '#e8c481';
-const LINE_COLOR = '#1c4d6b';
-const NET_COLOR = '#1c1c1c';
-const PLAYER_COLOR = '#e63946';
-const TEAMMATE_COLOR = '#2a9d8f';
-const OPPONENT_COLOR = '#6d4c9c';
-const BALL_COLOR = '#f4f4f0';
-const BALL_SHADOW_COLOR = 'rgba(0, 0, 0, 0.25)';
-const JUMP_READY_RING_COLOR = 'rgba(255, 255, 255, 0.9)';
-const LANDING_MARKER_COLOR = 'rgba(255, 209, 102, 0.9)';
+const SAND_SHADE = '#dfb972';
+const LINE_COLOR = '#f7f3ea';
+const NET_POST_COLOR = '#3b2f2a';
+const NET_MESH_COLOR = 'rgba(28, 28, 28, 0.55)';
+const NET_TAPE_COLOR = '#f4f4f0';
+const SHADOW_COLOR = 'rgba(0, 0, 0, 0.22)';
+
+const TEAM_COLORS: Record<string, string> = {
+  player: '#e63946',
+  teammate: '#2a9d8f',
+  opponent1: '#6d4c9c',
+  opponent2: '#8a63c4',
+};
+
+/** Height of a drawn figure, in court meters, before the screen projection. */
+const FIGURE_HEIGHT_M = 1.85;
 
 /**
- * Draws the game world in court-unit coordinates (see Court.resize() for the
- * canvas transform that makes this possible). Methods are added incrementally as
- * new entities land, so each build step only ever adds to this file rather than
- * restructuring it.
+ * Draws everything in CSS-pixel screen space, converting court coordinates
+ * through Court.toScreen(). Working in screen space (rather than setting a
+ * rotated canvas transform) is what lets the figures stay upright and legible
+ * when the court itself is rotated a quarter turn in landscape.
  */
 export class Renderer {
-  clear(ctx: CanvasRenderingContext2D): void {
-    ctx.clearRect(0, 0, COURT_WIDTH, COURT_LENGTH);
+  /** Free-running clock for idle/run animation only. */
+  private animTime = 0;
+
+  advance(dt: number): void {
+    this.animTime += dt;
   }
 
-  drawCourt(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = SAND_COLOR;
-    ctx.fillRect(0, 0, COURT_WIDTH, COURT_LENGTH);
+  clear(ctx: CanvasRenderingContext2D, court: Court): void {
+    ctx.fillStyle = SURROUND_COLOR;
+    ctx.fillRect(0, 0, court.viewport.x, court.viewport.y);
+  }
 
-    const lineWidth = 0.08;
+  drawCourt(ctx: CanvasRenderingContext2D, court: Court): void {
+    // Sand, drawn as the quad through the four court corners so it lands
+    // correctly in either orientation.
+    this.fillCourtQuad(ctx, court, { x: 0, y: 0 }, { x: COURT_WIDTH, y: COURT_LENGTH }, SAND_COLOR);
+    // A slightly darker far half, so which side is which reads at a glance.
+    this.fillCourtQuad(ctx, court, { x: 0, y: 0 }, { x: COURT_WIDTH, y: NET_Y }, SAND_SHADE);
+
     ctx.strokeStyle = LINE_COLOR;
-    ctx.lineWidth = lineWidth;
-    ctx.strokeRect(
-      lineWidth / 2,
-      lineWidth / 2,
-      COURT_WIDTH - lineWidth,
-      COURT_LENGTH - lineWidth,
-    );
-
-    // Net: drawn as a thicker horizontal line across the middle of the court.
-    ctx.strokeStyle = NET_COLOR;
-    ctx.lineWidth = 0.12;
+    ctx.lineWidth = Math.max(2, court.scale * 0.06);
+    ctx.lineJoin = 'miter';
     ctx.beginPath();
-    ctx.moveTo(0, NET_Y);
-    ctx.lineTo(COURT_WIDTH, NET_Y);
+    const corners: Vec2[] = [
+      { x: 0, y: 0 },
+      { x: COURT_WIDTH, y: 0 },
+      { x: COURT_WIDTH, y: COURT_LENGTH },
+      { x: 0, y: COURT_LENGTH },
+    ];
+    corners.forEach((c, i) => {
+      const p = court.toScreen(c);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
     ctx.stroke();
   }
 
-  drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
-    if (player.height > 0) {
-      // Same ground-shadow-plus-lift trick as drawBall(), so the hop reads
-      // visually even in a flat top-down view.
-      ctx.fillStyle = BALL_SHADOW_COLOR;
-      ctx.beginPath();
-      ctx.ellipse(player.pos.x, player.pos.y, player.radius * 0.9, player.radius * 0.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  /** The net is a real obstacle with a real height, so it is drawn as one:
+   * two posts, a mesh band, and a white tape along the top edge at
+   * NET_HEIGHT. Everything is derived from the two net-line endpoints, which
+   * keeps it correct in both orientations. */
+  drawNet(ctx: CanvasRenderingContext2D, court: Court): void {
+    const left = court.toScreen({ x: 0, y: NET_Y });
+    const right = court.toScreen({ x: COURT_WIDTH, y: NET_Y });
+    const lift = court.heightOffset(NET_HEIGHT);
+    const top = (p: Vec2): Vec2 => ({ x: p.x + lift.x, y: p.y + lift.y });
 
-    const liftedPos: Vec2 = { x: player.pos.x, y: player.pos.y - player.height };
-    this.drawToken(ctx, liftedPos, player.radius, PLAYER_COLOR);
-
-    if (player.state === 'jumping_up') {
-      // "The Schlag window is open" ring, plus a short line showing the
-      // current aim direction (driven live by the joystick - see Player.aimDir).
-      ctx.strokeStyle = JUMP_READY_RING_COLOR;
-      ctx.lineWidth = 0.05;
-      ctx.beginPath();
-      ctx.arc(liftedPos.x, liftedPos.y, player.radius + 0.15, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const aimLen = player.radius + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(liftedPos.x, liftedPos.y);
-      ctx.lineTo(liftedPos.x + player.aimDir.x * aimLen, liftedPos.y + player.aimDir.y * aimLen);
-      ctx.stroke();
-    }
-  }
-
-  /** While the ball is in flight, marks exactly where it's headed
-   * (ball.target is exact - we control every launch, no prediction needed).
-   * Deliberately distinct from the ball's own small traveling shadow: this is
-   * the *destination*, not the ball's current position. */
-  drawLandingMarker(ctx: CanvasRenderingContext2D, ball: Ball): void {
-    if (ball.state !== 'flying') return;
-    const { x, y } = ball.target;
-
-    ctx.strokeStyle = LANDING_MARKER_COLOR;
-    ctx.lineWidth = 0.05;
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(x, y, LANDING_MARKER_RADIUS, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const r = LANDING_MARKER_RADIUS * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x - r, y - r);
-    ctx.lineTo(x + r, y + r);
-    ctx.moveTo(x + r, y - r);
-    ctx.lineTo(x - r, y + r);
-    ctx.stroke();
-  }
-
-  drawTeammate(ctx: CanvasRenderingContext2D, teammate: TeammateAI): void {
-    this.drawToken(ctx, teammate.pos, teammate.radius, TEAMMATE_COLOR);
-  }
-
-  drawOpponent(ctx: CanvasRenderingContext2D, opponent: OpponentAI): void {
-    this.drawToken(ctx, opponent.pos, opponent.radius, OPPONENT_COLOR);
-  }
-
-  drawBall(ctx: CanvasRenderingContext2D, ball: Ball): void {
-    // Shadow stays on the ground plane, flattened, so height reads visually
-    // even though the game itself is a flat top-down view.
-    ctx.fillStyle = BALL_SHADOW_COLOR;
-    ctx.beginPath();
-    ctx.ellipse(ball.pos.x, ball.pos.y, BALL_RADIUS * 0.9, BALL_RADIUS * 0.5, 0, 0, Math.PI * 2);
+    ctx.moveTo(left.x, left.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.lineTo(top(right).x, top(right).y);
+    ctx.lineTo(top(left).x, top(left).y);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
     ctx.fill();
 
-    const liftedPos: Vec2 = { x: ball.pos.x, y: ball.pos.y - ball.height };
-    const drawRadius = BALL_RADIUS * (1 + ball.height * 0.15);
-    this.drawToken(ctx, liftedPos, drawRadius, BALL_COLOR);
+    // Mesh: evenly spaced strands from the ground line to the tape.
+    ctx.strokeStyle = NET_MESH_COLOR;
+    ctx.lineWidth = 1;
+    const cells = 26;
+    for (let i = 0; i <= cells; i += 1) {
+      const t = i / cells;
+      const base: Vec2 = {
+        x: left.x + (right.x - left.x) * t,
+        y: left.y + (right.y - left.y) * t,
+      };
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.lineTo(base.x + lift.x, base.y + lift.y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = NET_TAPE_COLOR;
+    ctx.lineWidth = Math.max(3, court.scale * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(top(left).x, top(left).y);
+    ctx.lineTo(top(right).x, top(right).y);
+    ctx.stroke();
+
+    ctx.strokeStyle = NET_POST_COLOR;
+    ctx.lineWidth = Math.max(3, court.scale * 0.09);
+    for (const base of [left, right]) {
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.lineTo(top(base).x, top(base).y);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
-  /** Generic colored-circle token, reused for every figure (player, teammate,
-   * opponents) so each build step only needs to pick a color and a position. */
-  drawToken(ctx: CanvasRenderingContext2D, pos: Vec2, radius: number, color: string): void {
+  /** A simple stick figure: ground shadow, then head/torso/arms/legs lifted by
+   * whatever jump height the athlete currently has. Arms go up for blocks,
+   * jumps and serves, which is all the animation the game needs to read. */
+  drawAthlete(ctx: CanvasRenderingContext2D, court: Court, a: Athlete): void {
+    const ground = court.toScreen(a.pos);
+    const unit = court.scale;
+    // The feet leave the shadow behind when jumping - same height convention
+    // as the net and the ball, so the three stay comparable on screen.
+    const lift = court.heightOffset(a.jumpHeight);
+    const feet: Vec2 = { x: ground.x + lift.x, y: ground.y + lift.y };
+    const h = FIGURE_HEIGHT_M * unit * Z_SCREEN_FACTOR;
+    const color = TEAM_COLORS[a.id] ?? '#333';
+
+    ctx.fillStyle = SHADOW_COLOR;
+    ctx.beginPath();
+    ctx.ellipse(ground.x, ground.y, a.radius * unit, a.radius * unit * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const feetY = feet.y;
+    const hipY = feetY - h * 0.45;
+    const shoulderY = feetY - h * 0.78;
+    const headY = feetY - h * 0.9;
+    const headR = h * 0.11;
+    const stride = a.pose === 'running' ? Math.sin(this.animTime * 11) * h * 0.14 : 0;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2.5, h * 0.075);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Torso
+    ctx.beginPath();
+    ctx.moveTo(feet.x, hipY);
+    ctx.lineTo(feet.x, shoulderY);
+    ctx.stroke();
+
+    // Legs
+    const legSpread = h * 0.13;
+    ctx.beginPath();
+    ctx.moveTo(feet.x, hipY);
+    ctx.lineTo(feet.x - legSpread + stride, feetY);
+    ctx.moveTo(feet.x, hipY);
+    ctx.lineTo(feet.x + legSpread + stride, feetY);
+    ctx.stroke();
+
+    this.drawArms(ctx, a, feet.x, shoulderY, h);
+
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.arc(feet.x, headY - headR * 0.3, headR, 0, Math.PI * 2);
     ctx.fill();
-    ctx.lineWidth = 0.03;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  }
+
+  private drawArms(
+    ctx: CanvasRenderingContext2D,
+    a: Athlete,
+    x: number,
+    shoulderY: number,
+    h: number,
+  ): void {
+    const reach = h * 0.34;
+    ctx.beginPath();
+    switch (a.pose) {
+      case 'blocking':
+      case 'jumping':
+      case 'serving':
+        // Both arms straight up - the universal "I am contesting this ball".
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x - reach * 0.35, shoulderY - reach);
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x + reach * 0.35, shoulderY - reach);
+        break;
+      case 'swinging':
+        // One arm cocked high, the other out for balance.
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x + reach * 0.6, shoulderY - reach * 1.05);
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x - reach * 0.85, shoulderY + reach * 0.2);
+        break;
+      default: {
+        const swing = a.pose === 'running' ? Math.sin(this.animTime * 11) * reach * 0.4 : 0;
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x - reach * 0.7, shoulderY + reach * 0.55 - swing);
+        ctx.moveTo(x, shoulderY);
+        ctx.lineTo(x + reach * 0.7, shoulderY + reach * 0.55 + swing);
+      }
+    }
     ctx.stroke();
+  }
+
+  private fillCourtQuad(
+    ctx: CanvasRenderingContext2D,
+    court: Court,
+    from: Vec2,
+    to: Vec2,
+    color: string,
+  ): void {
+    const corners: Vec2[] = [
+      { x: from.x, y: from.y },
+      { x: to.x, y: from.y },
+      { x: to.x, y: to.y },
+      { x: from.x, y: to.y },
+    ];
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    corners.forEach((c, i) => {
+      const p = court.toScreen(c);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.fill();
   }
 }

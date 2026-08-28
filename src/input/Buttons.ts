@@ -1,121 +1,152 @@
-const ATTACK_SIZE = 88; // px, primary action
-const REACH_SIZE = 72; // px, secondary
-const PASS_SIZE = 76; // px, secondary
+import { ActionType } from './actions';
 
-const GAP = 14; // px, between Schlag and Pass
-const EDGE = 24; // px, from the screen edge
-const SAFE_BOTTOM = `max(${EDGE}px, env(safe-area-inset-bottom))`;
+export type ButtonMode = 'play' | 'serve';
 
-/** The three action buttons, bottom-right: Schlag (attack) sits in the
- * corner, Pass to its left, Sprung/Hecht (reach) above - a small triangular
- * cluster reachable by thumb without moving the hand. All three are always
- * fully enabled; there is no gesture recognition anywhere in the game, just
- * these buttons plus the joystick. */
+const EDGE = 22; // px from the screen edge
+const SAFE_BOTTOM = `max(${EDGE}px, calc(env(safe-area-inset-bottom) + 12px))`;
+
+interface ButtonSpec {
+  id: string;
+  label: string;
+  action: ActionType;
+  size: number;
+  color: string;
+  /** Offsets in px from the bottom-right corner of the safe area. */
+  right: number;
+  bottom: number;
+}
+
+/** The primary jump button anchors the cluster; everything else is placed
+ * relative to it so the whole group can be resized from one number. */
+const JUMP_SIZE = 92;
+const BLOCK_SIZE = 76;
+const PASS_SIZE = 80;
+const EMERGENCY_SIZE = 62;
+const GAP = 12;
+
+const PLAY_BUTTONS: ButtonSpec[] = [
+  {
+    id: 'jump-btn',
+    label: 'Schmettern',
+    action: 'jump',
+    size: JUMP_SIZE,
+    color: 'rgba(230, 57, 70, 0.88)',
+    right: 0,
+    bottom: 0,
+  },
+  {
+    id: 'block-btn',
+    label: 'Block',
+    action: 'block',
+    size: BLOCK_SIZE,
+    color: 'rgba(38, 70, 83, 0.88)',
+    right: (JUMP_SIZE - BLOCK_SIZE) / 2,
+    bottom: JUMP_SIZE + GAP,
+  },
+  {
+    id: 'pass-btn',
+    label: 'Pass',
+    action: 'pass',
+    size: PASS_SIZE,
+    color: 'rgba(42, 157, 143, 0.88)',
+    right: JUMP_SIZE + GAP,
+    bottom: (JUMP_SIZE - PASS_SIZE) / 2,
+  },
+  {
+    id: 'emergency-btn',
+    label: 'Notfall',
+    action: 'emergency',
+    size: EMERGENCY_SIZE,
+    color: 'rgba(233, 150, 55, 0.88)',
+    right: JUMP_SIZE + GAP + PASS_SIZE + GAP,
+    bottom: (JUMP_SIZE - EMERGENCY_SIZE) / 2,
+  },
+];
+
+const SERVE_BUTTON: ButtonSpec = {
+  id: 'serve-btn',
+  label: 'Aufschlag',
+  action: 'jump',
+  size: 108,
+  color: 'rgba(230, 57, 70, 0.9)',
+  right: 0,
+  bottom: 0,
+};
+
+/**
+ * The touch action cluster, bottom-right.
+ *
+ * Two mutually exclusive layouts: during a rally all four action buttons are
+ * shown; while this player is holding serve every one of them is hidden and a
+ * single Aufschlag button takes their place, so nothing can be pressed that
+ * would race the serve. The serve button emits the same 'jump' action the
+ * Schmettern button does - the serve *is* a jump, and one action means one
+ * code path down to the actual ball contact.
+ */
 export class Buttons {
-  private reachPending = false;
-  private attackPending = false;
-  private passPending = false;
+  private readonly pressed = new Set<ActionType>();
+  private readonly playEls: HTMLButtonElement[];
+  private readonly serveEl: HTMLButtonElement;
+  private mode: ButtonMode = 'play';
 
-  private readonly reachEl: HTMLButtonElement;
-  private readonly attackEl: HTMLButtonElement;
-  private readonly passEl: HTMLButtonElement;
+  constructor(
+    container: HTMLElement,
+    private readonly onActivity: () => void,
+  ) {
+    this.playEls = PLAY_BUTTONS.map((spec) => this.createButton(container, spec));
+    this.serveEl = this.createButton(container, SERVE_BUTTON);
+    this.setMode('play');
+  }
 
-  constructor(container: HTMLElement) {
-    this.attackEl = document.createElement('button');
-    this.attackEl.id = 'attack-btn';
-    this.attackEl.type = 'button';
-    this.attackEl.textContent = 'Schlag';
-    Object.assign(this.attackEl.style, {
+  setMode(mode: ButtonMode): void {
+    this.mode = mode;
+    for (const el of this.playEls) el.style.display = mode === 'play' ? 'block' : 'none';
+    this.serveEl.style.display = mode === 'serve' ? 'block' : 'none';
+  }
+
+  /** Edge-triggered read: the actions newly pressed since the last call. */
+  consumePressed(): ActionType[] {
+    const actions = [...this.pressed];
+    this.pressed.clear();
+    return actions;
+  }
+
+  private createButton(container: HTMLElement, spec: ButtonSpec): HTMLButtonElement {
+    const el = document.createElement('button');
+    el.id = spec.id;
+    el.type = 'button';
+    el.textContent = spec.label;
+    Object.assign(el.style, {
       position: 'absolute',
-      right: `${EDGE}px`,
-      bottom: SAFE_BOTTOM,
-      width: `${ATTACK_SIZE}px`,
-      height: `${ATTACK_SIZE}px`,
+      right: `${EDGE + spec.right}px`,
+      bottom: `calc(${SAFE_BOTTOM} + ${spec.bottom}px)`,
+      width: `${spec.size}px`,
+      height: `${spec.size}px`,
       borderRadius: '50%',
       border: '2px solid rgba(255, 255, 255, 0.5)',
-      background: 'rgba(230, 57, 70, 0.85)',
+      background: spec.color,
       color: '#fff',
-      font: '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      font: `600 ${Math.round(spec.size / 6.2)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
       touchAction: 'none',
+      cursor: 'pointer',
+      // The layer holding the controls is pointer-transparent so taps on bare
+      // sand reach the swipe surface; the controls themselves opt back in.
+      pointerEvents: 'auto',
     } satisfies Partial<CSSStyleDeclaration>);
 
-    this.passEl = document.createElement('button');
-    this.passEl.id = 'pass-btn';
-    this.passEl.type = 'button';
-    this.passEl.textContent = 'Pass';
-    Object.assign(this.passEl.style, {
-      position: 'absolute',
-      right: `${EDGE + ATTACK_SIZE + GAP}px`,
-      bottom: `calc(${SAFE_BOTTOM} + ${(ATTACK_SIZE - PASS_SIZE) / 2}px)`,
-      width: `${PASS_SIZE}px`,
-      height: `${PASS_SIZE}px`,
-      borderRadius: '50%',
-      border: '2px solid rgba(255, 255, 255, 0.5)',
-      background: 'rgba(42, 157, 143, 0.85)',
-      color: '#fff',
-      font: '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      touchAction: 'none',
-    } satisfies Partial<CSSStyleDeclaration>);
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // never let a button press start a swipe as well
+      this.pressed.add(spec.action);
+      this.onActivity();
+    });
 
-    this.reachEl = document.createElement('button');
-    this.reachEl.id = 'reach-btn';
-    this.reachEl.type = 'button';
-    this.reachEl.textContent = 'Sprung';
-    Object.assign(this.reachEl.style, {
-      position: 'absolute',
-      right: `${EDGE + (ATTACK_SIZE - REACH_SIZE) / 2}px`,
-      bottom: `calc(${SAFE_BOTTOM} + ${ATTACK_SIZE + 16}px)`,
-      width: `${REACH_SIZE}px`,
-      height: `${REACH_SIZE}px`,
-      borderRadius: '50%',
-      border: '2px solid rgba(255, 255, 255, 0.5)',
-      background: 'rgba(38, 70, 83, 0.85)',
-      color: '#fff',
-      font: '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      touchAction: 'none',
-    } satisfies Partial<CSSStyleDeclaration>);
-
-    container.appendChild(this.passEl);
-    container.appendChild(this.reachEl);
-    container.appendChild(this.attackEl);
-    this.attackEl.addEventListener('pointerdown', this.onAttackPointerDown);
-    this.passEl.addEventListener('pointerdown', this.onPassPointerDown);
-    this.reachEl.addEventListener('pointerdown', this.onReachPointerDown);
+    container.appendChild(el);
+    return el;
   }
 
-  /** Edge-triggered read: true only on the frame Sprung/Hecht was pressed. */
-  consumeReach(): boolean {
-    const v = this.reachPending;
-    this.reachPending = false;
-    return v;
+  /** Exposed for tests and the HUD's control hints. */
+  get currentMode(): ButtonMode {
+    return this.mode;
   }
-
-  /** Edge-triggered read: true only on the frame Schlag was pressed. */
-  consumeAttack(): boolean {
-    const v = this.attackPending;
-    this.attackPending = false;
-    return v;
-  }
-
-  /** Edge-triggered read: true only on the frame Pass was pressed. */
-  consumePass(): boolean {
-    const v = this.passPending;
-    this.passPending = false;
-    return v;
-  }
-
-  private onReachPointerDown = (e: PointerEvent): void => {
-    e.preventDefault();
-    this.reachPending = true;
-  };
-
-  private onAttackPointerDown = (e: PointerEvent): void => {
-    e.preventDefault();
-    this.attackPending = true;
-  };
-
-  private onPassPointerDown = (e: PointerEvent): void => {
-    e.preventDefault();
-    this.passPending = true;
-  };
 }
