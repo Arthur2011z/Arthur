@@ -160,7 +160,8 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
       };
       const gap = () => Math.hypot(
         g.ball.pos.x - g.player.pos.x,
-        g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+        g.ball.pos.y - g.player.pos.y,
+        g.ball.height - g.player.height,
       );
 
       // Dry run: which frame do the hitboxes first actually overlap on?

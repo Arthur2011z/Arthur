@@ -110,7 +110,8 @@ test.describe('Bugfix 3: contact requires the ball to be at a catchable height, 
       for (let i = 0; i < 250; i++) {
         const gap = Math.hypot(
           g.ball.pos.x - g.player.pos.x,
-          g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+          g.ball.pos.y - g.player.pos.y,
+          g.ball.height - g.player.height,
         );
         if (touchFrame < 0 && gap <= TOUCH) touchFrame = i;
         const before = g.ball.lastToucher;
@@ -119,7 +120,8 @@ test.describe('Bugfix 3: contact requires the ball to be at a catchable height, 
           contactFrame = i;
           gapAtContact = Math.hypot(
             g.ball.pos.x - g.player.pos.x,
-            g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+            g.ball.pos.y - g.player.pos.y,
+            g.ball.height - g.player.height,
           );
         }
         g.ball.update(0.016);
@@ -242,7 +244,8 @@ test.describe('Bugfix 3: contact requires the ball to be at a catchable height, 
         if (before !== 'player' && g.ball.lastToucher === 'player') {
           gapAtContact = Math.hypot(
             g.ball.pos.x - g.player.pos.x,
-            g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+            g.ball.pos.y - g.player.pos.y,
+            g.ball.height - g.player.height,
           );
         }
         g.ball.update(0.016);

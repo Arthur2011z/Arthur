@@ -95,7 +95,18 @@ export class GameState {
     // player is mid-aim (slowmo_aim), it's fed a drastically scaled-down dt so
     // it barely creeps along its flight for the (real-time) duration of the
     // window, in sync with the player's own suspended jump animation.
-    const ballDt = this.player.state === 'slowmo_aim' ? dt * SLOWMO_FACTOR : dt;
+    // ...and while that window is open the ball must not be allowed to finish
+    // its flight. The contact has already been made - the window only exists
+    // because the ball is being struck - so letting the flight complete
+    // underneath it ends the rally with the ball landing at the player's feet
+    // and the strike silently dropped. Measured: a set caught late enough
+    // opened the aim window at 1424ms of a 1500ms flight, and the ball landed
+    // 99ms of ball-time later, mid-window. The window is bounded
+    // (SLOWMO_REAL_DURATION) and always resolves, so nothing can hang here.
+    const ballDt =
+      this.player.state === 'slowmo_aim'
+        ? Math.min(dt * SLOWMO_FACTOR, Math.max(0, this.ball.timeRemaining - 1e-3))
+        : dt;
     this.ball.update(ballDt);
     this.teammate.update(
       dt,

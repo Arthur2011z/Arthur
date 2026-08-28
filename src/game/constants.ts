@@ -27,10 +27,14 @@ export const OPPONENT_SPEED = 3.8;
 
 // --- Contact -------------------------------------------------------------
 // The human player's contact condition, and the only one: the two hitboxes
-// actually overlap. The renderer draws height as a y-offset (the ball at
-// pos.y - ball.height, the player at pos.y - player.height), so the gap seen
-// on screen between the two circles is the distance between those drawn
-// centres - and they meet exactly here. See Player.hitboxesTouch.
+// actually overlap, measured in three dimensions - across the court AND in
+// height. See Player.hitboxesTouch.
+//
+// It is emphatically NOT measured on the drawn positions. The renderer
+// projects height into a y-offset, which collapses two independent axes into
+// one: a ball high up the court lands on top of a player it is nowhere near.
+// Measured: a ball 2.153m away with 1.672m of height - 2.726m away in truth -
+// projected to a drawn gap of 0.481m and counted as a touch.
 //
 // Deliberately the sum of the two radii and nothing more. It used to be
 // HIT_RANGE (0.7) plus a separate ball-height ceiling of 2.0m, which is a
@@ -368,11 +372,18 @@ export const SLOWMO_FACTOR = 0.18;
 // 0.5m hitbox and drop the strike entirely.
 //
 // So the resolve asks a different question: is this still the same ball, in
-// essentially the same place? Over the window the ball covers speed * 0.099s
-// (0.55s at 0.18x), so this threshold separates cleanly at ~8 m/s: a set or a
-// pass creeps 0.2-0.4m and is struck, while a hard shot at 14 m/s travels
-// 1.4m, is genuinely gone, and is correctly let fly on untouched.
-export const SLOWMO_CONTACT_TOLERANCE = 0.8;
+// essentially the same place? Measured in 3D over a real 0.55s window:
+//
+//   teammate set, jumped late   0.811m
+//   teammate set, jumped early  0.537m
+//   high pass onto the player   0.960m
+//   hard shot ripping past      2.111m   <- the one that must NOT be struck
+//
+// 1.4m sits in the middle of that gap with ~45% headroom on either side. It
+// has to be this large because the metric is three-dimensional and a ball near
+// the end of a high arc is falling fast: the set above drops 0.79m of pure
+// height during the window while moving only 0.17m across the court.
+export const SLOWMO_CONTACT_TOLERANCE = 1.4;
 
 export const SLOWMO_REAL_DURATION = 0.55; // seconds, real time
 

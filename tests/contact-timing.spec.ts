@@ -8,12 +8,17 @@ import { distIndex } from './helpers';
  *
  * The two halves of the fix:
  *
- *   GEOMETRY  contact requires the drawn circles to meet - the distance
- *             between the two drawn centres (the renderer lifts each token by
- *             its own height) at or below PLAYER_RADIUS + BALL_RADIUS = 0.5m.
- *             It used to be a "reach": ground distance <= 0.7 with the ball
- *             anywhere below 2.0m, which fired with the ball drawn most of a
- *             metre clear of the player.
+ *   GEOMETRY  contact requires the two hitboxes to overlap IN THREE
+ *             DIMENSIONS - across the court and in height - at or below
+ *             PLAYER_RADIUS + BALL_RADIUS = 0.5m. It used to be a "reach":
+ *             ground distance <= 0.7 with the ball anywhere below 2.0m.
+ *
+ *             The height axis must not be folded into y. The renderer draws
+ *             height as a y-offset, and measuring on those drawn positions
+ *             collapses two independent axes: a ball 2.153m up the court at a
+ *             height of 1.672m - 2.726m away in truth - projects onto the
+ *             player exactly. That is a false touch, and the sweep below
+ *             covers it.
  *
  *   TIMING    a press is held for INPUT_BUFFER_WINDOW (180ms) and fires on the
  *             touch. Press early and the contact waits; press late-but-inside
@@ -88,12 +93,12 @@ async function run(
         const x = miss ? 7 : 4;
         g.ball.launch({ x, y: 15 }, { x, y: 9 }, { duration: 3, peakHeight: 0.14, toucher: 'opponent1' });
       };
-      // The gap the player SEES: the renderer lifts each token by its own
-      // height, so this is the distance between the two drawn centres.
+      // The real gap between the two bodies: across the court AND in height.
       const gap = () =>
         Math.hypot(
           g.ball.pos.x - g.player.pos.x,
-          g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+          g.ball.pos.y - g.player.pos.y,
+          g.ball.height - g.player.height,
         );
 
       // Dry run: which frame do the hitboxes first overlap on?
@@ -287,7 +292,8 @@ test.describe('Ballkontakt: nur bei echter Beruehrung, mit Eingabe-Puffer', () =
           if (g.player.state !== 'blocking') {
             const gap = Math.hypot(
               g.ball.pos.x - g.player.pos.x,
-              g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+              g.ball.pos.y - g.player.pos.y,
+              g.ball.height - g.player.height,
             );
             contacts += 1;
             worstGap = Math.max(worstGap, gap);

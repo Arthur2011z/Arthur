@@ -84,9 +84,14 @@ test.describe('Automatische Bewegungsunterstützung: a fine correction, not a wa
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
+    // The drift closes the gap to the ball's intercept and no further - it is
+    // bounded by JUMP_ASSIST_RANGE, not by where the ball happens to be. (It
+    // used to read ~0.2m here only because contact fired part-way through the
+    // rise and cut the lerp short; contact now needs a genuine 3D touch, so
+    // the drift usually runs its full course.)
     const near = await autoMovement(page, 'jump', 0.85);
     expect(near).toBeGreaterThan(0);
-    expect(near).toBeLessThan(0.3);
+    expect(near).toBeLessThanOrEqual(0.9); // JUMP_ASSIST_RANGE
 
     expect(await autoMovement(page, 'jump', 1.0)).toBe(0);
     expect(await autoMovement(page, 'jump', 1.5)).toBe(0);

@@ -169,8 +169,8 @@ export class Player {
   /** Distance from the net at the moment of takeoff - drives the spike's
    * net-fault risk (see resolveSpike). */
   private jumpStartNetDistance = 0;
-  /** Where the ball was, as drawn, at the instant the aim window opened. */
-  private spikeContactAt: Vec2 | null = null;
+  /** Where the ball was in 3D at the instant the aim window opened. */
+  private spikeContactAt: { x: number; y: number; h: number } | null = null;
 
   /** True for the whole serve routine - from entering serve_ready right up to
    * the moment the ball is actually struck (or the attempt is over). This is
@@ -462,11 +462,13 @@ export class Player {
    * THE contact condition for every action the human player takes: the two
    * hitboxes actually overlap.
    *
-   * "Overlap" means what the screen shows. The renderer draws height as a
-   * y-offset - the ball at (pos.x, pos.y - ball.height), the player at
-   * (pos.x, pos.y - player.height) - so the gap the player sees between the
-   * two circles is the distance between those drawn centres, and they are
-   * touching exactly when that gap closes to PLAYER_RADIUS + BALL_RADIUS.
+   * Measured in three dimensions - across the court AND in height - because
+   * that is the only place the two bodies actually are. It must NOT be
+   * measured on the drawn positions: the renderer projects height into a
+   * y-offset, so a ball high up the court is drawn on top of a player it is
+   * nowhere near. Measured: a ball 2.153m up the court at a height of 1.672m
+   * (2.726m away in truth) projected to a drawn gap of 0.481m and counted as
+   * a touch. Two axes must not be collapsed into one for this test.
    *
    * This replaces the old "reach" test (ground distance <= HIT_RANGE 0.7 with
    * ball height <= CATCHABLE_HEIGHT 2.0), which was far more generous than
@@ -481,8 +483,9 @@ export class Player {
    */
   private hitboxesTouch(ball: Ball): boolean {
     const dx = ball.pos.x - this.pos.x;
-    const dy = ball.pos.y - ball.height - (this.pos.y - this.height);
-    return Math.hypot(dx, dy) <= TOUCH_DISTANCE;
+    const dy = ball.pos.y - this.pos.y;
+    const dh = ball.height - this.height;
+    return Math.hypot(dx, dy, dh) <= TOUCH_DISTANCE;
   }
 
   private ballReachable(ball: Ball): boolean {
@@ -586,6 +589,34 @@ export class Player {
     this.clearPendingInputs();
   }
 
+  /** Diagnostic trail for the Sprung-Schmetterschlag, from the press through
+   * to the strike. One line per decision point, so a smash that does not come
+   * off can be read off the console instead of guessed at:
+   *
+   *   trigger   the jump (or the second Q) was recognised, with a timestamp
+   *   state     the player state the attempt was made in
+   *   touching  whether the hitboxes overlap right now, with the live gap
+   *   aim       the aim direction and strength the swipe is currently giving
+   *   outcome   what actually happened to the ball
+   */
+  private logSpike(stage: string, ball: Ball, extra: Record<string, unknown> = {}): void {
+    const gap = Math.hypot(
+      ball.pos.x - this.pos.x,
+      ball.pos.y - this.pos.y,
+      ball.height - this.height,
+    );
+    console.log(
+      `[Spike] ${stage} | t=${this.clockMs.toFixed(1)}ms state=${this.state} ` +
+        `touching=${gap <= TOUCH_DISTANCE} gap=${gap.toFixed(3)}m (touch at ${TOUCH_DISTANCE.toFixed(2)}m) ` +
+        `ballH=${ball.height.toFixed(3)} playerH=${this.height.toFixed(3)} ` +
+        `aim=(${this.aimDir.x.toFixed(2)},${this.aimDir.y.toFixed(2)})x${this.aimStrength.toFixed(2)} ` +
+        `ballState=${ball.state} lastToucher=${ball.lastToucher}` +
+        Object.entries(extra)
+          .map(([k, v]) => ` ${k}=${v}`)
+          .join(''),
+    );
+  }
+
   /** Required debug trail for the "contact fires before the ball actually
    * touches the player" bug. Logged at the exact moment a contact fires -
    * never on a rejected attempt, which leaves the ball flying on silently.
@@ -606,9 +637,11 @@ export class Player {
    * gapAtContact is the distance between the two circles as drawn, and
    * touchesAt is where they meet - the geometric half of the same claim. */
   private logContact(action: string, ball: Ball): void {
-    const dx = ball.pos.x - this.pos.x;
-    const dy = ball.pos.y - ball.height - (this.pos.y - this.height);
-    const gap = Math.hypot(dx, dy);
+    const gap = Math.hypot(
+      ball.pos.x - this.pos.x,
+      ball.pos.y - this.pos.y,
+      ball.height - this.height,
+    );
     const ms = (v: number | null) => (v === null ? 'n/a' : `${v.toFixed(1)}ms`);
     // Emitted as one flat line first, because console object arguments get
     // abbreviated by devtools and by automated console capture alike - the
@@ -660,6 +693,7 @@ export class Player {
     // contact log has to measure that against.
     this.pressAtMs = this.clockMs;
     this.pressAction = 'schmetterschlag (Sprung)';
+    this.logSpike('trigger:jump', ball, { assistTarget: `${target.x.toFixed(2)},${target.y.toFixed(2)}` });
 
     this.approachStart = { ...this.pos };
     this.approachTarget = target;
@@ -698,11 +732,12 @@ export class Player {
   private enterSlowmoAim(ball: Ball): void {
     this.state = 'slowmo_aim';
     this.stateTimer = 0;
+    this.logSpike('contact:aim-window-opens', ball);
     // The contact is made HERE - this is the frame the hitboxes met. Remember
     // where the ball was, so resolveSpike can tell "still the same ball, still
     // essentially here" from "that ball is long gone" (see
     // SLOWMO_CONTACT_TOLERANCE).
-    this.spikeContactAt = { x: ball.pos.x, y: ball.pos.y - ball.height };
+    this.spikeContactAt = { x: ball.pos.x, y: ball.pos.y, h: ball.height };
   }
 
   /** The flight the spike would take if struck this instant: launched from the
@@ -792,6 +827,11 @@ export class Player {
     // over a metre even at slow-motion speed, and that ball is genuinely gone
     // - let it fly on untouched rather than striking at thin air.
     if (!this.spikeStillOnTheBall(ball)) {
+      this.logSpike('outcome:ABANDONED (ball gone)', ball, {
+        contactWasAt: this.spikeContactAt
+          ? `${this.spikeContactAt.x.toFixed(2)},${this.spikeContactAt.y.toFixed(2)}`
+          : 'n/a',
+      });
       this.serving = false;
       this.spikeContactAt = null;
       this.fallStartHeight = this.height;
@@ -800,6 +840,7 @@ export class Player {
       return;
     }
 
+    this.logSpike('outcome:STRUCK', ball);
     this.logContact('schmetterschlag', ball);
 
     const riskT = clamp(
@@ -849,11 +890,19 @@ export class Player {
    * contact point was recorded (the on-demand spike path, which fires the
    * instant the hitboxes meet and has no window to drift across). */
   private spikeStillOnTheBall(ball: Ball): boolean {
-    if (ball.state !== 'flying' || ball.lastToucher === 'player') return false;
-    if (this.spikeContactAt === null) return this.hitboxesTouch(ball);
+    if (ball.lastToucher === 'player') return false;
+    // With no recorded contact point this is the on-demand spike, which fires
+    // the instant the hitboxes meet and has no window to drift across: a
+    // strict, live touch is exactly right there, and it needs a live ball.
+    if (this.spikeContactAt === null) return ball.state === 'flying' && this.hitboxesTouch(ball);
+    // Otherwise the contact was already made when the window opened. A flight
+    // that happens to complete during the window does not un-make it - the
+    // ball was struck in the air, and only how far it has since travelled
+    // decides whether it is still there to hit.
     const dx = ball.pos.x - this.spikeContactAt.x;
-    const dy = ball.pos.y - ball.height - this.spikeContactAt.y;
-    return Math.hypot(dx, dy) <= SLOWMO_CONTACT_TOLERANCE;
+    const dy = ball.pos.y - this.spikeContactAt.y;
+    const dh = ball.height - this.spikeContactAt.h;
+    return Math.hypot(dx, dy, dh) <= SLOWMO_CONTACT_TOLERANCE;
   }
 
   /** While airborne, the movement input stops being movement and becomes the
@@ -873,7 +922,11 @@ export class Player {
    * so mistiming it costs the swing, not the rally. Returns whether the smash
    * was played. */
   private trySpikeOnDemand(input: InputSnapshot, ball: Ball): boolean {
-    if (!input.spike || !this.ballReachable(ball)) return false;
+    if (!input.spike) return false;
+    if (!this.ballReachable(ball)) {
+      this.logSpike('trigger:hit-rejected (ball not touching)', ball);
+      return false;
+    }
     this.pressAtMs = this.clockMs;
     this.pressAction = 'schmetterschlag';
     this.noteTouchState(ball);
@@ -908,6 +961,9 @@ export class Player {
       this.height = 0;
       this.state = 'active';
       this.stateTimer = 0;
+      if (this.pressAction === 'schmetterschlag (Sprung)') {
+        this.logSpike('outcome:LANDED EMPTY (never touched the ball)', ball);
+      }
       // Safety net for a serve jump that never got near the tossed ball at
       // all (so resolveSpike never ran): the attempt is over, hand the UI
       // back. Without this the serve buttons would stay up forever.
