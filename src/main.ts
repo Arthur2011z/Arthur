@@ -39,7 +39,16 @@ function draw(): void {
 const loop = new GameLoop((dt, nowMs) => {
   gameState.update(dt, input.snapshot(), nowMs);
   renderer.advance(dt);
-  hud.update(gameState.score, gameState.phase, gameState.winner);
+  if (hud.consumeRestart()) gameState.restart();
+  hud.update({
+    score: gameState.score,
+    phase: gameState.phase,
+    winner: gameState.winner,
+    touches: gameState.rally.touches,
+    possession: gameState.rally.possession,
+    servingTeam: gameState.servingTeam,
+    lastFault: gameState.lastFault,
+  });
   hud.setHint(input.mode);
   draw();
 });

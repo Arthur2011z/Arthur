@@ -1,9 +1,21 @@
+import { FAULT_TEXT, FaultReason } from './Rally';
+import { GamePhase } from './GameState';
+
 export interface Score {
   human: number;
   opponents: number;
 }
 
-export type GamePhase = 'playing' | 'point_scored' | 'game_over';
+export interface HudModel {
+  score: Score;
+  phase: GamePhase;
+  winner: 'human' | 'opponents' | null;
+  /** Touches the side in possession has already used, 0-3. */
+  touches: number;
+  possession: 'human' | 'opponents';
+  servingTeam: 'human' | 'opponents';
+  lastFault: FaultReason | null;
+}
 
 /** Score display (top-center) and the game-over overlay with a restart button. */
 export class Hud {
@@ -12,6 +24,8 @@ export class Hud {
   private readonly winnerTextEl: HTMLDivElement;
   private readonly restartBtn: HTMLButtonElement;
   private readonly hintEl: HTMLDivElement;
+  private readonly touchEl: HTMLDivElement;
+  private readonly faultEl: HTMLDivElement;
   private restartPending = false;
 
   constructor(container: HTMLElement) {
@@ -75,6 +89,9 @@ export class Hud {
     this.overlayEl.appendChild(this.restartBtn);
     container.appendChild(this.overlayEl);
 
+    this.touchEl = this.createBadge(container, 'touch-counter', 'max(52px, calc(env(safe-area-inset-top) + 42px))');
+    this.faultEl = this.createBadge(container, 'fault-notice', 'max(88px, calc(env(safe-area-inset-top) + 78px))');
+
     this.hintEl = document.createElement('div');
     this.hintEl.id = 'control-hint';
     Object.assign(this.hintEl.style, {
@@ -106,16 +123,52 @@ export class Hud {
     return v;
   }
 
-  update(score: Score, phase: GamePhase, winner: 'human' | 'opponents' | null): void {
-    this.scoreEl.textContent = `Du ${score.human} : ${score.opponents} Gegner`;
+  update(model: HudModel): void {
+    const serve = model.servingTeam === 'human' ? '\u25C0' : '\u25B6';
+    this.scoreEl.textContent =
+      model.servingTeam === 'human'
+        ? `${serve} Du ${model.score.human} : ${model.score.opponents} Gegner`
+        : `Du ${model.score.human} : ${model.score.opponents} Gegner ${serve}`;
 
-    if (phase === 'game_over') {
+    // Touch counter: dots for the three contacts the side in possession has.
+    const used = Math.min(model.touches, 3);
+    this.touchEl.textContent =
+      model.phase === 'rally' && used > 0
+        ? `${model.possession === 'human' ? 'Ihr' : 'Gegner'}: ${'\u25CF'.repeat(used)}${'\u25CB'.repeat(3 - used)}`
+        : '';
+
+    this.faultEl.textContent =
+      model.phase === 'point_scored' && model.lastFault ? FAULT_TEXT[model.lastFault] : '';
+
+    if (model.phase === 'game_over') {
       this.overlayEl.style.display = 'flex';
       this.winnerTextEl.textContent =
-        winner === 'human' ? 'Gewonnen! 🏆' : 'Verloren — die Gegner haben gewonnen.';
+        model.winner === 'human'
+          ? `Gewonnen! ${model.score.human} : ${model.score.opponents} \u{1F3C6}`
+          : `Verloren — ${model.score.human} : ${model.score.opponents}.`;
     } else {
       this.overlayEl.style.display = 'none';
     }
+  }
+
+  /** Small centered caption under the score, used for the touch counter and
+   * the reason the last point ended. */
+  private createBadge(container: HTMLElement, id: string, top: string): HTMLDivElement {
+    const el = document.createElement('div');
+    el.id = id;
+    Object.assign(el.style, {
+      position: 'absolute',
+      top,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      color: '#fff',
+      font: '600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      textShadow: '0 1px 3px rgba(0, 0, 0, 0.55)',
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    container.appendChild(el);
+    return el;
   }
 
   private onRestartPointerDown = (e: PointerEvent): void => {

@@ -212,6 +212,44 @@ export function velocityToTarget(from: Vec3, target: Vec2, time: number): Vec3 {
   };
 }
 
+/** Height at which a launch would pass the net plane, or null if this flight
+ * never crosses it. */
+export function netCrossingHeight(from: Vec3, velocity: Vec3): number | null {
+  if (Math.abs(velocity.y) < 1e-6) return null;
+  const t = (NET_Y - from.y) / velocity.y;
+  if (t <= 0) return null;
+  return from.z + velocity.z * t - 0.5 * GRAVITY * t * t;
+}
+
+/**
+ * Like velocityToTarget, but picks the flattest flight time that still clears
+ * the net by `clearance`. A flat, fast return over a long distance genuinely
+ * hits the net - correct physics, but not what an AI meant to do - so shots
+ * that are conceived as "put it there" go through here and get an arc that
+ * actually gets there.
+ *
+ * Returns the flattest option tried if nothing clears, so the caller always
+ * gets a shot; it will simply be a net fault, which is a legitimate outcome.
+ */
+export function velocityOverNet(
+  from: Vec3,
+  target: Vec2,
+  clearance = 0.4,
+  sameSideTime = 1,
+): Vec3 {
+  const crosses = from.y > NET_Y !== target.y > NET_Y;
+  if (!crosses) return velocityToTarget(from, target, sameSideTime);
+
+  let fallback = velocityToTarget(from, target, 3);
+  for (let t = 0.7; t <= 3.0001; t += 0.05) {
+    const v = velocityToTarget(from, target, t);
+    const crossing = netCrossingHeight(from, v);
+    if (crossing !== null && crossing >= NET_HEIGHT + clearance) return v;
+    fallback = v;
+  }
+  return fallback;
+}
+
 /** Seconds until a ball launched with this vertical velocity reaches its apex. */
 export const timeToApex = (verticalSpeed: number): number => Math.max(0, verticalSpeed / GRAVITY);
 

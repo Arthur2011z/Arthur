@@ -1,7 +1,7 @@
 import { length, randomBetween } from '../utils/math';
 import { COURT_WIDTH, HUMAN_HOMES, NET_Y, PLAYER_SPEED } from '../game/constants';
 import { IntentBuffer } from '../game/Contact';
-import { velocityToTarget } from '../game/Physics';
+import { velocityOverNet } from '../game/Physics';
 import { InputSnapshot } from '../input/actions';
 import { Athlete } from './Athlete';
 import { Ball } from './Ball';
@@ -42,13 +42,14 @@ export class Player extends Athlete {
     const intent = this.intents.peek(atMs);
     if (!intent) return false;
 
-    // Placeholder shot - a plain return into the far half. Replaced by the
-    // real pass/emergency/spike behaviour in the following steps.
+    // Placeholder shot - a plain return into the far half, arced high enough
+    // to actually clear the net. Replaced by the real pass/emergency/spike
+    // behaviour in the following steps.
     const target = {
       x: randomBetween(1, COURT_WIDTH - 1),
       y: randomBetween(1, NET_Y - 1),
     };
-    ball.strike({ ...ball.pos }, velocityToTarget(ball.pos, target, 1.1), this.id);
+    ball.strike({ ...ball.pos }, velocityOverNet(ball.pos, target), this.id);
 
     this.intents.redeem(intent.action, intent.pressedAt, atMs);
     return true;

@@ -190,6 +190,9 @@ test('a high ball crosses the net and is judged in or out where it lands', async
   // Same shot, aimed past the far base line: out is a real outcome, not a
   // clamped-back-in one.
   await page.evaluate(() => {
+    // The landing above scored a point, which pauses play; reopen the rally
+    // so the next flight is actually simulated.
+    window.__game!.state.phase = 'rally';
     window.__game!.state.lastEvent = null;
     window.__game!.state.launchBall({ x: 4, y: 12 }, { x: 4, y: -2 }, 1.8);
   });
