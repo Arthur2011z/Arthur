@@ -226,7 +226,7 @@ test('restarting clears the score and puts a ball back in play', async ({ page }
   expect(s.winner).toBeNull();
 });
 
-test('the human can win a point by returning the ball over the net', async ({ page }) => {
+test('the human can win a point with a Notfall shot over the net', async ({ page }) => {
   await page.evaluate(() => {
     const g = window.__game!;
     g.state.player.pos = { x: 4, y: 12 };
@@ -241,7 +241,8 @@ test('the human can win a point by returning the ball over the net', async ({ pa
     const p = g.state.player.pos;
     return g.state.ball.state === 'live' && Math.hypot(b.x - p.x, b.y - p.y) < 1.2;
   });
-  await page.keyboard.press('e');
+  // Notfall, not Pass: a pass deliberately stays on the own side of the net.
+  await page.keyboard.press('f');
 
   await page.waitForFunction(() => window.__game!.state.phase === 'point_scored', undefined, {
     timeout: 6000,

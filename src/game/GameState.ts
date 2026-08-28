@@ -1,6 +1,6 @@
 import { Athlete, TeamId } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
-import { Player } from '../entities/Player';
+import { Player, PlayerContext } from '../entities/Player';
 import { InputSnapshot } from '../input/actions';
 import { Vec2, randomBetween } from '../utils/math';
 import {
@@ -68,14 +68,15 @@ export class GameState {
       return;
     }
 
-    this.player.update(dt, input, nowMs);
+    const ctx = this.playerContext(input.aim);
+    this.player.update(dt, input, nowMs, ctx);
 
     const event = advance(
       this.ball,
       dt,
       this.athletes,
       {
-        onTouch: (athlete, ball, atMs) => this.handleTouch(athlete, ball, atMs),
+        onTouch: (athlete, ball, atMs) => this.handleTouch(athlete, ball, atMs, ctx),
         onNetCross: (_ball, to) => this.rally.registerNetCross(to),
       },
       nowMs,
@@ -142,13 +143,39 @@ export class GameState {
    * The athlete decides whether they actually play it (they only do if an
    * action was buffered); the rule book then judges the contact that resulted.
    */
-  private handleTouch(athlete: Athlete, ball: Ball, atMs: number): boolean {
-    const played = athlete instanceof Player ? athlete.playBall(ball, atMs) : false;
+  private handleTouch(
+    athlete: Athlete,
+    ball: Ball,
+    atMs: number,
+    ctx: PlayerContext,
+  ): boolean {
+    const played = athlete instanceof Player ? athlete.playBall(ball, atMs, ctx) : false;
     if (!played) return false;
 
     const fault = this.rally.registerTouch(athlete);
     if (fault) this.awardPoint(fault);
     return true;
+  }
+
+  /**
+   * The world as the human player needs to see it this frame. `mayTouch` is
+   * the important part: it is false the moment the player has taken the last
+   * contact, which is what stops the speed boost from dragging them back into
+   * the ball for an illegal second touch.
+   */
+  private playerContext(aim: Vec2 | null): PlayerContext {
+    const state = this;
+    return {
+      ball: this.ball,
+      partner: this.teammate,
+      // A getter, not a snapshot: the answer changes the instant the player
+      // takes a contact, and the boost has to notice within the same frame
+      // rather than one frame later.
+      get mayTouch(): boolean {
+        return state.phase === 'rally' && state.rally.lastToucher !== state.player.id;
+      },
+      aim,
+    };
   }
 
   private awardPoint(result: RallyResult): void {
@@ -169,5 +196,6 @@ export class GameState {
 
     this.phase = 'point_scored';
     this.pauseTimer = 0;
+    this.player.standDown();
   }
 }

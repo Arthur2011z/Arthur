@@ -102,6 +102,44 @@ export const INPUT_BUFFER_MS = 180;
 export const CONTACT_LOCK = 0.12;
 
 // ---------------------------------------------------------------------------
+// Speed boost. Pressing Pass or Notfall does two things at once: it buffers
+// the action, and it throws the player at the ball for a short burst, so a
+// ball that was just out of reach becomes playable.
+//
+// The burst is hard-limited in time and cancelled the instant the player is no
+// longer allowed to touch the ball - otherwise it would drag them into a
+// double contact they never asked for.
+// ---------------------------------------------------------------------------
+export const BOOST_DURATION = 0.4;
+export const BOOST_MULTIPLIER = 1.55;
+/** Height at which the boost aims to meet the ball - roughly chest height, so
+ * the run ends where a contact is actually comfortable. */
+export const BOOST_INTERCEPT_HEIGHT = 1.3;
+
+// ---------------------------------------------------------------------------
+// Shots
+// ---------------------------------------------------------------------------
+/** Pass: a set delivered to the partner's side of the net, high enough and
+ * close enough to the tape that they can attack it. */
+export const PASS_NET_DEPTH = 2.2; // meters from the net
+export const PASS_ARRIVAL_HEIGHT = 2.9;
+export const PASS_TIME = 1.05;
+export const PASS_SPREAD_RAD = 0.035;
+export const PASS_SPEED_JITTER = 0.03;
+
+/** Notfall: a plain shot over the net from anywhere, steered by whatever
+ * direction is being held. Pushing toward the net drops it short, pulling back
+ * sends it deep. */
+export const EMERGENCY_SHORT_DEPTH = 1.6; // meters past the net
+export const EMERGENCY_DEEP_DEPTH = 6.8;
+export const EMERGENCY_LATERAL = 3.6;
+export const EMERGENCY_SPREAD_RAD = 0.075;
+export const EMERGENCY_SPEED_JITTER = 0.05;
+
+/** How long the swing pose is held after a contact, purely visual. */
+export const SWING_POSE_DURATION = 0.25;
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 export const WIN_SCORE = 21;

@@ -1,6 +1,6 @@
 import { Athlete, TeamId } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
-import { Vec2, Vec3 } from '../utils/math';
+import { Vec2, Vec3, randomBetween, rotate } from '../utils/math';
 import { ballTouches } from './Contact';
 import {
   BALL_RADIUS,
@@ -210,6 +210,33 @@ export function velocityToTarget(from: Vec3, target: Vec2, time: number): Vec3 {
     y: (target.y - from.y) / t,
     z: (BALL_RADIUS - from.z) / t + 0.5 * GRAVITY * t,
   };
+}
+
+/**
+ * Velocity that carries the ball to a point *in the air* in exactly `time`
+ * seconds. A set is aimed at head height near the net, not at the sand, so
+ * aiming it at a ground point would deliver it far too low.
+ */
+export function velocityToAirTarget(from: Vec3, target: Vec3, time: number): Vec3 {
+  const t = Math.max(0.05, time);
+  return {
+    x: (target.x - from.x) / t,
+    y: (target.y - from.y) / t,
+    z: (target.z - from.z) / t + 0.5 * GRAVITY * t,
+  };
+}
+
+/**
+ * Scatters a shot: rotates its horizontal direction by a random angle and
+ * nudges its overall speed. This is what makes aiming meaningful without
+ * making it exact - and, deliberately, what lets a shot land out. Nothing
+ * anywhere corrects a scattered shot back inside the lines.
+ */
+export function applySpread(velocity: Vec3, maxAngle: number, speedJitter: number): Vec3 {
+  const angle = randomBetween(-maxAngle, maxAngle);
+  const horizontal = rotate({ x: velocity.x, y: velocity.y }, angle);
+  const scale = 1 + randomBetween(-speedJitter, speedJitter);
+  return { x: horizontal.x * scale, y: horizontal.y * scale, z: velocity.z * scale };
 }
 
 /** Height at which a launch would pass the net plane, or null if this flight
