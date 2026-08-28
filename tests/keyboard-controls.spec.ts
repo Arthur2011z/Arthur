@@ -31,10 +31,20 @@ async function place(page: Page, playerY: number, ballOffsetY: number, duration 
       g.state.player.pos.x = 4;
       g.state.player.pos.y = playerY;
       g.state.player.state = 'active';
+      // Ball.launch deliberately carries whatever height the ball already had
+      // into the new flight (that is what makes a mid-air hit continue
+      // smoothly). In a test that re-launches on a page whose ball is still
+      // airborne from the previous case, that leftover height lifts the ball
+      // clean out of the player's hitbox - so reset it first.
+      g.state.ball.height = 0;
       g.state.ball.launch(
         { x: 4, y: playerY + ballOffsetY },
         { x: 4.05, y: playerY + ballOffsetY },
-        { duration, peakHeight: 0.5, toucher: null },
+        // A near-flat arc: contact now needs the two hitboxes to actually
+        // overlap, and the renderer draws height as a y-offset, so any real
+        // arc lifts the ball straight out of the player's hitbox within a few
+        // frames. At 0.05 the ball stays where it is put.
+        { duration, peakHeight: 0.05, toucher: null },
       );
     },
     { playerY, ballOffsetY, duration },
@@ -316,8 +326,11 @@ test.describe('Tastatur-Steuerung', () => {
     await page.goto(distIndex);
     await stubAi(page);
 
-    // E -> pass to the teammate (stays on the human side).
-    await place(page, 15, -0.3);
+    // E -> pass to the teammate (stays on the human side). Offset 0.2 rather
+    // than 0.3: contact needs the two hitboxes to overlap (0.5m between
+    // centres), and the ball's own small arc eats into that margin while the
+    // keypress makes its round trip.
+    await place(page, 15, -0.2);
     await page.keyboard.press('KeyE');
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1000,
@@ -326,7 +339,7 @@ test.describe('Tastatur-Steuerung', () => {
     expect(passed.ball.target.y).toBeGreaterThan(NET_Y);
 
     // F -> Notfall-Schlag over the net.
-    await place(page, 15, -0.3);
+    await place(page, 15, -0.2);
     await page.keyboard.press('KeyF');
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
       timeout: 1000,

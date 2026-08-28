@@ -25,7 +25,26 @@ export const PLAYER_SPEED = 4.5;
 export const TEAMMATE_SPEED = 4.2;
 export const OPPONENT_SPEED = 3.8;
 
-// Interaction ranges, in meters.
+// --- Contact -------------------------------------------------------------
+// The human player's contact condition, and the only one: the two hitboxes
+// actually overlap. The renderer draws height as a y-offset (the ball at
+// pos.y - ball.height, the player at pos.y - player.height), so the gap seen
+// on screen between the two circles is the distance between those drawn
+// centres - and they meet exactly here. See Player.hitboxesTouch.
+//
+// Deliberately the sum of the two radii and nothing more. It used to be
+// HIT_RANGE (0.7) plus a separate ball-height ceiling of 2.0m, which is a
+// *reach*, not a touch, and is what let a contact fire while the ball was
+// still visibly clear of the player: measured at a drawn gap of 0.911m on a
+// jump-smash, nearly twice the distance at which the circles meet.
+export const TOUCH_DISTANCE = PLAYER_RADIUS + BALL_RADIUS; // 0.5m
+
+// The AI's reach, which is a different thing and stays as it was: the teammate
+// and the opponents play a ball within this ground-plane distance and below
+// CATCHABLE_HEIGHT. They have no input buffer and no boost to compensate with,
+// so holding them to the player's strict touch rule would only make them whiff
+// and collapse every rally. Only the human player's own actions - Pass,
+// Notfall-Schlag, Schmetterschlag - are judged by TOUCH_DISTANCE.
 export const HIT_RANGE = 0.7;
 // Contact (Block/Pass/Schlag/Schmetterschlag/Zuspiel, for every entity -
 // player, teammate, opponent) additionally requires the ball's *current*
@@ -180,11 +199,17 @@ export const WIN_MARGIN = 2;
 // before it must cross back over the net.
 export const MAX_TEAM_TOUCHES = 3;
 
-// Input buffering: Pass/Notfall-Schlag may be pressed before the ball is
-// actually in range - the press is remembered for this long and resolved the
-// moment the ball comes within HIT_RANGE (or ASSIST_RANGE homing brings the
-// player to it), so timing never has to be split-second.
-export const INPUT_BUFFER_WINDOW = 1.2;
+// Input buffering. A press is remembered for this long and fires at the exact
+// moment the hitboxes meet (see TOUCH_DISTANCE) - never before it, and never
+// after the window has run out. The buffer is what makes a strict touch rule
+// playable: the player presses *around* the touch rather than on its exact
+// frame.
+//
+// 180ms is a little over ten frames at 60fps. It used to be 1.2s, which is not
+// a timing aid at all: a press that old fires on a ball arriving most of a
+// second later, which is exactly the "the action went off before the ball got
+// here" complaint.
+export const INPUT_BUFFER_WINDOW = 0.18;
 
 // Opponent auto-serve (also the bootstrap/fallback serve at game start): fair
 // and easy to react to - AUTO_SERVE_DELAY is only ever reached at the very
@@ -204,12 +229,20 @@ export const HUMAN_SERVE_TIMEOUT = 5; // seconds
 // Jump-Smash - same slow-motion aim window, same live trajectory preview, same
 // swipe-length power, same scatter, same possibility of hitting it out.
 export const SERVE_TOSS_DURATION = 1.4; // whole up-and-down of the toss
-export const SERVE_TOSS_PEAK_HEIGHT = 2.8; // above CATCHABLE_HEIGHT, so the ball is briefly out of reach at the top
-// How long after the toss the player launches into the jump. Tuned so the jump
-// peaks just as the ball drops back through CATCHABLE_HEIGHT - i.e. contact
-// happens at the top of the jump, not on the way up with the ball still
-// climbing.
-export const SERVE_JUMP_DELAY = 0.65;
+// Toss height and jump timing are a matched pair, and both follow from the
+// strict touch rule: the ball has to come back down THROUGH the player's own
+// height while they are still in the air, since a touch needs the two circles
+// within TOUCH_DISTANCE (0.5m) of each other.
+//
+// With the old 2.8m toss it never could. Computed against the jump curve: the
+// ball was still at 2.29m when the jump peaked at 0.6m - a gap of 1.69m - and
+// had only fallen to 0.74m by the time the player was back on the ground. At
+// 1.6m the toss is still comfortably out of reach at the top (1.53m clear of a
+// standing player at the moment the jump starts, so it cannot be caught off
+// the ground) and then descends through the jump's own height, leaving roughly
+// 0.27s of overlap to strike in.
+export const SERVE_TOSS_PEAK_HEIGHT = 1.6;
+export const SERVE_JUMP_DELAY = 0.85;
 // While preparing to serve the player is pinned to their own baseline and may
 // only move along it. This is the y they are held at.
 export const SERVE_BASELINE_Y = COURT_LENGTH - PLAYER_RADIUS;
@@ -324,6 +357,23 @@ export const JUMP_PEAK_HEIGHT = 0.6; // meters, visual-only hop height
 // A swipe during the window sets the spike's aim and resolves immediately;
 // otherwise it resolves automatically at the end with the default aim.
 export const SLOWMO_FACTOR = 0.18;
+// How far the ball may creep away from the point of contact during the
+// slow-motion aim window before the strike is abandoned.
+//
+// The aim window is a stylised freeze of a contact that has ALREADY happened:
+// it opens the instant the hitboxes meet, and it holds the player still while
+// the ball creeps on at SLOWMO_FACTOR. Re-testing the strict touch at the end
+// of it would therefore throw away almost every smash - measured, a set
+// drifting 2cm during the window was enough to take the ball back out of the
+// 0.5m hitbox and drop the strike entirely.
+//
+// So the resolve asks a different question: is this still the same ball, in
+// essentially the same place? Over the window the ball covers speed * 0.099s
+// (0.55s at 0.18x), so this threshold separates cleanly at ~8 m/s: a set or a
+// pass creeps 0.2-0.4m and is struck, while a hard shot at 14 m/s travels
+// 1.4m, is genuinely gone, and is correctly let fly on untouched.
+export const SLOWMO_CONTACT_TOLERANCE = 0.8;
+
 export const SLOWMO_REAL_DURATION = 0.55; // seconds, real time
 
 // Risk/reward: the further from the net the player was standing at the

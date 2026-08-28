@@ -51,7 +51,12 @@ test.describe('Notfall-Schlag: small, no-jump, always-safe fallback', () => {
     await page.goto(distIndex);
 
     await teleportPlayer(page, { x: 1, y: 15 });
-    await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
+    // A ball creeping along at the player's feet: the two hitboxes are
+    // genuinely overlapping for the whole test, which is what contact now
+    // requires. (The old setup sent the ball away on a 3m arc, so it was only
+    // touching for the first few frames - fine under the previous "reach"
+    // rule, never under a real touch.)
+    await launchBall(page, { x: 1, y: 15 }, { x: 1, y: 15.1 }, 6, 0.08);
 
     await tapButton(page, 'hit-btn');
 
@@ -78,27 +83,61 @@ test.describe('Notfall-Schlag: small, no-jump, always-safe fallback', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    await teleportPlayer(page, { x: 1, y: 15 });
-    // Low peakHeight (1m, vs. the helper's 3m default) so the ball is
-    // actually near ground level - within CATCHABLE_HEIGHT - at the moment
-    // it passes through the player, instead of sailing overhead at ~2.7m
-    // right as it crosses their position.
-    //
-    // The flight starts at y=18 rather than y=21 so the ball reaches the
-    // player 0.86s in. It used to start at 21, putting contact 1.41s after the
-    // launch - past INPUT_BUFFER_WINDOW (1.2s), i.e. outside the window this
-    // test is about. It only ever passed because the button click's own
-    // round-trip ate the difference, and failed whenever the machine was busy
-    // enough for that margin (~40ms) to vanish.
-    await launchBall(page, { x: 1, y: 18 }, { x: 1, y: 4 }, 4, 1);
+    // Driven frame-by-frame inside the page. With INPUT_BUFFER_WINDOW now
+    // 180ms, a real button click's own round-trip is the same order of
+    // magnitude as the whole buffer, so the press has to be placed on an exact
+    // frame relative to the touch - which is the entire point of this test.
+    const r = await page.evaluate(() => {
+      const g = (window as any).__game.state;
+      g.teammate.update = () => {};
+      for (const o of g.opponents) o.update = () => {};
+      g.awaitingServe = null;
+      const TOUCH = 0.5; // PLAYER_RADIUS + BALL_RADIUS
+      const noInput = {
+        move: { x: 0, y: 0 }, aim: null, swipe: null,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
+      };
+      const setUp = () => {
+        g.player.state = 'active';
+        g.player.height = 0;
+        g.player.pos.x = 4;
+        g.player.pos.y = 12;
+        // Flat and slow, straight through the player's position.
+        g.ball.launch({ x: 4, y: 15 }, { x: 4, y: 9 }, { duration: 3, peakHeight: 0.14, toucher: 'opponent1' });
+      };
+      const gap = () => Math.hypot(
+        g.ball.pos.x - g.player.pos.x,
+        g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+      );
 
-    await tapButton(page, 'hit-btn');
-    const rightAfterPress = await getState(page);
-    expect(rightAfterPress.ball.lastToucher).toBeNull();
+      // Dry run: which frame do the hitboxes first actually overlap on?
+      setUp();
+      let touchFrame = -1;
+      for (let i = 0; i < 200 && touchFrame < 0; i++) {
+        if (gap() <= TOUCH) touchFrame = i;
+        g.player.update(0.016, noInput, g.ball, g.teammate.pos, false);
+        g.ball.update(0.016);
+      }
 
-    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 3000,
+      // Real run: press 96ms (6 frames) BEFORE that.
+      setUp();
+      const pressFrame = touchFrame - 6;
+      let contactFrame = -1;
+      let touchedFrame = -1;
+      for (let i = 0; i < 200; i++) {
+        const before = g.ball.lastToucher;
+        if (touchedFrame < 0 && gap() <= TOUCH) touchedFrame = i;
+        g.player.update(0.016, { ...noInput, ['hit']: i === pressFrame }, g.ball, g.teammate.pos, false);
+        if (before !== 'player' && g.ball.lastToucher === 'player' && contactFrame < 0) contactFrame = i;
+        g.ball.update(0.016);
+      }
+      return { pressFrame, touchedFrame, contactFrame, toucher: g.ball.lastToucher };
     });
+
+    // The press came first, but the contact waited for the ball.
+    expect(r.contactFrame).toBeGreaterThan(r.pressFrame);
+    expect(r.contactFrame).toBe(r.touchedFrame);
+    expect(r.toucher).toBe('player');
   });
 
   test('a light assist walk pulls the player toward a ball inside ASSIST_RANGE while Notfall-Schlag is held', async ({

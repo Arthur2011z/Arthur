@@ -72,9 +72,12 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     // from its home at (5.6, 11)) - otherwise the teammate itself would race
     // in and catch a ball this close to the player's own position first.
     await teleportPlayer(page, { x: 1, y: 15 });
-    // Ball right next to the player, well inside HIT_RANGE - no Sprung/Block
-    // needed at all, this is plain in-range contact.
-    await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
+    // A ball creeping along at the player's feet: the two hitboxes are
+    // genuinely overlapping for the whole test, which is what contact now
+    // requires. (The old setup sent the ball away on a 3m arc, so it was only
+    // touching for the first few frames - fine under the previous "reach"
+    // rule, never under a real touch.)
+    await launchBall(page, { x: 1, y: 15 }, { x: 1, y: 15.1 }, 6, 0.08);
 
     // The pass is aimed relative to where the teammate is AT THE MOMENT OF
     // CONTACT - and it starts moving to receive the pass the instant it is
@@ -133,34 +136,60 @@ test.describe('Pass button: controlled touch straight to the teammate', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
 
-    // Far corner (see the test above for why - keeps the teammate from
-    // racing in first).
-    await teleportPlayer(page, { x: 1, y: 15 });
-    // Ball starts behind the player and drifts slowly down through their
-    // position toward the opponent half - it only enters HIT_RANGE 0.86s in,
-    // giving the "too early" check below a comfortable margin against
-    // round-trip timing while still resolving inside INPUT_BUFFER_WINDOW
-    // (1.2s). It used to start at y=21, i.e. 1.41s out - past that window, so
-    // the test only ever passed because the click's own round-trip ate the
-    // difference. Low peakHeight (1m, vs. the helper's 3m default) so the ball
-    // is actually near ground level - and so within CATCHABLE_HEIGHT - at the
-    // moment it passes through the player, instead of sailing overhead at
-    // ~2.7m right as it crosses their position.
-    await launchBall(page, { x: 1, y: 18 }, { x: 1, y: 4 }, 4, 1);
+    // Driven frame-by-frame inside the page. With INPUT_BUFFER_WINDOW now
+    // 180ms, a real button click's own round-trip is the same order of
+    // magnitude as the whole buffer, so the press has to be placed on an exact
+    // frame relative to the touch - which is the entire point of this test.
+    const r = await page.evaluate(() => {
+      const g = (window as any).__game.state;
+      g.teammate.update = () => {};
+      for (const o of g.opponents) o.update = () => {};
+      g.awaitingServe = null;
+      const TOUCH = 0.5; // PLAYER_RADIUS + BALL_RADIUS
+      const noInput = {
+        move: { x: 0, y: 0 }, aim: null, swipe: null,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
+      };
+      const setUp = () => {
+        g.player.state = 'active';
+        g.player.height = 0;
+        g.player.pos.x = 4;
+        g.player.pos.y = 12;
+        // Flat and slow, straight through the player's position.
+        g.ball.launch({ x: 4, y: 15 }, { x: 4, y: 9 }, { duration: 3, peakHeight: 0.14, toucher: 'opponent1' });
+      };
+      const gap = () => Math.hypot(
+        g.ball.pos.x - g.player.pos.x,
+        g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+      );
 
-    await tapButton(page, 'pass-btn');
-    const rightAfterPress = await getState(page);
-    expect(rightAfterPress.ball.lastToucher).toBeNull(); // still far away, too early
+      // Dry run: which frame do the hitboxes first actually overlap on?
+      setUp();
+      let touchFrame = -1;
+      for (let i = 0; i < 200 && touchFrame < 0; i++) {
+        if (gap() <= TOUCH) touchFrame = i;
+        g.player.update(0.016, noInput, g.ball, g.teammate.pos, false);
+        g.ball.update(0.016);
+      }
 
-    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 3000,
+      // Real run: press 96ms (6 frames) BEFORE that.
+      setUp();
+      const pressFrame = touchFrame - 6;
+      let contactFrame = -1;
+      let touchedFrame = -1;
+      for (let i = 0; i < 200; i++) {
+        const before = g.ball.lastToucher;
+        if (touchedFrame < 0 && gap() <= TOUCH) touchedFrame = i;
+        g.player.update(0.016, { ...noInput, ['pass']: i === pressFrame }, g.ball, g.teammate.pos, false);
+        if (before !== 'player' && g.ball.lastToucher === 'player' && contactFrame < 0) contactFrame = i;
+        g.ball.update(0.016);
+      }
+      return { pressFrame, touchedFrame, contactFrame, toucher: g.ball.lastToucher };
     });
-    // Same caveat as the test above: the teammate moves as soon as the pass is
-    // played, so compare against the target's own geometry rather than a
-    // position read after the fact. The pass must stay on our own side and be
-    // pulled toward the net relative to where it was aimed.
-    const after = await getState(page);
-    expect(after.ball.target.y).toBeGreaterThan(8); // still our own half
-    expect(after.ball.target.y).toBeLessThan(13); // and pulled up toward the net
+
+    // The press came first, but the contact waited for the ball.
+    expect(r.contactFrame).toBeGreaterThan(r.pressFrame);
+    expect(r.contactFrame).toBe(r.touchedFrame);
+    expect(r.toucher).toBe('player');
   });
 });

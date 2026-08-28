@@ -32,6 +32,13 @@ async function spikeFrom(page: Page, netDist: number, ballOffsetY = 0.05) {
       g.state.player.pos.x = 4;
       g.state.player.pos.y = y;
       g.state.player.state = 'active';
+      g.state.player.height = 0;
+      // Ball.launch deliberately carries whatever height the ball already had
+      // into the new flight (that is what makes a mid-air hit continue
+      // smoothly). In a test that re-launches on a page whose ball is still
+      // airborne from the previous case, that leftover height lifts the ball
+      // clean out of the player's hitbox - so reset it first.
+      g.state.ball.height = 0;
       g.state.ball.launch(
         { x: 4, y: y + ballOffsetY },
         { x: 4.05, y: y + ballOffsetY },

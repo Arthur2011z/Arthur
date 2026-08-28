@@ -17,12 +17,10 @@ import {
   BLOCK_NET_DISTANCE,
   BLOCK_RETURN_DURATION,
   BLOCK_RETURN_PEAK_HEIGHT,
-  CATCHABLE_HEIGHT,
   COURT_LENGTH,
   COURT_WIDTH,
   HIT_DURATION,
   HIT_PEAK_HEIGHT,
-  HIT_RANGE,
   INPUT_BUFFER_WINDOW,
   JUMP_ASSIST_RANGE,
   MOVE_BOOST_DURATION,
@@ -45,6 +43,7 @@ import {
   RANDOM_TARGET_MARGIN,
   SET_NET_APPROACH_Y,
   SET_NET_BLEND,
+  SLOWMO_CONTACT_TOLERANCE,
   SLOWMO_REAL_DURATION,
   SERVE_BASELINE_Y,
   SERVE_DEFAULT_AIM_STRENGTH,
@@ -58,6 +57,7 @@ import {
   SPIKE_SCATTER_RADIUS,
   SPIKE_SWIPE_SLOW_FACTOR,
   SPIKE_TARGET_MARGIN,
+  TOUCH_DISTANCE,
   DEFAULT_AIM_STRENGTH,
 } from '../game/constants';
 import { Ball } from './Ball';
@@ -139,8 +139,10 @@ const DEFAULT_AIM_DIR: Vec2 = { x: 0, y: -1 };
  *   but always a simple, weak hit to a safe spot over the net - from
  *   anywhere, no jump, always legal regardless of touch count.
  *
- * In every case, contact only actually happens once the ball is truly within
- * HIT_RANGE - never pre-emptively.
+ * In every case, contact only actually happens once the ball's hitbox and the
+ * player's actually overlap (see hitboxesTouch) - never pre-emptively. A press
+ * made shortly before that moment is held for INPUT_BUFFER_WINDOW and fires on
+ * the touch itself; one made too early expires without effect.
  */
 export class Player {
   pos: Vec2 = { ...PLAYER_START_POS };
@@ -167,6 +169,8 @@ export class Player {
   /** Distance from the net at the moment of takeoff - drives the spike's
    * net-fault risk (see resolveSpike). */
   private jumpStartNetDistance = 0;
+  /** Where the ball was, as drawn, at the instant the aim window opened. */
+  private spikeContactAt: Vec2 | null = null;
 
   /** True for the whole serve routine - from entering serve_ready right up to
    * the moment the ball is actually struck (or the attempt is over). This is
@@ -181,6 +185,19 @@ export class Player {
   private passBufferAge = 0;
   private hitBuffered = false;
   private hitBufferAge = 0;
+
+  /** Simulation clock in ms, advanced by dt every frame. Deterministic (it
+   * follows the simulation, not the wall clock), which is what makes the
+   * contact log below reproducible in a stepped test rather than only
+   * observable by eye. */
+  private clockMs = 0;
+  /** When the currently-buffered press happened, and which button it was.
+   * Null once the buffer has expired or been consumed. */
+  private pressAtMs: number | null = null;
+  private pressAction: string | null = null;
+  /** When the hitboxes last STARTED touching, or null while they are apart.
+   * This is the moment a buffered press is allowed to fire - never earlier. */
+  private touchStartedAtMs: number | null = null;
 
   /** Whether the player currently has a fresh Pass/Notfall-Schlag press
    * buffered (see updateInputBuffers) - i.e. has actively signaled intent to
@@ -199,8 +216,12 @@ export class Player {
     teammatePos: Vec2,
     mustCrossNet: boolean,
   ): void {
+    this.clockMs += dt * 1000;
     this.updateInputBuffers(dt, input);
     this.updateMoveBoost(dt, input);
+    // Evaluated before anything moves, so a touch that already existed at the
+    // start of the frame keeps its original timestamp.
+    this.noteTouchState(ball);
 
     switch (this.state) {
       case 'active':
@@ -316,7 +337,11 @@ export class Player {
     if ((this.passBuffered || this.hitBuffered) && ballFlying) {
       const intercept = closestPointOnSegment(this.pos, ball.pos, ball.target);
       const interceptDist = distance(this.pos, intercept);
-      if (interceptDist > HIT_RANGE && interceptDist <= ASSIST_RANGE) {
+      // Keeps closing until the hitboxes actually meet. The lower bound has to
+      // be TOUCH_DISTANCE, not HIT_RANGE: with contact now firing at 0.5m,
+      // stopping the assist at 0.7m would leave a 0.2m dead band in which the
+      // player neither walks in nor connects.
+      if (interceptDist > TOUCH_DISTANCE && interceptDist <= ASSIST_RANGE) {
         this.assistWalk(dt, intercept);
         assisted = true;
       }
@@ -335,7 +360,12 @@ export class Player {
       return;
     }
 
+    // The buffered press fires HERE and nowhere else: only once the hitboxes
+    // genuinely overlap. noteTouchState is re-run first because the assist
+    // walk above can create the touch within this very frame, and the log has
+    // to carry the moment it actually happened.
     if ((this.passBuffered || this.hitBuffered) && this.ballReachable(ball)) {
+      this.noteTouchState(ball);
       this.resolveContact(ball, teammatePos, mustCrossNet);
     }
   }
@@ -400,6 +430,8 @@ export class Player {
     if (input.pass) {
       this.passBuffered = true;
       this.passBufferAge = 0;
+      this.pressAtMs = this.clockMs;
+      this.pressAction = 'pass';
     } else if (this.passBuffered) {
       this.passBufferAge += dt;
       if (this.passBufferAge > INPUT_BUFFER_WINDOW) this.passBuffered = false;
@@ -408,24 +440,67 @@ export class Player {
     if (input.hit) {
       this.hitBuffered = true;
       this.hitBufferAge = 0;
+      this.pressAtMs = this.clockMs;
+      this.pressAction = 'notfall-schlag';
     } else if (this.hitBuffered) {
       this.hitBufferAge += dt;
       if (this.hitBufferAge > INPUT_BUFFER_WINDOW) this.hitBuffered = false;
     }
+
+    // A press that ran out of window is gone for good - it must never fire
+    // late, on a touch that happens after it expired. Only clears a Pass /
+    // Notfall press: a jump press has no buffer, it stays recorded for as long
+    // as the jump it started is in the air.
+    const bufferedPress = this.pressAction === 'pass' || this.pressAction === 'notfall-schlag';
+    if (bufferedPress && !this.passBuffered && !this.hitBuffered) {
+      this.pressAtMs = null;
+      this.pressAction = null;
+    }
   }
 
-  /** Whether the ball is a live target the player can react to right now:
-   * actually flying, within HIT_RANGE of the ball's *current* ground-plane
-   * position (never ball.target, the landing-point prediction), at a height
-   * the player can actually reach, and - crucially - not the very ball the
-   * player themselves just launched (a freshly-hit ball starts out colocated
-   * with the player, which would otherwise immediately re-trigger a "catch"
-   * on the very next frame). All three - distance, height, freshly-hit guard
-   * - must hold in the same frame; being close on the ground while the ball
-   * is still meters overhead is deliberately NOT enough (see CATCHABLE_HEIGHT). */
+  /**
+   * THE contact condition for every action the human player takes: the two
+   * hitboxes actually overlap.
+   *
+   * "Overlap" means what the screen shows. The renderer draws height as a
+   * y-offset - the ball at (pos.x, pos.y - ball.height), the player at
+   * (pos.x, pos.y - player.height) - so the gap the player sees between the
+   * two circles is the distance between those drawn centres, and they are
+   * touching exactly when that gap closes to PLAYER_RADIUS + BALL_RADIUS.
+   *
+   * This replaces the old "reach" test (ground distance <= HIT_RANGE 0.7 with
+   * ball height <= CATCHABLE_HEIGHT 2.0), which was far more generous than
+   * touching and is what made contact fire while the ball was still visibly
+   * away from the player. Measured on the old rule, a jump-smash connected
+   * with the ball drawn 0.911m from the player - nearly twice the 0.5m at
+   * which the circles meet.
+   *
+   * The freshly-hit guard stays: a ball the player just launched starts out
+   * inside their own hitbox, and without it every shot would immediately
+   * re-trigger a catch on the very next frame.
+   */
+  private hitboxesTouch(ball: Ball): boolean {
+    const dx = ball.pos.x - this.pos.x;
+    const dy = ball.pos.y - ball.height - (this.pos.y - this.height);
+    return Math.hypot(dx, dy) <= TOUCH_DISTANCE;
+  }
+
   private ballReachable(ball: Ball): boolean {
     if (ball.state !== 'flying' || ball.lastToucher === 'player') return false;
-    return distance(this.pos, ball.pos) <= HIT_RANGE && ball.height <= CATCHABLE_HEIGHT;
+    return this.hitboxesTouch(ball);
+  }
+
+  /** Keeps the "when did the hitboxes actually meet?" timestamp current, for
+   * the contact log. Called both at the top of the frame and again right
+   * before a contact fires, because the assist walk can create the touch
+   * within the very frame that plays it. Only ever sets the timestamp when it
+   * is unset, so the two calls cannot disagree. */
+  private noteTouchState(ball: Ball): void {
+    if (this.ballReachable(ball)) {
+      if (this.touchStartedAtMs === null) this.touchStartedAtMs = this.clockMs;
+    } else {
+      this.touchStartedAtMs = null;
+    }
   }
 
   /** Whether the player currently has the block wall up. Read by TeammateAI
@@ -511,27 +586,63 @@ export class Player {
     this.clearPendingInputs();
   }
 
-  /** Required debug trail for the "contact fires without the player actually
-   * being at the ball's current position/height" bug: logs, at the exact
-   * moment ANY contact actually fires, the live distance and height that
-   * satisfied ballReachable() - so a fix (or a regression) is verifiable from
-   * the console instead of taken on faith. Logged only on an actual fire,
-   * never on a rejected attempt (ball just keeps flying then, silently). */
+  /** Required debug trail for the "contact fires before the ball actually
+   * touches the player" bug. Logged at the exact moment a contact fires -
+   * never on a rejected attempt, which leaves the ball flying on silently.
+   *
+   * The four values the bug is judged by:
+   *   pressAtMs    when the button/key was pressed
+   *   touchAtMs    when the two hitboxes actually met
+   *   contactAtMs  when the contact was executed
+   *   pressToContactMs   contactAtMs - pressAtMs
+   *
+   * Read it like this: contactAtMs must NEVER be less than touchAtMs. Press
+   * early and contactAtMs equals touchAtMs (the press waited for the ball);
+   * press on the touch itself and all three coincide. Timestamps are on the
+   * simulation clock (ms since this Player was constructed), so they are
+   * reproducible rather than wall-clock noise; wallMs carries performance.now()
+   * alongside for anyone reading the live console.
+   *
+   * gapAtContact is the distance between the two circles as drawn, and
+   * touchesAt is where they meet - the geometric half of the same claim. */
   private logContact(action: string, ball: Ball): void {
-    console.log('[BallContact] player', action, {
-      distance: Number(distance(this.pos, ball.pos).toFixed(3)),
-      height: Number(ball.height.toFixed(3)),
-      hitRange: HIT_RANGE,
-      catchableHeight: CATCHABLE_HEIGHT,
-      conditionA_distanceOk: true,
-      conditionB_heightOk: true,
-      conditionC_inputActive: true,
-    });
+    const dx = ball.pos.x - this.pos.x;
+    const dy = ball.pos.y - ball.height - (this.pos.y - this.height);
+    const gap = Math.hypot(dx, dy);
+    const ms = (v: number | null) => (v === null ? 'n/a' : `${v.toFixed(1)}ms`);
+    // Emitted as one flat line first, because console object arguments get
+    // abbreviated by devtools and by automated console capture alike - the
+    // four values this bug is judged by have to survive that. The object
+    // follows for interactive inspection.
+    console.log(
+      `[BallContact] player ${action} | press=${ms(this.pressAtMs)} touch=${ms(this.touchStartedAtMs)} ` +
+        `contact=${ms(this.clockMs)} pressToContact=${
+          this.pressAtMs === null ? 'n/a' : `${(this.clockMs - this.pressAtMs).toFixed(1)}ms`
+        } gap=${gap.toFixed(3)}m (touch at ${TOUCH_DISTANCE.toFixed(3)}m)`,
+      {
+      pressedButton: this.pressAction,
+      pressAtMs: this.pressAtMs === null ? null : Number(this.pressAtMs.toFixed(1)),
+      touchAtMs: this.touchStartedAtMs === null ? null : Number(this.touchStartedAtMs.toFixed(1)),
+      contactAtMs: Number(this.clockMs.toFixed(1)),
+      pressToContactMs:
+        this.pressAtMs === null ? null : Number((this.clockMs - this.pressAtMs).toFixed(1)),
+      contactBeforeTouchMs:
+        this.touchStartedAtMs === null ? null : Number((this.touchStartedAtMs - this.clockMs).toFixed(1)),
+      gapAtContact: Number(gap.toFixed(3)),
+      touchesAt: TOUCH_DISTANCE,
+      groundDistance: Number(distance(this.pos, ball.pos).toFixed(3)),
+      ballHeight: Number(ball.height.toFixed(3)),
+      playerHeight: Number(this.height.toFixed(3)),
+      wallMs: Number(performance.now().toFixed(1)),
+      },
+    );
   }
 
   private clearPendingInputs(): void {
     this.passBuffered = false;
     this.hitBuffered = false;
+    this.pressAtMs = null;
+    this.pressAction = null;
   }
 
   /** Sprung-Schmetterschlag button: jumps from anywhere. If the ball's
@@ -543,6 +654,12 @@ export class Player {
       const intercept = closestPointOnSegment(this.pos, ball.pos, ball.target);
       if (distance(this.pos, intercept) <= JUMP_ASSIST_RANGE) target = intercept;
     }
+
+    // The jump press IS the press for a Schmetterschlag: contact happens when
+    // the ball meets the player in the air, so this is the timestamp the
+    // contact log has to measure that against.
+    this.pressAtMs = this.clockMs;
+    this.pressAction = 'schmetterschlag (Sprung)';
 
     this.approachStart = { ...this.pos };
     this.approachTarget = target;
@@ -564,7 +681,7 @@ export class Player {
     if (this.trySpikeOnDemand(input, ball)) return;
 
     if (this.ballReachable(ball)) {
-      this.enterSlowmoAim();
+      this.enterSlowmoAim(ball);
       return;
     }
 
@@ -578,9 +695,14 @@ export class Player {
     }
   }
 
-  private enterSlowmoAim(): void {
+  private enterSlowmoAim(ball: Ball): void {
     this.state = 'slowmo_aim';
     this.stateTimer = 0;
+    // The contact is made HERE - this is the frame the hitboxes met. Remember
+    // where the ball was, so resolveSpike can tell "still the same ball, still
+    // essentially here" from "that ball is long gone" (see
+    // SLOWMO_CONTACT_TOLERANCE).
+    this.spikeContactAt = { x: ball.pos.x, y: ball.pos.y - ball.height };
   }
 
   /** The flight the spike would take if struck this instant: launched from the
@@ -664,12 +786,14 @@ export class Player {
 
     // The ball isn't frozen during slowmo_aim (see GameState.update) - it
     // keeps creeping along its original flight, heavily slowed but not
-    // stopped, so a fast original shot (or a long aim window) can drift it
-    // back out of HIT_RANGE before this resolves. Re-check right here: no
-    // contact is ever allowed to fire from a position the player didn't
-    // actually reach - let the ball fly on untouched instead.
-    if (!this.ballReachable(ball)) {
+    // stopped. The contact itself was already made when the window opened, so
+    // what is re-checked here is not a fresh touch but whether this is still
+    // the same ball in essentially the same place: a fast shot can cover well
+    // over a metre even at slow-motion speed, and that ball is genuinely gone
+    // - let it fly on untouched rather than striking at thin air.
+    if (!this.spikeStillOnTheBall(ball)) {
       this.serving = false;
+      this.spikeContactAt = null;
       this.fallStartHeight = this.height;
       this.state = 'jumping_down';
       this.stateTimer = 0;
@@ -711,9 +835,25 @@ export class Player {
     }
 
     this.serving = false;
+    this.pressAtMs = null;
+    this.pressAction = null;
+    this.spikeContactAt = null;
     this.fallStartHeight = this.height;
     this.state = 'jumping_down';
     this.stateTimer = 0;
+  }
+
+  /** Whether the ball the aim window opened on is still there to be struck:
+   * still flying, still not ours, and still within SLOWMO_CONTACT_TOLERANCE of
+   * where it was at the moment of contact. Falls back to a strict touch if no
+   * contact point was recorded (the on-demand spike path, which fires the
+   * instant the hitboxes meet and has no window to drift across). */
+  private spikeStillOnTheBall(ball: Ball): boolean {
+    if (ball.state !== 'flying' || ball.lastToucher === 'player') return false;
+    if (this.spikeContactAt === null) return this.hitboxesTouch(ball);
+    const dx = ball.pos.x - this.spikeContactAt.x;
+    const dy = ball.pos.y - ball.height - this.spikeContactAt.y;
+    return Math.hypot(dx, dy) <= SLOWMO_CONTACT_TOLERANCE;
   }
 
   /** While airborne, the movement input stops being movement and becomes the
@@ -734,6 +874,9 @@ export class Player {
    * was played. */
   private trySpikeOnDemand(input: InputSnapshot, ball: Ball): boolean {
     if (!input.spike || !this.ballReachable(ball)) return false;
+    this.pressAtMs = this.clockMs;
+    this.pressAction = 'schmetterschlag';
+    this.noteTouchState(ball);
     this.resolveSpike(ball);
     return true;
   }
@@ -754,7 +897,7 @@ export class Player {
     // ballReachable's lastToucher guard is what stops this from immediately
     // re-triggering on the very ball this jump itself just fired.
     if (this.ballReachable(ball)) {
-      this.enterSlowmoAim();
+      this.enterSlowmoAim(ball);
       return;
     }
 
@@ -769,6 +912,12 @@ export class Player {
       // all (so resolveSpike never ran): the attempt is over, hand the UI
       // back. Without this the serve buttons would stay up forever.
       this.serving = false;
+      // The jump is over; its press must not be reported against some later
+      // contact.
+      if (this.pressAction !== 'pass' && this.pressAction !== 'notfall-schlag') {
+        this.pressAtMs = null;
+        this.pressAction = null;
+      }
     }
   }
 

@@ -81,37 +81,58 @@ test.describe('Bugfix 3: contact requires the ball to be at a catchable height, 
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
-    await stubOtherEntities(page, 'player');
 
-    await page.evaluate(() => {
-      const g = (window as any).__game;
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = 12; // exactly the ball's target below
-      g.state.ball.launch({ x: 4, y: 9.2 }, { x: 4, y: 12 }, { duration: 3, peakHeight: 2.5, toucher: null });
+    // Driven frame by frame with Pass held down the whole flight - the most
+    // generous input there is, so anything that fires early fires purely on
+    // geometry. (A real click cannot be used any more: INPUT_BUFFER_WINDOW is
+    // 180ms, far shorter than this 3s flight.)
+    const r = await page.evaluate(() => {
+      const g = (window as any).__game.state;
+      g.teammate.update = () => {};
+      for (const o of g.opponents) o.update = () => {};
+      g.awaitingServe = null;
+      const TOUCH = 0.5; // PLAYER_RADIUS + BALL_RADIUS
+      const noInput = {
+        move: { x: 0, y: 0 }, aim: null, swipe: null,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
+      };
+
+      g.player.state = 'active';
+      g.player.height = 0;
+      g.player.pos.x = 4;
+      g.player.pos.y = 12; // standing exactly on the ball's TARGET
+      g.ball.height = 0;
+      g.ball.launch({ x: 4, y: 9.2 }, { x: 4, y: 12 }, { duration: 3, peakHeight: 2.5, toucher: 'opponent1' });
+
+      let touchFrame = -1;
+      let contactFrame = -1;
+      let gapAtContact = null as number | null;
+      for (let i = 0; i < 250; i++) {
+        const gap = Math.hypot(
+          g.ball.pos.x - g.player.pos.x,
+          g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+        );
+        if (touchFrame < 0 && gap <= TOUCH) touchFrame = i;
+        const before = g.ball.lastToucher;
+        g.player.update(0.016, { ...noInput, pass: true }, g.ball, g.teammate.pos, false);
+        if (before !== 'player' && g.ball.lastToucher === 'player' && contactFrame < 0) {
+          contactFrame = i;
+          gapAtContact = Math.hypot(
+            g.ball.pos.x - g.player.pos.x,
+            g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+          );
+        }
+        g.ball.update(0.016);
+      }
+      return { touchFrame, contactFrame, gapAtContact, toucher: g.ball.lastToucher };
     });
-    await tapButton(page, 'pass-btn');
 
-    // Early on, the ball is nowhere near the player's live position (they're
-    // standing at the *target*, not the ball) - must not fire.
-    await page.waitForTimeout(600);
-    const early = await page.evaluate(() => ({
-      lastToucher: (window as any).__game.state.ball.lastToucher,
-      distance: Math.hypot(
-        (window as any).__game.state.ball.pos.x - (window as any).__game.state.player.pos.x,
-        (window as any).__game.state.ball.pos.y - (window as any).__game.state.player.pos.y,
-      ),
-    }));
-    expect(early.lastToucher).toBeNull();
-    expect(early.distance).toBeGreaterThan(1); // sanity: genuinely still far away
-
-    // Ball geometry here (start 9.2, target/player at 12, HIT_RANGE 0.7) puts
-    // the earliest possible catch around u=0.75 of the 3s flight (~2.25s) -
-    // re-press right before that so the 1.2s Pass buffer is still fresh.
-    await page.waitForTimeout(1300);
-    await tapButton(page, 'pass-btn');
-    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 2500,
-    });
+    // Standing on the landing spot does not mean standing on the ball: the
+    // contact waits for the ball to actually arrive, most of the flight later.
+    expect(r.touchFrame).toBeGreaterThan(30); // sanity: it really was far away for a long time
+    expect(r.contactFrame).toBe(r.touchFrame);
+    expect(r.gapAtContact!).toBeLessThanOrEqual(0.5);
+    expect(r.toucher).toBe('player');
   });
 
   test('teammate: never catches while the ball is above CATCHABLE_HEIGHT, even though it walks toward it the whole time', async ({
@@ -192,24 +213,45 @@ test.describe('Bugfix 3: contact requires the ball to be at a catchable height, 
     }
   });
 
-  test('normal catch still resolves correctly once distance and height are both actually satisfied', async ({
-    page,
-  }) => {
+  test('normal catch still resolves correctly once the hitboxes actually meet', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
-    await stubOtherEntities(page, 'player');
 
-    await page.evaluate(() => {
-      const g = (window as any).__game;
-      g.state.player.pos.x = 4;
-      g.state.player.pos.y = 12;
-      // Low, slow flight - stays within CATCHABLE_HEIGHT for most of it.
-      g.state.ball.launch({ x: 4, y: 9 }, { x: 4, y: 12 }, { duration: 1.5, peakHeight: 1, toucher: null });
-    });
-    await tapButton(page, 'pass-btn');
+    const r = await page.evaluate(() => {
+      const g = (window as any).__game.state;
+      g.teammate.update = () => {};
+      for (const o of g.opponents) o.update = () => {};
+      g.awaitingServe = null;
+      const noInput = {
+        move: { x: 0, y: 0 }, aim: null, swipe: null,
+        jump: false, spike: false, pass: false, block: false, hit: false, serve: false,
+      };
 
-    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
-      timeout: 3000,
+      g.player.state = 'active';
+      g.player.height = 0;
+      g.player.pos.x = 4;
+      g.player.pos.y = 12;
+      g.ball.height = 0;
+      // Low, slow flight that comes right down onto the player.
+      g.ball.launch({ x: 4, y: 9 }, { x: 4, y: 12 }, { duration: 1.5, peakHeight: 1, toucher: 'opponent1' });
+
+      let gapAtContact = null as number | null;
+      for (let i = 0; i < 200 && gapAtContact === null; i++) {
+        const before = g.ball.lastToucher;
+        g.player.update(0.016, { ...noInput, pass: true }, g.ball, g.teammate.pos, false);
+        if (before !== 'player' && g.ball.lastToucher === 'player') {
+          gapAtContact = Math.hypot(
+            g.ball.pos.x - g.player.pos.x,
+            g.ball.pos.y - g.ball.height - (g.player.pos.y - g.player.height),
+          );
+        }
+        g.ball.update(0.016);
+      }
+      return { gapAtContact, toucher: g.ball.lastToucher, target: { ...g.ball.target } };
     });
+
+    expect(r.toucher).toBe('player');
+    expect(r.gapAtContact!).toBeLessThanOrEqual(0.5); // and only once genuinely touching
+    expect(r.target.y).toBeGreaterThan(8); // a pass, so it stays on our own side
   });
 });

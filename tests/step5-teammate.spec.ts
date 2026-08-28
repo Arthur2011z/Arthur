@@ -132,7 +132,12 @@ test.describe('Step 5: AI teammate home/base logic', () => {
       g.state.teammate.pos.x = 4;
       g.state.teammate.pos.y = 10; // 5m from the player - well beyond a short pass
       g.state.teammate.state = 'home';
-      g.state.ball.launch({ x: 4, y: 14.7 }, { x: 4, y: 4 }, { duration: 5, peakHeight: 3, toucher: null });
+      // A ball at the player's feet rather than one leaving on a 3m arc:
+      // contact now needs the two hitboxes to actually overlap, and an arc
+      // lifts the ball out of the player's hitbox within a few frames - long
+      // before a real button click lands.
+      g.state.ball.height = 0;
+      g.state.ball.launch({ x: 4, y: 15 }, { x: 4, y: 15.1 }, { duration: 6, peakHeight: 0.08, toucher: null });
       // Pin the shot choice to the safe attacking hit, so this test is about
       // the emergency misread and not about the spike/hit roll.
       (window as any).__setRandom(() => 0.99);

@@ -50,8 +50,8 @@ eigenständige Seite verteilen.
   gebraucht wird. Er beschleunigt ausschließlich die Bewegung, die ohnehin stattfindet —
   die Richtung des Steuerknüppels oder die bestehende leichte Korrekturbewegung. Er
   steuert nichts, vergrößert keine Reichweite und ändert nichts daran, dass ein
-  Ballkontakt nur bei tatsächlicher Berührung zustande kommt: er hilft nur, schneller
-  hinzukommen. Das ersetzt das entfernte Hechten als Hilfe für Bälle, die knapp außerhalb
+  Ballkontakt nur bei tatsächlicher Berührung zustande kommt (siehe Ballkontakt unten):
+  er hilft nur, schneller hinzukommen. Das ersetzt das entfernte Hechten als Hilfe für Bälle, die knapp außerhalb
   der bequemen Reichweite liegen.
 - **Aufschlag-Knopf**: erscheint nur im Aufschlag-Modus, und dann als **einziger**
   Knopf — die vier normalen Aktions-Knöpfe sind so lange komplett ausgeblendet.
@@ -79,6 +79,30 @@ Touch und Tastatur sind gleichzeitig aktiv, keins schaltet das andere ab.
 
 Im Aufschlag-Modus lösen `Leertaste` und `Q` stattdessen den Aufschlag aus, und
 `A`/`D` schieben den Spieler seitlich an der Grundlinie entlang (`W`/`S` tun nichts).
+
+### Ballkontakt
+
+Eine Aktion wird **nie** beim Tastendruck ausgeführt, sondern ausschließlich in dem
+Moment, in dem sich Ball- und Spieler-Hitbox tatsächlich berühren — also wenn der
+Abstand der beiden gezeichneten Kreise auf `PLAYER_RADIUS + BALL_RADIUS = 0,50 m`
+schrumpft. (Höhe wird im Spiel als y-Versatz gezeichnet, deshalb ist das exakt der
+Abstand, den man auf dem Bildschirm sieht.)
+
+Damit man nicht framegenau treffen muss, wird ein Druck **180 ms** lang gemerkt:
+
+- Druck kurz **vor** der Berührung → wird gepuffert und feuert **im Moment der
+  Berührung**, nicht früher.
+- Druck **genau** bei der Berührung → feuert sofort.
+- Druck **außerhalb** des Fensters → verfällt wirkungslos, auch wenn der Ball danach
+  noch ankommt.
+
+Jeder Kontakt schreibt eine Zeile in die Browser-Konsole mit Tastendruck-, Berührungs-
+und Kontakt-Zeitstempel sowie dem Abstand beim Kontakt — der Fix ist damit jederzeit
+nachprüfbar statt Glaubenssache.
+
+Der Block ist davon ausgenommen: er ist eine Wand mit eigener Zonen-Regel am Netz. Die
+KI (Mitspieler und Gegner) behält ihre bisherige, großzügigere Reichweite — sie hat
+weder Puffer noch Tempo-Schub zum Ausgleich.
 
 ## Spielregeln
 

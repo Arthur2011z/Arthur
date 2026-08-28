@@ -1,12 +1,18 @@
 import { test, expect, Page } from '@playwright/test';
 import { distIndex } from './helpers';
 
-async function launchBall(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, duration: number) {
+async function launchBall(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  duration: number,
+  peakHeight = 3,
+) {
   await page.evaluate(
-    ({ from, to, duration }) => {
-      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight: 3, toucher: null });
+    ({ from, to, duration, peakHeight }) => {
+      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight, toucher: null });
     },
-    { from, to, duration },
+    { from, to, duration, peakHeight },
   );
 }
 
@@ -41,7 +47,12 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
     });
 
     await teleportPlayer(page, { x: 1, y: 15 });
-    await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
+    // A ball creeping along at the player's feet: the two hitboxes are
+    // genuinely overlapping for the whole test, which is what contact now
+    // requires. (The old setup sent the ball away on a 3m arc, so it was only
+    // touching for the first few frames - fine under the previous "reach"
+    // rule, never under a real touch.)
+    await launchBall(page, { x: 1, y: 15 }, { x: 1, y: 15.1 }, 6, 0.08);
     await tapButton(page, 'pass-btn');
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {
@@ -56,7 +67,12 @@ test.describe('Volleyball-Regel: höchstens 3 Kontakte pro Team', () => {
     await page.goto(distIndex);
 
     await teleportPlayer(page, { x: 1, y: 15 });
-    await launchBall(page, { x: 1, y: 14.7 }, { x: 1, y: 4 }, 5);
+    // A ball creeping along at the player's feet: the two hitboxes are
+    // genuinely overlapping for the whole test, which is what contact now
+    // requires. (The old setup sent the ball away on a 3m arc, so it was only
+    // touching for the first few frames - fine under the previous "reach"
+    // rule, never under a real touch.)
+    await launchBall(page, { x: 1, y: 15 }, { x: 1, y: 15.1 }, 6, 0.08);
     await tapButton(page, 'pass-btn');
 
     await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'player', undefined, {

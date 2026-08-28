@@ -19,7 +19,11 @@ async function getState(page: Page) {
 async function launchBall(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, duration: number) {
   await page.evaluate(
     ({ from, to, duration }) => {
-      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight: 3, toucher: null });
+      // Reset the carried-over height first - Ball.launch folds whatever
+      // height the ball already had into the new flight, which on a page that
+      // has already run a case lifts the ball out of the player's hitbox.
+      (window as any).__game.state.ball.height = 0;
+      (window as any).__game.state.ball.launch(from, to, { duration, peakHeight: 0.3, toucher: null });
     },
     { from, to, duration },
   );
