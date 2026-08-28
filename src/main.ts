@@ -1,9 +1,11 @@
 import './style.css';
 import { Court } from './game/Court';
+import { debugLog } from './game/Debug';
 import { GameLoop } from './game/GameLoop';
 import { GameState } from './game/GameState';
 import { Hud } from './game/Hud';
 import { Renderer } from './game/Renderer';
+import { simulate } from './game/Physics';
 import { InputManager } from './input/InputManager';
 
 const viewportEl = document.getElementById('viewport') as HTMLDivElement;
@@ -26,13 +28,16 @@ function draw(): void {
   renderer.clear(ctx, court);
   renderer.drawCourt(ctx, court);
   for (const athlete of gameState.athletes) renderer.drawAthlete(ctx, court, athlete);
-  // The net is drawn last so figures standing right at it pass behind the
-  // mesh, which is what sells it as a real vertical obstacle.
+  // The net is drawn after the figures so anyone standing right at it passes
+  // behind the mesh, which is what sells it as a real vertical obstacle. The
+  // ball goes on top of everything: it is the one thing that must never be
+  // hidden.
   renderer.drawNet(ctx, court);
+  renderer.drawBall(ctx, court, gameState.ball);
 }
 
-const loop = new GameLoop((dt) => {
-  gameState.update(dt, input.snapshot());
+const loop = new GameLoop((dt, nowMs) => {
+  gameState.update(dt, input.snapshot(), nowMs);
   renderer.advance(dt);
   hud.update(gameState.score, gameState.phase, gameState.winner);
   hud.setHint(input.mode);
@@ -48,7 +53,13 @@ loop.start();
 // single-file build, never sent anywhere.
 declare global {
   interface Window {
-    __game?: { state: GameState; court: Court; input: InputManager };
+    __game?: {
+      state: GameState;
+      court: Court;
+      input: InputManager;
+      debug: typeof debugLog;
+      simulate: typeof simulate;
+    };
   }
 }
-window.__game = { state: gameState, court, input };
+window.__game = { state: gameState, court, input, debug: debugLog, simulate };

@@ -1,4 +1,4 @@
-import { ActionType } from './actions';
+import { ActionType, PressedAction } from './actions';
 
 export type ButtonMode = 'play' | 'serve';
 
@@ -84,7 +84,7 @@ const SERVE_BUTTON: ButtonSpec = {
  * code path down to the actual ball contact.
  */
 export class Buttons {
-  private readonly pressed = new Set<ActionType>();
+  private pressed: PressedAction[] = [];
   private readonly playEls: HTMLButtonElement[];
   private readonly serveEl: HTMLButtonElement;
   private mode: ButtonMode = 'play';
@@ -105,9 +105,9 @@ export class Buttons {
   }
 
   /** Edge-triggered read: the actions newly pressed since the last call. */
-  consumePressed(): ActionType[] {
-    const actions = [...this.pressed];
-    this.pressed.clear();
+  consumePressed(): PressedAction[] {
+    const actions = this.pressed;
+    this.pressed = [];
     return actions;
   }
 
@@ -137,7 +137,7 @@ export class Buttons {
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation(); // never let a button press start a swipe as well
-      this.pressed.add(spec.action);
+      this.pressed.push({ action: spec.action, at: performance.now() });
       this.onActivity();
     });
 

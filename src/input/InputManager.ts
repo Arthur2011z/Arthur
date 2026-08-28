@@ -1,7 +1,7 @@
 import { Court } from '../game/Court';
 import { Vec2, length, normalize } from '../utils/math';
 import { AIM_DEADZONE } from '../game/constants';
-import { ActionType, InputMode, InputSnapshot, SwipeSample } from './actions';
+import { InputMode, InputSnapshot, PressedAction, SwipeSample } from './actions';
 import { ButtonMode, Buttons } from './Buttons';
 import { Joystick } from './Joystick';
 import { Keyboard } from './Keyboard';
@@ -61,10 +61,10 @@ export class InputManager {
   }
 
   snapshot(): InputSnapshot {
-    const pressed: ActionType[] = [
+    const pressed: PressedAction[] = [
       ...this.buttons.consumePressed(),
       ...this.keyboard.consumePressed(),
-    ];
+    ].sort((a, b) => a.at - b.at);
 
     // Touch and keyboard directions are both read every frame; whichever is
     // actually being used is non-zero, so no arbitration is needed.

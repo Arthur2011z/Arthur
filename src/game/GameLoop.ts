@@ -4,7 +4,7 @@ export class GameLoop {
   private rafId = 0;
   private lastTime = 0;
 
-  constructor(private readonly tick: (dt: number) => void) {}
+  constructor(private readonly tick: (dt: number, nowMs: number) => void) {}
 
   start(): void {
     this.lastTime = performance.now();
@@ -18,7 +18,7 @@ export class GameLoop {
   private frame = (time: number): void => {
     const dt = Math.min((time - this.lastTime) / 1000, 0.05);
     this.lastTime = time;
-    this.tick(dt);
+    this.tick(dt, time);
     this.rafId = requestAnimationFrame(this.frame);
   };
 }

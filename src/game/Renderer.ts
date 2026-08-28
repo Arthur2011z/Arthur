@@ -1,7 +1,15 @@
 import { Athlete } from '../entities/Athlete';
+import { Ball } from '../entities/Ball';
 import { Vec2 } from '../utils/math';
 import { Court } from './Court';
-import { COURT_LENGTH, COURT_WIDTH, NET_HEIGHT, NET_Y, Z_SCREEN_FACTOR } from './constants';
+import {
+  BALL_RADIUS,
+  COURT_LENGTH,
+  COURT_WIDTH,
+  NET_HEIGHT,
+  NET_Y,
+  Z_SCREEN_FACTOR,
+} from './constants';
 
 const SURROUND_COLOR = '#0b3d5c';
 const SAND_COLOR = '#e8c481';
@@ -11,6 +19,7 @@ const NET_POST_COLOR = '#3b2f2a';
 const NET_MESH_COLOR = 'rgba(28, 28, 28, 0.55)';
 const NET_TAPE_COLOR = '#f4f4f0';
 const SHADOW_COLOR = 'rgba(0, 0, 0, 0.22)';
+const BALL_COLOR = '#fbfaf5';
 
 const TEAM_COLORS: Record<string, string> = {
   player: '#e63946',
@@ -172,6 +181,40 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(feet.x, headY - headR * 0.3, headR, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /** The ball plus a ground shadow. The shadow is the anchor: it sits at the
+   * ball's true court position, so its distance from the ball itself is the
+   * only reliable read of how high the ball currently is. */
+  drawBall(ctx: CanvasRenderingContext2D, court: Court, ball: Ball): void {
+    if (ball.state === 'dead' && ball.pos.z <= BALL_RADIUS * 1.01) {
+      // Resting in the sand: just a flat mark, no floating ball.
+      const rest = court.toScreen(ball.ground);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      ctx.beginPath();
+      ctx.ellipse(rest.x, rest.y, BALL_RADIUS * court.scale, BALL_RADIUS * court.scale * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const ground = court.toScreen(ball.ground);
+    const air = court.toScreenElevated(ball.ground, ball.pos.z);
+    const r = BALL_RADIUS * court.scale;
+
+    // Shadow shrinks and fades as the ball climbs - a second, redundant cue so
+    // height stays readable even when the ball overlaps a figure.
+    const shrink = 1 / (1 + ball.pos.z * 0.22);
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.26 * shrink})`;
+    ctx.beginPath();
+    ctx.ellipse(ground.x, ground.y, r * shrink, r * shrink * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = BALL_COLOR;
+    ctx.beginPath();
+    ctx.arc(air.x, air.y, r * (1 + ball.pos.z * 0.03), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = Math.max(1, r * 0.16);
+    ctx.stroke();
   }
 
   private drawArms(

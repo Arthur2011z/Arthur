@@ -10,6 +10,17 @@ export type ActionType = 'pass' | 'emergency' | 'block' | 'jump';
 
 export type InputMode = 'touch' | 'keyboard';
 
+/**
+ * A press, stamped at the moment the DOM event fired rather than at the next
+ * frame. The contact log measures how long a player waited for the ball, so
+ * that figure has to start from the real key-down, not from up to a frame
+ * later.
+ */
+export interface PressedAction {
+  action: ActionType;
+  at: number;
+}
+
 export interface SwipeSample {
   /** Court-space direction of the swipe. */
   dir: Vec2;
@@ -24,8 +35,8 @@ export interface InputSnapshot {
   /** Court-space aim direction currently held, or null if none. While airborne
    * this steers the spike instead of the player. */
   aim: Vec2 | null;
-  /** Actions newly pressed this frame. */
-  pressed: ActionType[];
+  /** Actions newly pressed this frame, with their real press timestamps. */
+  pressed: PressedAction[];
   /** Live swipe currently in progress (touch aiming during slow motion). */
   swipe: SwipeSample | null;
   /** Set on the single frame a swipe was released - the touch equivalent of

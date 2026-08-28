@@ -72,6 +72,36 @@ export const HUMAN_HOMES: Vec2[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Ball physics. The ball is a real projectile: it carries a velocity and falls
+// under gravity. Nothing anywhere sets its position directly while it is live,
+// which is what keeps the flight path continuous and makes the trajectory
+// preview (see Physics.simulate) exact rather than approximate.
+// ---------------------------------------------------------------------------
+export const GRAVITY = 9.81;
+
+/** Fixed integration step. Small enough that a 20 m/s spike advances under
+ * 9cm per step, so it can never tunnel through a player, the net or the sand
+ * between two frames. */
+export const PHYSICS_SUBSTEP = 1 / 240;
+
+/** Safety cap on how long a single flight may be simulated, for the
+ * trajectory preview and as a stuck-ball guard. */
+export const MAX_FLIGHT_TIME = 8;
+
+// ---------------------------------------------------------------------------
+// Ball contact
+// ---------------------------------------------------------------------------
+/** How long a press is remembered while waiting for the ball to arrive. Short
+ * enough that it never feels like the game is playing itself, long enough that
+ * nobody has to hit a single frame. */
+export const INPUT_BUFFER_MS = 180;
+
+/** After a successful contact, the same ball cannot be touched again for this
+ * long - the striker is still standing inside the ball's hitbox for a few
+ * frames after sending it away. */
+export const CONTACT_LOCK = 0.12;
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 export const WIN_SCORE = 21;

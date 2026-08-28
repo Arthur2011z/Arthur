@@ -1,5 +1,5 @@
 import { Vec2, normalize } from '../utils/math';
-import { ActionType } from './actions';
+import { ActionType, PressedAction } from './actions';
 
 /** Keys that trigger an action once per press (no auto-repeat). */
 const ACTION_KEYS: Record<string, ActionType> = {
@@ -17,7 +17,7 @@ const ACTION_KEYS: Record<string, ActionType> = {
  */
 export class Keyboard {
   private readonly held = new Set<string>();
-  private readonly pressed = new Set<ActionType>();
+  private pressed: PressedAction[] = [];
 
   constructor(private readonly onActivity: () => void) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -36,9 +36,9 @@ export class Keyboard {
   }
 
   /** Edge-triggered read: the actions newly pressed since the last call. */
-  consumePressed(): ActionType[] {
-    const actions = [...this.pressed];
-    this.pressed.clear();
+  consumePressed(): PressedAction[] {
+    const actions = this.pressed;
+    this.pressed = [];
     return actions;
   }
 
@@ -53,7 +53,7 @@ export class Keyboard {
     const action = ACTION_KEYS[e.code];
     // repeat guard: holding a key must not machine-gun the action, but must
     // still keep the movement key registered as held.
-    if (action && !e.repeat) this.pressed.add(action);
+    if (action && !e.repeat) this.pressed.push({ action, at: performance.now() });
     this.held.add(e.code);
     if (action || e.code.startsWith('Key') || e.code.startsWith('Arrow')) {
       e.preventDefault();
