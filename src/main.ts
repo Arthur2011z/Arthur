@@ -34,7 +34,9 @@ function draw(): void {
   // hidden.
   renderer.drawNet(ctx, court);
   renderer.drawBlockZone(ctx, court, gameState.player);
+  renderer.drawAimPath(ctx, court, gameState.aimPreview());
   renderer.drawBall(ctx, court, gameState.ball);
+  renderer.drawSlowMotionTint(ctx, court, gameState.timeScale < 1);
 }
 
 const loop = new GameLoop((dt, nowMs) => {

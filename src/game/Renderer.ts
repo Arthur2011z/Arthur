@@ -1,7 +1,7 @@
 import { Athlete } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
 import { Player } from '../entities/Player';
-import { Vec2 } from '../utils/math';
+import { Vec2, Vec3 } from '../utils/math';
 import { Court } from './Court';
 import {
   BALL_RADIUS,
@@ -23,6 +23,9 @@ const SHADOW_COLOR = 'rgba(0, 0, 0, 0.22)';
 const BALL_COLOR = '#fbfaf5';
 const BLOCK_ZONE_FILL = 'rgba(255, 255, 255, 0.30)';
 const BLOCK_ZONE_EDGE = 'rgba(255, 255, 255, 0.85)';
+const AIM_LINE_COLOR = 'rgba(255, 255, 255, 0.92)';
+const AIM_GLOW_COLOR = 'rgba(255, 255, 255, 0.28)';
+const SLOWMO_TINT = 'rgba(120, 190, 255, 0.12)';
 
 const TEAM_COLORS: Record<string, string> = {
   player: '#e63946',
@@ -212,6 +215,53 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
     ctx.restore();
+  }
+
+  /**
+   * The glowing line shown while aiming an attack: the actual flight the ball
+   * would take if it were struck right now, produced by running the same
+   * integrator the live ball uses. It bends under gravity because it is a real
+   * parabola, not a straight line drawn toward a target, and it updates every
+   * frame as the aim and the ball both move.
+   */
+  drawAimPath(ctx: CanvasRenderingContext2D, court: Court, path: Vec3[] | null): void {
+    if (!path || path.length < 2) return;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    path.forEach((p, i) => {
+      const s = court.toScreenElevated(p, p.z);
+      if (i === 0) ctx.moveTo(s.x, s.y);
+      else ctx.lineTo(s.x, s.y);
+    });
+    // Two passes: a soft wide glow, then a crisp core on top.
+    ctx.strokeStyle = AIM_GLOW_COLOR;
+    ctx.lineWidth = Math.max(6, court.scale * 0.22);
+    ctx.stroke();
+    ctx.strokeStyle = AIM_LINE_COLOR;
+    ctx.lineWidth = Math.max(2, court.scale * 0.07);
+    ctx.stroke();
+
+    // Where it would come down.
+    const end = path[path.length - 1];
+    const mark = court.toScreen(end);
+    const r = court.scale * 0.35;
+    ctx.strokeStyle = AIM_LINE_COLOR;
+    ctx.lineWidth = Math.max(2, court.scale * 0.05);
+    ctx.beginPath();
+    ctx.arc(mark.x, mark.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** A gentle wash over the court while the world is slowed down, so the
+   * aiming phase is unmistakable. */
+  drawSlowMotionTint(ctx: CanvasRenderingContext2D, court: Court, active: boolean): void {
+    if (!active) return;
+    ctx.fillStyle = SLOWMO_TINT;
+    ctx.fillRect(0, 0, court.viewport.x, court.viewport.y);
   }
 
   /** The ball plus a ground shadow. The shadow is the anchor: it sits at the

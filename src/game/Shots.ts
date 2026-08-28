@@ -20,8 +20,22 @@ import {
   PASS_SPEED_JITTER,
   PASS_SPREAD_RAD,
   PASS_TIME,
+  SPIKE_DEEP_DEPTH,
+  SPIKE_LATERAL,
+  SPIKE_POWER_RANGE,
+  SPIKE_SHORT_DEPTH,
+  SPIKE_SPEED_JITTER,
+  SPIKE_SPEED_MAX,
+  SPIKE_SPEED_MIN,
+  SPIKE_SPREAD_RAD,
+  SPIKE_SWIPE_INFLUENCE,
 } from './constants';
-import { applySpread, velocityOverNet, velocityToAirTarget } from './Physics';
+import {
+  applySpread,
+  velocityOverNet,
+  velocityToAirTarget,
+  velocityToTarget,
+} from './Physics';
 
 /** Unit vector from an athlete's own half toward the net, in court space. */
 export const towardNet = (athlete: Athlete): Vec2 =>
@@ -48,16 +62,75 @@ export function passShot(passer: Athlete, ball: Ball, partner: Athlete): Vec3 {
 }
 
 /**
- * Notfall: a plain shot over the net, playable from anywhere on the court.
+ * Where a spike is aimed, given a direction and the attacker.
  *
- * The held direction steers it: sideways moves it cross-court, pushing toward
- * the net drops it short, pulling back sends it deep. With nothing held it
- * goes straight ahead into the middle of the far half.
- *
- * The aimed target is kept inside the lines - that is what the player meant -
- * but the shot itself is scattered afterwards and never corrected, so a
- * mis-hit can and does land out.
+ * Sideways aim moves it cross-court; pushing toward the net drops it short,
+ * pulling back sends it deep. The result is deliberately *not* clamped to the
+ * court: aiming at the very edge has to be able to miss, or aiming would carry
+ * no risk and picking a corner would be free.
  */
+export function spikeTarget(attacker: Athlete, from: Vec3, aim: Vec2 | null): Vec2 {
+  const forward = towardNet(attacker);
+  const push = aim ? clamp(dot(aim, forward), -1, 1) : 0;
+  const depth = SPIKE_SHORT_DEPTH + ((1 - push) / 2) * (SPIKE_DEEP_DEPTH - SPIKE_SHORT_DEPTH);
+  const lateral = aim ? clamp(aim.x, -1, 1) : 0;
+
+  return {
+    x: from.x + lateral * SPIKE_LATERAL,
+    y: NET_Y + forward.y * depth,
+  };
+}
+
+/**
+ * How hard a spike is hit. The dominant term is how close to the net the
+ * attacker took off - close in is a dangerous, fast ball, from deep it is
+ * something the defence has time to read. On touch, the length of the swipe
+ * trims it a little either way.
+ */
+export function spikePower(netDistanceAtTakeoff: number, swipeStrength: number | null): number {
+  const closeness = clamp(1 - netDistanceAtTakeoff / SPIKE_POWER_RANGE, 0, 1);
+  const base = SPIKE_SPEED_MIN + closeness * (SPIKE_SPEED_MAX - SPIKE_SPEED_MIN);
+  if (swipeStrength === null) return base;
+  return base * (1 + (swipeStrength - 0.5) * SPIKE_SWIPE_INFLUENCE);
+}
+
+/**
+ * The spike itself: it travels to `target` at the speed the power dictates,
+ * and the flight time follows from those two rather than being chosen. Aim
+ * decides where, power decides how quickly it gets there - which is exactly
+ * how little time the defence has to react.
+ *
+ * A weak shot aimed deep therefore arcs; a hard one aimed short is driven
+ * almost straight down. Both are real projectile flights, and neither is
+ * corrected afterwards.
+ */
+export function spikeVelocity(from: Vec3, target: Vec2, speed: number): Vec3 {
+  const distance = Math.hypot(target.x - from.x, target.y - from.y);
+  const time = Math.max(0.12, distance / Math.max(1, speed));
+  return velocityToTarget(from, target, time);
+}
+
+/**
+ * A spike, aimed and scattered, ready to hand to Ball.strike().
+ *
+ * `scatter` scales the randomness: the aiming preview passes 0 to draw the
+ * intended flight, since the scatter is not knowable before the swing, and
+ * everything else leaves it at 1.
+ */
+export function spikeShot(
+  attacker: Athlete,
+  ball: Ball,
+  aim: Vec2 | null,
+  netDistanceAtTakeoff: number,
+  swipeStrength: number | null,
+  scatter = 1,
+): Vec3 {
+  const target = spikeTarget(attacker, ball.pos, aim);
+  const speed = spikePower(netDistanceAtTakeoff, swipeStrength);
+  const velocity = spikeVelocity(ball.pos, target, speed);
+  return applySpread(velocity, SPIKE_SPREAD_RAD * scatter, SPIKE_SPEED_JITTER * scatter);
+}
+
 /**
  * Block: the ball is rejected rather than played. It goes straight back the
  * way it came, driven downward, and reads nothing like a normal dig.
@@ -81,6 +154,17 @@ export function blockShot(blocker: Athlete, ball: Ball): Vec3 {
   };
 }
 
+/**
+ * Notfall: a plain shot over the net, playable from anywhere on the court.
+ *
+ * The held direction steers it: sideways moves it cross-court, pushing toward
+ * the net drops it short, pulling back sends it deep. With nothing held it
+ * goes straight ahead into the middle of the far half.
+ *
+ * The aimed target is kept inside the lines - that is what the player meant -
+ * but the shot itself is scattered afterwards and never corrected, so a
+ * mis-hit can and does land out.
+ */
 export function emergencyShot(hitter: Athlete, ball: Ball, aim: Vec2 | null): Vec3 {
   const forward = towardNet(hitter);
 

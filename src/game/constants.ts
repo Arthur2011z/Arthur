@@ -166,6 +166,49 @@ export const BLOCK_WIDTH_BONUS = 0.18;
  * the net, not scooped from underneath it. */
 export const BLOCK_FLOOR = NET_HEIGHT;
 
+// ---------------------------------------------------------------------------
+// Attack jump and the aiming phase.
+// ---------------------------------------------------------------------------
+export const JUMP_RISE_TIME = 0.3;
+export const JUMP_HANG_TIME = 0.3;
+export const JUMP_FALL_TIME = 0.28;
+export const JUMP_PEAK_HEIGHT = 1;
+export const JUMP_COOLDOWN = 0.25;
+
+/** How far the take-off may pull the player toward where the ball will be.
+ * Position help only - the *timing* of the jump is entirely the player's. */
+export const JUMP_ASSIST_RANGE = 1;
+
+/** Slow motion at the top of the jump. Measured in real seconds, because it
+ * exists to give the player thinking time, and applied to the whole world so
+ * nobody gains an advantage from it. */
+export const SLOWMO_SCALE = 0.25;
+export const SLOWMO_MAX_REAL = 1.2;
+/** Only slows down if the ball is actually within reach of this jump -
+ * otherwise every hop would stutter the game for no reason. */
+export const SLOWMO_TRIGGER_RANGE = 3;
+
+// ---------------------------------------------------------------------------
+// Spike. Power comes primarily from how close to the net the attacker took
+// off; on touch, the length of the swipe trims it a little either way.
+// ---------------------------------------------------------------------------
+export const SPIKE_SPEED_MIN = 9;
+export const SPIKE_SPEED_MAX = 19;
+/** Distance from the net over which the power falls from max to min. */
+export const SPIKE_POWER_RANGE = 4;
+/** Total swing a full-length swipe has on the power, as a fraction. */
+export const SPIKE_SWIPE_INFLUENCE = 0.3;
+
+/** How far the aim reaches sideways and how short/deep it can be placed.
+ * These are deliberately *not* clamped to the court: aiming at the very edge
+ * has to be able to miss, or aiming would carry no risk at all. */
+export const SPIKE_LATERAL = 4.5;
+export const SPIKE_SHORT_DEPTH = 1.8;
+export const SPIKE_DEEP_DEPTH = 8;
+
+export const SPIKE_SPREAD_RAD = 0.06;
+export const SPIKE_SPEED_JITTER = 0.05;
+
 /** Fraction of the incoming speed sent back, and the floor under it so a soft
  * ball is still returned with authority. */
 export const BLOCK_DAMPING = 0.55;

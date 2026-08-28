@@ -29,17 +29,34 @@ export function ballTouches(ball: Ball, athlete: Athlete): boolean {
  * there is no code path from "button pressed" to "ball moves" that does not go
  * through a real, physical overlap.
  */
+export interface Clock {
+  /** Wall-clock milliseconds (performance.now). What the log reports. */
+  wallMs: number;
+  /**
+   * Milliseconds of *game* time, which runs slower during the aiming phase.
+   *
+   * The buffer ages on this rather than on wall time on purpose. The 180ms is
+   * really a budget for how far the ball may travel before the input goes
+   * stale, and during slow motion the ball travels four times slower. Ageing
+   * on wall time would silently shrink the window to a quarter of itself at
+   * exactly the moment the player is being invited to take their time and aim.
+   */
+  gameMs: number;
+}
+
 export class IntentBuffer {
   private action: ActionType | null = null;
-  private pressedAt = 0;
+  private pressedWallMs = 0;
+  private pressedGameMs = 0;
 
   constructor(private readonly owner: Athlete) {}
 
   /** Records a press. A newer press replaces an older unredeemed one. */
-  press(action: ActionType, nowMs: number): void {
-    this.expireInto(nowMs);
+  press(action: ActionType, pressedWallMs: number, clock: Clock): void {
+    this.expireInto(clock);
     this.action = action;
-    this.pressedAt = nowMs;
+    this.pressedWallMs = pressedWallMs;
+    this.pressedGameMs = clock.gameMs;
   }
 
   /**
@@ -48,21 +65,21 @@ export class IntentBuffer {
    * of expiring - and would never show up in the log as the discarded input
    * it is.
    */
-  tick(nowMs: number): void {
-    this.expireInto(nowMs);
+  tick(clock: Clock): void {
+    this.expireInto(clock);
   }
 
-  /** The intent still valid at `nowMs`, or null. Drops (and logs) a stale one. */
-  peek(nowMs: number): { action: ActionType; pressedAt: number } | null {
-    this.expireInto(nowMs);
+  /** The intent still valid now, or null. Drops (and logs) a stale one. */
+  peek(clock: Clock): { action: ActionType; pressedAt: number } | null {
+    this.expireInto(clock);
     if (this.action === null) return null;
-    return { action: this.action, pressedAt: this.pressedAt };
+    return { action: this.action, pressedAt: this.pressedWallMs };
   }
 
   /**
    * Redeems the pending intent because the hitboxes have actually met.
-   * `touchedAt` is the timestamp of that substep; the caller applies the
-   * velocity change immediately, so `executedAt` equals it.
+   * `touchedAt` is the wall-clock timestamp of that substep; the caller
+   * applies the velocity change immediately, so `executedAt` equals it.
    */
   redeem(action: ActionType, pressedAt: number, touchedAt: number): void {
     this.action = null;
@@ -85,14 +102,14 @@ export class IntentBuffer {
     return this.action !== null;
   }
 
-  private expireInto(nowMs: number): void {
+  private expireInto(clock: Clock): void {
     if (this.action === null) return;
-    if (nowMs - this.pressedAt <= INPUT_BUFFER_MS) return;
+    if (clock.gameMs - this.pressedGameMs <= INPUT_BUFFER_MS) return;
     debugLog.expired({
       athlete: this.owner.id,
       action: this.action,
-      pressedAt: this.pressedAt,
-      expiredAt: nowMs,
+      pressedAt: this.pressedWallMs,
+      expiredAt: clock.wallMs,
     });
     this.action = null;
   }

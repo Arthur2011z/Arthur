@@ -2,10 +2,12 @@ import { Athlete, TeamId } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
 import { Player, PlayerContext } from '../entities/Player';
 import { InputSnapshot } from '../input/actions';
-import { Vec2, randomBetween } from '../utils/math';
+import { Vec2, Vec3, randomBetween } from '../utils/math';
 import {
   BALL_RADIUS,
   COURT_LENGTH,
+  SLOWMO_MAX_REAL,
+  SLOWMO_SCALE,
   COURT_WIDTH,
   HUMAN_HOMES,
   NET_Y,
@@ -13,7 +15,7 @@ import {
   WIN_MARGIN,
   WIN_SCORE,
 } from './constants';
-import { BallEvent, advance, velocityOverNet, velocityToTarget } from './Physics';
+import { BallEvent, advance, simulate, velocityOverNet, velocityToTarget } from './Physics';
 import { FaultReason, Rally, RallyResult } from './Rally';
 
 export type GamePhase = 'rally' | 'point_scored' | 'game_over';
@@ -53,23 +55,45 @@ export class GameState {
   /** Tests switch this off to keep full control of what is in the air. */
   autoServe = true;
 
+  /**
+   * How fast the world is running. 1 normally, SLOWMO_SCALE while the player
+   * hangs at the top of an attack jump with the ball in reach.
+   *
+   * It scales the *whole* world - ball, players and opponents alike - so the
+   * aiming time is never an advantage over anyone, only thinking room.
+   */
+  timeScale = 1;
+  /** Game-time clock in ms. Ball-contact input buffers age on this rather than
+   * on wall time; see Contact.Clock. */
+  gameClockMs = 0;
+
   private pauseTimer = 0;
+  private slowMoRealTimer = 0;
 
   get athletes(): Athlete[] {
     return [this.player, this.teammate, ...this.opponents];
   }
 
-  update(dt: number, input: InputSnapshot, nowMs: number): void {
+  /**
+   * `realDt` is wall-clock delta. Everything downstream of the slow-motion
+   * decision runs on the scaled delta instead, which is what makes the aiming
+   * phase slow down the ball and the player together rather than one of them.
+   */
+  update(realDt: number, input: InputSnapshot, nowMs: number): void {
     if (this.phase === 'game_over') return;
 
     if (this.phase === 'point_scored') {
-      this.pauseTimer += dt;
+      this.pauseTimer += realDt;
       if (this.pauseTimer >= POINT_PAUSE) this.beginRally();
       return;
     }
 
-    const ctx = this.playerContext(input.aim);
-    this.player.update(dt, input, nowMs, ctx);
+    this.updateSlowMotion(realDt);
+    const dt = realDt * this.timeScale;
+    this.gameClockMs += dt * 1000;
+
+    const ctx = this.playerContext(input.aim, nowMs);
+    this.player.update(dt, input, ctx);
 
     const event = advance(
       this.ball,
@@ -108,6 +132,7 @@ export class GameState {
     this.phase = 'rally';
     this.rally = new Rally(this.servingTeam);
     this.ball.reset();
+    this.player.resetForNewRally();
     if (this.autoServe) this.serve();
   }
 
@@ -170,11 +195,12 @@ export class GameState {
    * contact, which is what stops the speed boost from dragging them back into
    * the ball for an illegal second touch.
    */
-  private playerContext(aim: Vec2 | null): PlayerContext {
+  private playerContext(aim: Vec2 | null, nowMs: number): PlayerContext {
     const state = this;
     return {
       ball: this.ball,
       partner: this.teammate,
+      clock: { wallMs: nowMs, gameMs: this.gameClockMs },
       // A getter, not a snapshot: the answer changes the instant the player
       // takes a contact, and the boost has to notice within the same frame
       // rather than one frame later.
@@ -183,6 +209,30 @@ export class GameState {
       },
       aim,
     };
+  }
+
+  /**
+   * Slow motion runs on real seconds, not game seconds: it exists to give the
+   * player thinking time, and a budget measured in slowed-down time would
+   * stretch itself. It is also capped, so hanging at the top of a jump can
+   * never freeze the game indefinitely.
+   */
+  private updateSlowMotion(realDt: number): void {
+    const wants = this.phase === 'rally' && this.player.wantsAimTime(this.ball);
+    if (!wants) {
+      this.slowMoRealTimer = 0;
+      this.timeScale = 1;
+      return;
+    }
+    this.slowMoRealTimer += realDt;
+    this.timeScale = this.slowMoRealTimer <= SLOWMO_MAX_REAL ? SLOWMO_SCALE : 1;
+  }
+
+  /** The flight the player's current aim would produce, for the preview line.
+   * Null whenever there is nothing to aim. */
+  aimPreview(): Vec3[] | null {
+    if (this.timeScale === 1 || this.ball.state !== 'live') return null;
+    return simulate({ ...this.ball.pos }, this.player.previewSpike(this.ball));
   }
 
   private awardPoint(result: RallyResult): void {
@@ -203,6 +253,8 @@ export class GameState {
 
     this.phase = 'point_scored';
     this.pauseTimer = 0;
+    this.timeScale = 1;
+    this.slowMoRealTimer = 0;
     this.player.standDown();
   }
 }
