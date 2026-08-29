@@ -20,6 +20,7 @@ import {
   JUMP_PEAK_HEIGHT,
   JUMP_RISE_TIME,
   PLAYER_SPEED,
+  SERVE_LATERAL_SPEED,
   SLOWMO_TRIGGER_RANGE,
   SWING_POSE_DURATION,
 } from '../game/constants';
@@ -87,6 +88,15 @@ export class Player extends Athlete {
   swipeStrength: number | null = null;
   /** True once the attack has been triggered and the arm is coming through. */
   swinging = false;
+  /**
+   * True while this player is holding serve. Movement is then restricted to
+   * the base line, and the first jump press tosses the ball rather than simply
+   * leaving the ground.
+   */
+  serveMode = false;
+  /** Set on the frame the serve toss should go up - read and cleared by
+   * GameState, which owns the ball. */
+  pendingToss = false;
 
   private boostTimer = 0;
   private swingTimer = 0;
@@ -126,6 +136,21 @@ export class Player extends Athlete {
     };
   }
 
+  /** Puts the player on their base line, ball in hand, awaiting the serve. */
+  beginServe(): void {
+    this.resetForNewRally();
+    this.serveMode = true;
+    this.pendingToss = false;
+    this.pos = this.clampToOwnHalf({ x: this.pos.x, y: this.baselineY });
+    this.pose = 'serving';
+  }
+
+  /** Leaves serve preparation - the ball is on its way. */
+  endServe(): void {
+    this.serveMode = false;
+    this.pendingToss = false;
+  }
+
   /** Whether a block would engage from where the player is standing. */
   canBlock(): boolean {
     return this.blockCooldown <= 0 && !this.blocking && this.distanceToNet <= BLOCK_NET_RANGE;
@@ -156,6 +181,11 @@ export class Player extends Athlete {
     // stops them dead.
     if (this.blocking || this.jumping) {
       /* committed to the jump */
+    } else if (this.serveMode) {
+      // Only sideways along the base line: no stepping into the court before
+      // the ball has been struck.
+      this.moveBy({ x: input.move.x, y: 0 }, SERVE_LATERAL_SPEED, dt);
+      this.pos.y = this.baselineY;
     } else if (this.boosting) {
       this.updateBoost(dt, ctx);
     } else {
@@ -255,6 +285,8 @@ export class Player extends Athlete {
    */
   resetForNewRally(): void {
     this.standDown();
+    this.serveMode = false;
+    this.pendingToss = false;
     this.jumpCooldown = 0;
     this.blockCooldown = 0;
     this.swingTimer = 0;
@@ -274,11 +306,20 @@ export class Player extends Athlete {
       }
       if (press.action === 'jump') {
         // First press leaves the ground; a second one while airborne swings.
-        // Neither touches the ball here.
-        if (this.jumping) this.startSwing(press.at);
-        else this.startJump(ctx.ball);
+        // Neither touches the ball here - the toss is handed to GameState,
+        // which owns the ball, and the swing waits for a real overlap.
+        if (this.jumping) {
+          this.startSwing(press.at);
+        } else {
+          if (this.serveMode) this.pendingToss = true;
+          this.startJump(ctx.ball);
+        }
         continue;
       }
+
+      // Nothing but the serve exists while holding serve; the other actions
+      // are hidden from the UI anyway, but a stray key must not slip through.
+      if (this.serveMode) continue;
       this.intents.press(press.action, press.at, ctx.clock);
       if (press.action === 'pass' || press.action === 'emergency') this.startBoost(ctx);
     }
@@ -477,6 +518,10 @@ export class Player extends Athlete {
     if (this.swingTimer > 0) {
       this.swingTimer -= dt;
       this.pose = 'swinging';
+      return;
+    }
+    if (this.serveMode && !this.jumping) {
+      this.pose = 'serving';
       return;
     }
     if (this.blocking) {

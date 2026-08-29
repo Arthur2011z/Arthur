@@ -15,6 +15,10 @@ export interface HudModel {
   possession: 'human' | 'opponents';
   servingTeam: 'human' | 'opponents';
   lastFault: FaultReason | null;
+  /** The ball is still in a server's hand. */
+  awaitingServe: boolean;
+  /** ...and it is the human's hand. */
+  humanIsServing: boolean;
 }
 
 /** Score display (top-center) and the game-over overlay with a restart button. */
@@ -112,7 +116,7 @@ export class Hud {
   setHint(mode: 'touch' | 'keyboard'): void {
     this.hintEl.textContent =
       mode === 'keyboard'
-        ? 'WASD Laufen · E Pass · F Notfall · Leertaste Block · Q Schmettern'
+        ? 'WASD Laufen · E Pass · F Notfall · Leertaste Block · Q Schmettern/Aufschlag'
         : '';
   }
 
@@ -137,8 +141,15 @@ export class Hud {
         ? `${model.possession === 'human' ? 'Ihr' : 'Gegner'}: ${'\u25CF'.repeat(used)}${'\u25CB'.repeat(3 - used)}`
         : '';
 
-    this.faultEl.textContent =
-      model.phase === 'point_scored' && model.lastFault ? FAULT_TEXT[model.lastFault] : '';
+    if (model.phase === 'point_scored' && model.lastFault) {
+      this.faultEl.textContent = FAULT_TEXT[model.lastFault];
+    } else if (model.awaitingServe) {
+      this.faultEl.textContent = model.humanIsServing
+        ? 'Dein Aufschlag'
+        : 'Aufschlag der Gegenseite';
+    } else {
+      this.faultEl.textContent = '';
+    }
 
     if (model.phase === 'game_over') {
       this.overlayEl.style.display = 'flex';

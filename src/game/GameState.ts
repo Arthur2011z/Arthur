@@ -12,6 +12,8 @@ import {
   HUMAN_HOMES,
   NET_Y,
   OPPONENT_HOMES,
+  SERVE_AI_FAULT_CHANCE,
+  SERVE_TOSS_SPEED,
   WIN_MARGIN,
   WIN_SCORE,
 } from './constants';
@@ -24,6 +26,8 @@ export type GamePhase = 'rally' | 'point_scored' | 'game_over';
 const POINT_PAUSE = 1.6;
 /** Margin (m) kept away from the lines when picking a random serve target. */
 const SERVE_MARGIN = 1.5;
+/** Beat before an AI server puts the ball up, so a rally never opens abruptly. */
+const SERVE_AI_DELAY = 0.8;
 
 /**
  * Single source of truth for the game world: the four figures, the ball, the
@@ -52,6 +56,16 @@ export class GameState {
   lastFault: FaultReason | null = null;
   lastEvent: BallEvent | null = null;
 
+  /**
+   * Which of each team's two players serves next. Real volleyball only
+   * rotates the server of the team that *regains* the serve - a team that
+   * keeps serving keeps the same server - so this changes in awardPoint()
+   * only when the receiving side wins the rally.
+   */
+  serverIndex: Record<TeamId, 0 | 1> = { human: 0, opponents: 0 };
+  /** True from the moment a rally opens until the serve has been struck. */
+  awaitingServe = false;
+
   /** Tests switch this off to keep full control of what is in the air. */
   autoServe = true;
 
@@ -69,9 +83,23 @@ export class GameState {
 
   private pauseTimer = 0;
   private slowMoRealTimer = 0;
+  private aiServeTimer = 0;
 
   get athletes(): Athlete[] {
     return [this.player, this.teammate, ...this.opponents];
+  }
+
+  /** The athlete whose serve it is. */
+  get server(): Athlete {
+    return this.servingTeam === 'human'
+      ? [this.player, this.teammate][this.serverIndex.human]
+      : this.opponents[this.serverIndex.opponents];
+  }
+
+  /** Whether the human player is the one holding serve, which is what puts
+   * the interface into its serve layout. */
+  get humanIsServing(): boolean {
+    return this.servingTeam === 'human' && this.serverIndex.human === 0;
   }
 
   /**
@@ -94,6 +122,7 @@ export class GameState {
 
     const ctx = this.playerContext(input.aim, nowMs);
     this.player.update(dt, input, ctx);
+    if (this.awaitingServe) this.updateServeHold(dt);
 
     const event = advance(
       this.ball,
@@ -108,11 +137,15 @@ export class GameState {
 
     if (event) {
       this.lastEvent = event;
-      this.awardPoint(this.rally.resolveEvent(event));
-      return;
+      // A tossed ball that reaches the ground untouched is a missed serve, not
+      // an ordinary point: nobody has played it, so Rally is still in its
+      // serving state and names the fault accordingly.
+      const result =
+        this.awaitingServe && this.ball.lastToucher === null
+          ? this.rally.serveMissed(this.servingTeam)
+          : this.rally.resolveEvent(event);
+      this.awardPoint(result);
     }
-
-    if (this.autoServe && this.ball.state === 'dead') this.serve();
   }
 
   restart(): void {
@@ -121,40 +154,86 @@ export class GameState {
     this.lastFault = null;
     this.lastEvent = null;
     this.servingTeam = 'opponents';
+    this.serverIndex = { human: 0, opponents: 0 };
     this.player = new Player();
     this.ball.reset();
     this.beginRally();
   }
 
-  /** Opens a fresh rally and puts the ball in play. */
+  /**
+   * Opens a fresh rally and hands the ball to whoever is due to serve.
+   *
+   * The human serving and an AI serving are the same state - the ball is held
+   * at the server's hand and the rally has not started - they differ only in
+   * what releases it.
+   */
   beginRally(): void {
     this.pauseTimer = 0;
     this.phase = 'rally';
     this.rally = new Rally(this.servingTeam);
     this.ball.reset();
     this.player.resetForNewRally();
-    if (this.autoServe) this.serve();
+    if (!this.autoServe) return;
+
+    const server = this.server;
+    server.pos = server.clampToOwnHalf({ x: server.pos.x, y: server.baselineY });
+    this.awaitingServe = true;
+    this.aiServeTimer = SERVE_AI_DELAY;
+    if (this.humanIsServing) this.player.beginServe();
+    this.ball.hold(server.handPosition);
   }
 
   /**
-   * Places the serve. Still automatic for both teams at this step - the human
-   * serve state with its own controls arrives in a later one - but it already
-   * goes to whoever actually won the last rally.
+   * Runs while the ball is still in the server's hand.
+   *
+   * For the human that means keeping the ball pinned to their hand until they
+   * toss it; for an AI server it means a short beat and then an automatic
+   * serve. The toss itself is just a normal launch - once it is up, the ball
+   * is an ordinary projectile and the swing has to meet it like any other.
    */
-  serve(): void {
-    const fromHuman = this.servingTeam === 'human';
-    const origin = {
-      x: randomBetween(2, COURT_WIDTH - 2),
-      y: fromHuman ? COURT_LENGTH - 0.4 : 0.4,
-      z: 2.2,
-    };
-    const target: Vec2 = {
-      x: randomBetween(SERVE_MARGIN, COURT_WIDTH - SERVE_MARGIN),
-      y: fromHuman
-        ? randomBetween(SERVE_MARGIN, NET_Y - SERVE_MARGIN)
-        : randomBetween(NET_Y + SERVE_MARGIN, COURT_LENGTH - SERVE_MARGIN),
-    };
-    this.ball.strike(origin, velocityOverNet(origin, target, 0.6), null);
+  private updateServeHold(dt: number): void {
+    if (this.humanIsServing) {
+      if (this.player.pendingToss) {
+        this.player.pendingToss = false;
+        this.ball.strike(this.player.handPosition, { x: 0, y: 0, z: SERVE_TOSS_SPEED }, null);
+      } else if (this.ball.state === 'held') {
+        this.ball.hold(this.player.handPosition);
+      }
+      return;
+    }
+
+    // Only ever re-pin a ball that is genuinely still in hand. Anything else
+    // in the air belongs to whatever put it there.
+    if (this.ball.state !== 'held') return;
+    this.ball.hold(this.server.handPosition);
+    this.aiServeTimer -= dt;
+    if (this.aiServeTimer <= 0) this.fireAiServe();
+  }
+
+  /** An automatic serve, with a small chance of being aimed somewhere it will
+   * genuinely miss - the AI is allowed to serve into the net or long. */
+  private fireAiServe(): void {
+    const server = this.server;
+    const origin = server.handPosition;
+    const receiving: [number, number] =
+      this.servingTeam === 'human'
+        ? [SERVE_MARGIN, NET_Y - SERVE_MARGIN]
+        : [NET_Y + SERVE_MARGIN, COURT_LENGTH - SERVE_MARGIN];
+
+    const faulty = Math.random() < SERVE_AI_FAULT_CHANCE;
+    const target: Vec2 = faulty
+      ? {
+          x: randomBetween(SERVE_MARGIN, COURT_WIDTH - SERVE_MARGIN),
+          // Just past the far base line: out, and visibly so.
+          y: this.servingTeam === 'human' ? randomBetween(-1.2, -0.3) : randomBetween(COURT_LENGTH + 0.3, COURT_LENGTH + 1.2),
+        }
+      : {
+          x: randomBetween(SERVE_MARGIN, COURT_WIDTH - SERVE_MARGIN),
+          y: randomBetween(receiving[0], receiving[1]),
+        };
+
+    this.ball.strike(origin, velocityOverNet(origin, target, 0.6), server.id);
+    this.awaitingServe = false;
   }
 
   /** Puts a specific ball into play - used by tests to set up a known flight. */
@@ -176,6 +255,13 @@ export class GameState {
   ): boolean {
     const kind = athlete instanceof Player ? athlete.playBall(ball, atMs, ctx) : null;
     if (!kind) return false;
+
+    // Striking the toss ends the serve: the interface goes back to the rally
+    // buttons and the server may move freely again.
+    if (this.awaitingServe) {
+      this.awaitingServe = false;
+      this.player.endServe();
+    }
 
     // A block is judged by a different rule than a normal contact: it costs no
     // touch and lets the blocker play the next ball.
@@ -235,13 +321,23 @@ export class GameState {
     return simulate({ ...this.ball.pos }, this.player.previewSpike(this.ball));
   }
 
-  private awardPoint(result: RallyResult): void {
+  /** Ends the current rally with the given result: scores it, moves the serve
+   * and, if the receiving side won, rotates their server. Public because it is
+   * the one entry point for "this rally ended this way". */
+  awardPoint(result: RallyResult): void {
     if (this.phase !== 'rally') return;
 
     this.ball.kill();
     this.score[result.winner] += 1;
+    // Only a team that wins the serve back rotates its server; one that holds
+    // serve keeps serving with the same player.
+    if (result.winner !== this.servingTeam) {
+      this.serverIndex[result.winner] = this.serverIndex[result.winner] === 0 ? 1 : 0;
+    }
     this.servingTeam = result.winner;
     this.lastFault = result.reason;
+    this.awaitingServe = false;
+    this.player.endServe();
 
     const winning = this.score[result.winner];
     const losing = this.score[result.loser];

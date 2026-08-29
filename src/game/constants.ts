@@ -219,6 +219,19 @@ export const BLOCK_DOWNWARD = 4.5;
 export const BLOCK_LATERAL_KEEP = 0.35;
 
 // ---------------------------------------------------------------------------
+// Serve. The serve is a jump with a toss in front of it, so it reuses the
+// attack jump wholesale rather than growing a second code path of its own.
+// ---------------------------------------------------------------------------
+/** Height the ball rests at while it is being held, in meters. */
+export const SERVE_HAND_HEIGHT = 1.4;
+/** Upward speed of the toss - enough to be met near the top of the jump. */
+export const SERVE_TOSS_SPEED = 6.2;
+/** Sideways speed along the base line while preparing to serve. */
+export const SERVE_LATERAL_SPEED = 3.4;
+/** How often an AI serve is deliberately aimed at a target it will miss. */
+export const SERVE_AI_FAULT_CHANCE = 0.12;
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 export const WIN_SCORE = 21;

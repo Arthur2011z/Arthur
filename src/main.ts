@@ -42,6 +42,11 @@ function draw(): void {
 const loop = new GameLoop((dt, nowMs) => {
   gameState.update(dt, input.snapshot(), nowMs);
   renderer.advance(dt);
+  // While the human holds serve, every other action button disappears and a
+  // single Aufschlag button takes their place.
+  input.setButtonMode(
+    gameState.awaitingServe && gameState.humanIsServing ? 'serve' : 'play',
+  );
   if (hud.consumeRestart()) gameState.restart();
   hud.update({
     score: gameState.score,
@@ -51,6 +56,8 @@ const loop = new GameLoop((dt, nowMs) => {
     possession: gameState.rally.possession,
     servingTeam: gameState.servingTeam,
     lastFault: gameState.lastFault,
+    awaitingServe: gameState.awaitingServe,
+    humanIsServing: gameState.humanIsServing,
   });
   hud.setHint(input.mode);
   draw();

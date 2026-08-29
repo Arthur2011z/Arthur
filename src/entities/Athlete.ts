@@ -1,5 +1,12 @@
-import { Vec2, clamp, length, normalize } from '../utils/math';
-import { COURT_LENGTH, COURT_WIDTH, NET_Y, PLAYER_RADIUS, PLAYER_REACH_HEIGHT } from '../game/constants';
+import { Vec2, Vec3, clamp, length, normalize } from '../utils/math';
+import {
+  COURT_LENGTH,
+  COURT_WIDTH,
+  NET_Y,
+  PLAYER_RADIUS,
+  PLAYER_REACH_HEIGHT,
+  SERVE_HAND_HEIGHT,
+} from '../game/constants';
 
 export type TeamId = 'human' | 'opponents';
 export type AthleteId = 'player' | 'teammate' | 'opponent1' | 'opponent2';
@@ -88,6 +95,16 @@ export class Athlete {
       x: clamp(p.x, this.radius, COURT_WIDTH - this.radius),
       y: clamp(p.y, minY, maxY),
     };
+  }
+
+  /** Where this athlete's own base line runs, in court space. */
+  get baselineY(): number {
+    return this.team === 'human' ? COURT_LENGTH - this.radius : this.radius;
+  }
+
+  /** Where a held ball sits while this athlete is waiting to serve. */
+  get handPosition(): Vec3 {
+    return { x: this.pos.x, y: this.pos.y, z: SERVE_HAND_HEIGHT };
   }
 
   /** Signed depth into the own half: 0 at the net, growing toward the base line. */
