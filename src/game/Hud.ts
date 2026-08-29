@@ -104,8 +104,12 @@ export class Hud {
       left: '50%',
       transform: 'translateX(-50%)',
       color: 'rgba(255, 255, 255, 0.72)',
-      font: '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      whiteSpace: 'nowrap',
+      font: '500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      // Wraps rather than running off both edges: the full control list is
+      // wider than a phone screen.
+      maxWidth: 'min(92vw, 620px)',
+      textAlign: 'center',
+      lineHeight: '1.45',
       pointerEvents: 'none',
     } satisfies Partial<CSSStyleDeclaration>);
     container.appendChild(this.hintEl);
