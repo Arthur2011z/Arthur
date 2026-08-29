@@ -121,7 +121,14 @@ export const BOOST_INTERCEPT_HEIGHT = 1.3;
 // ---------------------------------------------------------------------------
 /** Pass: a set delivered to the partner's side of the net, high enough and
  * close enough to the tape that they can attack it. */
-export const PASS_NET_DEPTH = 2.2; // meters from the net
+/** How far toward the net a set leads the partner, and the band it is kept
+ * inside. Anchored to where the partner actually is - see Shots.passTarget. */
+export const PASS_LEAD = 2.5;
+/** The minimum is a safety margin, not a preference: a set aimed nearer the
+ * tape than this is close enough that the ordinary pass spread can push it into
+ * the net, turning a good set into a fault nobody played wrong. */
+export const PASS_MIN_DEPTH = 2;
+export const PASS_MAX_DEPTH = 4.5;
 export const PASS_ARRIVAL_HEIGHT = 2.9;
 export const PASS_TIME = 1.05;
 export const PASS_SPREAD_RAD = 0.035;
@@ -267,7 +274,7 @@ export const OPPONENT_PROFILE: AiProfile = {
   reactionDelay: 0.08,
   defenceReach: 7,
   attackScatter: 3.2,
-  attackTargetSlop: 1.6,
+  attackTargetSlop: 3,
   attackSpikeChance: 0.45,
   blockChance: 0.35,
 };
@@ -279,10 +286,28 @@ export const TEAMMATE_PROFILE: AiProfile = {
   reactionDelay: 0.12,
   defenceReach: 6.5,
   attackScatter: 3,
-  attackTargetSlop: 1.5,
+  attackTargetSlop: 2.9,
   attackSpikeChance: 0.4,
   blockChance: 1, // blocks whenever it reads an attack - that is its job here
 };
+
+/**
+ * How close a set may land to the passer before setting is pointless. A player
+ * already standing on the spot has nobody to set to and must attack instead.
+ */
+export const AI_MIN_SET_DISTANCE = 1;
+
+/** Band of depths, from the net, an AI aims its attacks into. Targets are
+ * displaced from here by the profile's slop and never clamped, so a sloppy
+ * aim reaches past the lines. */
+export const AI_ATTACK_MIN_DEPTH = 2;
+export const AI_ATTACK_MAX_DEPTH = 7;
+
+/** How far above the tape the ball has to be before an AI tries to spike it.
+ * Below this a spike would only bury itself in the net, which is a structural
+ * fault rather than the aiming error the difficulty is supposed to come from. */
+export const AI_SPIKE_MIN_HEIGHT = NET_HEIGHT + 0.5;
+export const AI_SPIKE_MAX_NET_DISTANCE = 3.5;
 
 /** Height the AI aims to meet the ball at, in meters. */
 export const AI_CONTACT_HEIGHT = 1.3;

@@ -4,6 +4,11 @@ import {
   AI_HUMAN_PRIORITY_MARGIN,
   AI_SETTLE_RANGE,
   AI_ZONE_TRACKING,
+  AI_ATTACK_MAX_DEPTH,
+  AI_ATTACK_MIN_DEPTH,
+  AI_MIN_SET_DISTANCE,
+  AI_SPIKE_MAX_NET_DISTANCE,
+  AI_SPIKE_MIN_HEIGHT,
   AiProfile,
   BACK_ZONE_HOME_DEPTH,
   BLOCK_NET_RANGE,
@@ -16,7 +21,7 @@ import {
 import { debugLog } from '../game/Debug';
 import { predictAtHeight } from '../game/Physics';
 import { Rally } from '../game/Rally';
-import { blockShot, emergencyShot, passShot, spikeShot, spikeTarget } from '../game/Shots';
+import { aiAttackShot, blockShot, farHalfY, passShot, passTarget } from '../game/Shots';
 import { Athlete, AthleteId, TeamId } from './Athlete';
 import { Ball } from './Ball';
 import { ContactKind } from './Player';
@@ -177,6 +182,13 @@ export class AiAthlete extends Athlete {
    * the person holding the controller is worse than letting one drop.
    */
   private isClosest(spot: Vec2, ctx: AiContext): boolean {
+    // A partner who just played the ball may not touch it again, so however
+    // close they are standing they are not an option. Without this the AI
+    // politely defers to someone who physically cannot come - and since a set
+    // lands near whoever played it, that is exactly the situation after every
+    // set. The ball then drops between the two of them.
+    if (ctx.rally.lastToucher === ctx.partner.id) return true;
+
     const mine = length(sub(spot, this.pos));
     const theirs = length(sub(spot, ctx.partner.pos));
     if (ctx.partner.id === 'player') return mine <= theirs - AI_HUMAN_PRIORITY_MARGIN;
@@ -236,7 +248,13 @@ export class AiAthlete extends Athlete {
   // -------------------------------------------------------------------------
 
   /**
-   * First and second contact go to the partner; the third has to cross.
+   * First and second contact go to the partner; the third has to cross - and
+   * so does any contact where setting would be pointless.
+   *
+   * That second case matters more than it sounds. A player standing at the net
+   * *is* where a set would land, so "set to the partner" would mean lobbing the
+   * ball straight up onto their own head and watching it come down on their own
+   * side. The net player has nobody to set to; their job is to attack.
    *
    * The attack is made fallible only through the profile's attacking numbers:
    * a displaced target and extra scatter. The shot itself is an ordinary
@@ -244,37 +262,35 @@ export class AiAthlete extends Athlete {
    * land out or hit the net for exactly the reason a human's can.
    */
   private chooseShot(ball: Ball, ctx: AiContext): Vec3 {
-    const lastOfThree = ctx.rally.touches >= MAX_TOUCHES_PER_TEAM - 1;
-    if (!lastOfThree) return passShot(this, ball, ctx.partner);
+    const mustCross = ctx.rally.touches >= MAX_TOUCHES_PER_TEAM - 1;
+    const setSpot = passTarget(this, ctx.partner);
+    const setIsWorthIt = length(sub(setSpot, this.pos)) >= AI_MIN_SET_DISTANCE;
 
-    const canSpike =
-      this.distanceToNet < 4 &&
-      ball.pos.z > 1.8 &&
+    if (!mustCross && setIsWorthIt) return passShot(this, ball, ctx.partner);
+
+    const spike =
+      this.distanceToNet < AI_SPIKE_MAX_NET_DISTANCE &&
+      ball.pos.z > AI_SPIKE_MIN_HEIGHT &&
       Math.random() < this.profile.attackSpikeChance;
 
-    if (canSpike) {
-      const aim = this.slopAim(ball);
-      return spikeShot(this, ball, aim, this.distanceToNet, null, this.profile.attackScatter);
-    }
-    return emergencyShot(this, ball, this.slopAim(ball));
+    return aiAttackShot(this, ball, this.attackTarget(), spike, this.profile.attackScatter);
   }
 
   /**
-   * The aim this AI thinks it is playing. `attackTargetSlop` nudges the
-   * intended landing spot, lines included, so a poor attacker genuinely picks
-   * worse targets rather than being handed a scripted miss.
+   * Where this AI is trying to put the ball: somewhere in the far half, moved
+   * off that spot by however sloppy an aimer the profile makes it.
+   *
+   * The displacement is deliberately not clamped back inside the lines. A poor
+   * attacker genuinely picks worse targets and sometimes picks one that is
+   * out, rather than being handed a scripted miss.
    */
-  private slopAim(ball: Ball): Vec2 {
-    const intended = spikeTarget(this, ball.pos, null);
+  private attackTarget(): Vec2 {
     const slop = this.profile.attackTargetSlop;
-    const aimed: Vec2 = {
-      x: intended.x + randomBetween(-slop, slop),
-      y: intended.y + randomBetween(-slop, slop),
+    const depth = randomBetween(AI_ATTACK_MIN_DEPTH, AI_ATTACK_MAX_DEPTH);
+    return {
+      x: randomBetween(1.2, COURT_WIDTH - 1.2) + randomBetween(-slop, slop),
+      y: farHalfY(this, depth) + randomBetween(-slop, slop),
     };
-    const offset = sub(aimed, { x: ball.pos.x, y: ball.pos.y });
-    const len = length(offset);
-    if (len < 1e-3) return this.towardNet;
-    return { x: offset.x / len, y: offset.y / len };
   }
 
   private logContact(action: 'play' | 'block', pressedAt: number, atMs: number): void {

@@ -70,6 +70,9 @@ test('a pass is delivered to the partner near the net, not over it', async ({ pa
 
   // Stays on the human side, and arrives close to the net on the partner's
   // side of the court so they can attack it.
+  // A set that clips the tape reports as a net fault at y === NET_Y exactly,
+  // which would otherwise slip past the bound below.
+  expect(event.type).toBe('landed');
   expect(event.side).toBe('human');
   expect(event.at.y).toBeGreaterThan(NET_Y);
   expect(event.at.y).toBeLessThan(NET_Y + 4);

@@ -73,6 +73,15 @@ test('the opponents attack fallibly, and that is independent of their defence', 
       g.state.rally.lastToucher = 'opponent2';
       g.state.opponents[0].pos = { x: 4, y: 6.4 };
       g.state.opponents[1].pos = { x: 6, y: 3 };
+      // The human side has to stay out of it. Now that the attacks genuinely
+      // cross, the teammate digs them and the rally simply carries on - there
+      // is no landing to read, and waiting for one measures the defence rather
+      // than the attack. Parking the pair in the back corners and taking the
+      // teammate's reach away leaves the ball to land where it was aimed.
+      g.state.player.pos = { x: 0.5, y: 15.5 };
+      g.state.teammate.pos = { x: 7.5, y: 15.5 };
+      g.state.teammate.profile.defenceReach = 0;
+      g.state.teammate.profile.blockChance = 0;
       // Set up in front of opponent1, ready to be attacked.
       g.state.ball.strike({ x: 4, y: 6.4, z: 4.2 }, { x: 0, y: 0, z: 0 }, 'opponent2');
     });
@@ -87,14 +96,18 @@ test('the opponents attack fallibly, and that is independent of their defence', 
     });
   }
 
+  test.setTimeout(120_000);
   let good = 0;
-  const runs = 14;
+  const runs = 20;
   for (let i = 0; i < runs; i += 1) if (await attack()) good += 1;
 
   // A meaningful share misses - the player has to be able to win points.
-  expect(good / runs).toBeLessThanOrEqual(0.75);
-  // ...but it is not a free point either; some attacks do land.
-  expect(good).toBeGreaterThan(0);
+  // Measured over 100 attempts with nobody defending: 70 in, 24 out, 5 into the
+  // net, 1 short. The bound is set off that rate with room for the sample size,
+  // not tightened around it.
+  expect(good / runs).toBeLessThanOrEqual(0.9);
+  // ...but it is not a free point either; the attack has to actually work.
+  expect(good / runs).toBeGreaterThanOrEqual(0.4);
 });
 
 test('only one opponent goes after a given ball', async ({ page }) => {

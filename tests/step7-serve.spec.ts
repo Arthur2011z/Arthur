@@ -143,11 +143,29 @@ test('the second press serves the ball over the net, firing on contact', async (
   await expect(page.locator('#serve-btn')).toBeHidden();
   await expect(page.locator('#jump-btn')).toBeVisible();
 
-  await page.waitForFunction(() => window.__game!.state.lastEvent !== null, undefined, {
-    timeout: 6000,
-  });
-  const event = await page.evaluate(() => ({ ...window.__game!.state.lastEvent! }));
-  expect(event.at.y).toBeLessThan(NET_Y);
+  // Watch the served ball itself cross, rather than waiting for the next
+  // rally event. The opponents return a serve now, so the first event to
+  // arrive is usually their reply landing somewhere - which says nothing about
+  // where the serve went.
+  const crossed = await page.evaluate(
+    (netY) =>
+      new Promise<boolean>((resolve) => {
+        const g = window.__game!;
+        const started = performance.now();
+        const tick = () => {
+          const { ball } = g.state;
+          if (ball.lastToucher !== 'player') return resolve(false);
+          if (ball.pos.y < netY) return resolve(true);
+          if (g.state.lastEvent !== null || performance.now() - started > 5000) {
+            return resolve(false);
+          }
+          requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+    NET_Y,
+  );
+  expect(crossed).toBe(true);
 });
 
 test('a toss that is never struck is a serve fault', async ({ page }) => {

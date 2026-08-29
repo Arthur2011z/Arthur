@@ -16,7 +16,9 @@ import {
   NET_HEIGHT,
   NET_Y,
   PASS_ARRIVAL_HEIGHT,
-  PASS_NET_DEPTH,
+  PASS_LEAD,
+  PASS_MAX_DEPTH,
+  PASS_MIN_DEPTH,
   PASS_SPEED_JITTER,
   PASS_SPREAD_RAD,
   PASS_TIME,
@@ -42,6 +44,37 @@ export const towardNet = (athlete: Athlete): Vec2 =>
   athlete.team === 'human' ? { x: 0, y: -1 } : { x: 0, y: 1 };
 
 /**
+ * The y coordinate `depth` meters into this athlete's *own* half, and the same
+ * `depth` into the half they are attacking.
+ *
+ * Both sides mirror around the net, and getting that sign wrong produces a
+ * target on the wrong side of the court - which is easy to do and hard to see.
+ * Naming the two directions once removes the trap.
+ */
+export const ownHalfY = (athlete: Athlete, depth: number): number =>
+  athlete.team === 'human' ? NET_Y + depth : NET_Y - depth;
+
+export const farHalfY = (athlete: Athlete, depth: number): number =>
+  athlete.team === 'human' ? NET_Y - depth : NET_Y + depth;
+
+/**
+ * Where a set is aimed: the partner's own position, led toward the net so they
+ * can attack from it.
+ *
+ * Anchoring it to where the partner actually stands is the point. A fixed
+ * depth would work for a back-court player setting forward and be useless for
+ * anyone already standing at the net - their "set" would land on top of them,
+ * which is precisely how the net player's shots used to die on their own side.
+ */
+export function passTarget(passer: Athlete, partner: Athlete): Vec2 {
+  const depth = clamp(partner.distanceToNet - PASS_LEAD, PASS_MIN_DEPTH, PASS_MAX_DEPTH);
+  return {
+    x: clamp(partner.pos.x, 1, COURT_WIDTH - 1),
+    y: ownHalfY(passer, depth),
+  };
+}
+
+/**
  * Pass: a set delivered to the partner, aimed at the air above their side of
  * the court close to the net rather than at their feet.
  *
@@ -51,14 +84,36 @@ export const towardNet = (athlete: Athlete): Vec2 =>
  * dropped wherever they happen to be standing right now.
  */
 export function passShot(passer: Athlete, ball: Ball, partner: Athlete): Vec3 {
-  const forward = towardNet(passer);
-  const target: Vec3 = {
-    x: clamp(partner.pos.x, 1, COURT_WIDTH - 1),
-    y: NET_Y + forward.y * -PASS_NET_DEPTH,
-    z: PASS_ARRIVAL_HEIGHT,
-  };
+  const ground = passTarget(passer, partner);
+  const target: Vec3 = { x: ground.x, y: ground.y, z: PASS_ARRIVAL_HEIGHT };
   const velocity = velocityToAirTarget(ball.pos, target, PASS_TIME);
   return applySpread(velocity, PASS_SPREAD_RAD, PASS_SPEED_JITTER);
+}
+
+/**
+ * An attack aimed at an explicit point, for the AI.
+ *
+ * The AI thinks in landing spots, so it hands one over directly instead of
+ * encoding it as a direction. Going through the human's directional aim would
+ * lose the distinction entirely: there a direction pointing at the net means
+ * "drop it short", so every AI attack came back out re-aimed to the shortest
+ * depth on the court no matter where it had meant to hit.
+ *
+ * A spike is only chosen when the ball is high enough above the tape for one
+ * to clear it; otherwise the ball goes over on an arc that is guaranteed to.
+ * Neither path corrects the target, so a sloppy aim still lands out.
+ */
+export function aiAttackShot(
+  attacker: Athlete,
+  ball: Ball,
+  target: Vec2,
+  spike: boolean,
+  scatter: number,
+): Vec3 {
+  const velocity = spike
+    ? spikeVelocity(ball.pos, target, spikePower(attacker.distanceToNet, null))
+    : velocityOverNet(ball.pos, target, 0.35);
+  return applySpread(velocity, SPIKE_SPREAD_RAD * scatter, SPIKE_SPEED_JITTER * scatter);
 }
 
 /**
