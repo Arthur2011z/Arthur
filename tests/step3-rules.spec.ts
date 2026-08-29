@@ -35,6 +35,7 @@ async function prepare(page: Page) {
   await page.evaluate(() => {
     const g = window.__game!;
     g.state.autoServe = false;
+    g.state.aiEnabled = false;
     g.state.awaitingServe = false;
     g.state.ball.reset();
     g.state.lastEvent = null;

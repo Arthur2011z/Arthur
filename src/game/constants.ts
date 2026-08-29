@@ -232,6 +232,69 @@ export const SERVE_LATERAL_SPEED = 3.4;
 export const SERVE_AI_FAULT_CHANCE = 0.12;
 
 // ---------------------------------------------------------------------------
+// AI profiles.
+//
+// The two groups below are read by strictly separate code paths and are never
+// combined with one another. That separation is the point: the brief asks for
+// opponents who defend well *without* that making their attacking any better,
+// and the only way to guarantee it is for no defensive number to reach the
+// attacking code and vice versa.
+// ---------------------------------------------------------------------------
+export interface AiProfile {
+  // --- Defence and movement -------------------------------------------------
+  speed: number;
+  /** Seconds before the AI starts moving to a ball it has decided to play. */
+  reactionDelay: number;
+  /** How far it is willing to run for a ball, in meters. */
+  defenceReach: number;
+
+  // --- Attack ---------------------------------------------------------------
+  /** Multiplies the ordinary shot scatter. Above 1 means a sloppier hitter. */
+  attackScatter: number;
+  /** Meters the intended target is displaced by, lines included - this is what
+   * makes an AI attack genuinely go out rather than a hidden "this one is a
+   * fault" die roll. */
+  attackTargetSlop: number;
+  /** How often it goes for a spike rather than a safe shot over the net. */
+  attackSpikeChance: number;
+  /** How often it puts up a block against a visible attack. */
+  blockChance: number;
+}
+
+/** Opponents: hard to beat in defence, generously fallible in attack. */
+export const OPPONENT_PROFILE: AiProfile = {
+  speed: 5.1,
+  reactionDelay: 0.08,
+  defenceReach: 7,
+  attackScatter: 3.2,
+  attackTargetSlop: 1.6,
+  attackSpikeChance: 0.45,
+  blockChance: 0.35,
+};
+
+/** The AI teammate: solid in defence, and deliberately no better than the
+ * opponents when attacking, so the game stays the player's to win. */
+export const TEAMMATE_PROFILE: AiProfile = {
+  speed: 4.8,
+  reactionDelay: 0.12,
+  defenceReach: 6.5,
+  attackScatter: 3,
+  attackTargetSlop: 1.5,
+  attackSpikeChance: 0.4,
+  blockChance: 1, // blocks whenever it reads an attack - that is its job here
+};
+
+/** Height the AI aims to meet the ball at, in meters. */
+export const AI_CONTACT_HEIGHT = 1.3;
+/** How much closer than the human the AI teammate has to be before it takes a
+ * ball. A tie goes to the player. */
+export const AI_HUMAN_PRIORITY_MARGIN = 0.6;
+/** Distance within which the AI stops adjusting and just waits for the ball. */
+export const AI_SETTLE_RANGE = 0.12;
+/** How far an AI drifts sideways with the ball while holding its zone. */
+export const AI_ZONE_TRACKING = 0.55;
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 export const WIN_SCORE = 21;

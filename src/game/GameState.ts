@@ -1,3 +1,4 @@
+import { AiAthlete, AiContext } from '../entities/AiAthlete';
 import { Athlete, TeamId } from '../entities/Athlete';
 import { Ball } from '../entities/Ball';
 import { Player, PlayerContext } from '../entities/Player';
@@ -12,8 +13,10 @@ import {
   HUMAN_HOMES,
   NET_Y,
   OPPONENT_HOMES,
+  OPPONENT_PROFILE,
   SERVE_AI_FAULT_CHANCE,
   SERVE_TOSS_SPEED,
+  TEAMMATE_PROFILE,
   WIN_MARGIN,
   WIN_SCORE,
 } from './constants';
@@ -39,10 +42,10 @@ const SERVE_AI_DELAY = 0.8;
  */
 export class GameState {
   player = new Player();
-  teammate = new Athlete('teammate', 'human', HUMAN_HOMES[0]);
-  opponents: Athlete[] = [
-    new Athlete('opponent1', 'opponents', OPPONENT_HOMES[0]),
-    new Athlete('opponent2', 'opponents', OPPONENT_HOMES[1]),
+  teammate = new AiAthlete('teammate', 'human', HUMAN_HOMES[0], TEAMMATE_PROFILE);
+  opponents: AiAthlete[] = [
+    new AiAthlete('opponent1', 'opponents', OPPONENT_HOMES[0], OPPONENT_PROFILE),
+    new AiAthlete('opponent2', 'opponents', OPPONENT_HOMES[1], OPPONENT_PROFILE),
   ];
   ball = new Ball();
 
@@ -68,6 +71,9 @@ export class GameState {
 
   /** Tests switch this off to keep full control of what is in the air. */
   autoServe = true;
+  /** Tests switch this off when they need the court to themselves. With the
+   * AI frozen it never commits to a ball, so it never contacts one either. */
+  aiEnabled = true;
 
   /**
    * How fast the world is running. 1 normally, SLOWMO_SCALE while the player
@@ -87,6 +93,32 @@ export class GameState {
 
   get athletes(): Athlete[] {
     return [this.player, this.teammate, ...this.opponents];
+  }
+
+  /** The three computer-controlled figures. */
+  get aiAthletes(): AiAthlete[] {
+    return [this.teammate, ...this.opponents];
+  }
+
+  /**
+   * The world as one AI needs to see it. `partner` is the other figure on its
+   * own team - for the teammate that is the human, which is what makes it
+   * defer to them and set the ball to them.
+   */
+  private aiContext(ai: AiAthlete): AiContext {
+    const isHumanTeam = ai.team === 'human';
+    return {
+      ball: this.ball,
+      rally: this.rally,
+      partner: isHumanTeam
+        ? ai.id === 'teammate'
+          ? this.player
+          : this.teammate
+        : this.opponents[ai.id === 'opponent1' ? 1 : 0],
+      rivals: isHumanTeam ? this.opponents : [this.player, this.teammate],
+      awaitingServe: this.awaitingServe,
+      isServer: this.server.id === ai.id,
+    };
   }
 
   /** The athlete whose serve it is. */
@@ -122,6 +154,9 @@ export class GameState {
 
     const ctx = this.playerContext(input.aim, nowMs);
     this.player.update(dt, input, ctx);
+    if (this.aiEnabled) {
+      for (const ai of this.aiAthletes) ai.update(dt, nowMs, this.aiContext(ai));
+    }
     if (this.awaitingServe) this.updateServeHold(dt);
 
     const event = advance(
@@ -173,6 +208,7 @@ export class GameState {
     this.rally = new Rally(this.servingTeam);
     this.ball.reset();
     this.player.resetForNewRally();
+    for (const ai of this.aiAthletes) ai.resetForNewRally();
     if (!this.autoServe) return;
 
     const server = this.server;
@@ -233,6 +269,9 @@ export class GameState {
         };
 
     this.ball.strike(origin, velocityOverNet(origin, target, 0.6), server.id);
+    // The serve is the serving team's first contact; put it through the rule
+    // book like any other so the server cannot immediately play it again.
+    this.rally.registerTouch(server);
     this.awaitingServe = false;
   }
 
@@ -253,7 +292,12 @@ export class GameState {
     atMs: number,
     ctx: PlayerContext,
   ): boolean {
-    const kind = athlete instanceof Player ? athlete.playBall(ball, atMs, ctx) : null;
+    const kind =
+      athlete instanceof Player
+        ? athlete.playBall(ball, atMs, ctx)
+        : athlete instanceof AiAthlete
+          ? athlete.playBall(ball, atMs, this.aiContext(athlete))
+          : null;
     if (!kind) return false;
 
     // Striking the toss ends the serve: the interface goes back to the rally

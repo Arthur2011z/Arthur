@@ -1,14 +1,5 @@
 import { Vec2, Vec3, clamp, length, lerpVec2, normalize, sub } from '../utils/math';
 import {
-  BLOCK_COOLDOWN,
-  BLOCK_FALL,
-  BLOCK_FLOOR,
-  BLOCK_JUMP_HEIGHT,
-  BLOCK_NET_RANGE,
-  BLOCK_OVERREACH,
-  BLOCK_RISE,
-  BLOCK_WIDTH_BONUS,
-  BLOCK_WINDOW,
   BOOST_DURATION,
   BOOST_INTERCEPT_HEIGHT,
   BOOST_MULTIPLIER,
@@ -27,9 +18,9 @@ import {
 import { Clock, IntentBuffer } from '../game/Contact';
 import { debugLog } from '../game/Debug';
 import { predictAtHeight } from '../game/Physics';
-import { blockShot, emergencyShot, passShot, spikeShot, towardNet } from '../game/Shots';
+import { blockShot, emergencyShot, passShot, spikeShot } from '../game/Shots';
 import { InputSnapshot, SwipeSample } from '../input/actions';
-import { Athlete, Hitbox } from './Athlete';
+import { Athlete } from './Athlete';
 import { Ball } from './Ball';
 
 /** What a contact turned out to be. A block is judged differently by the rule
@@ -69,8 +60,6 @@ export class Player extends Athlete {
   readonly intents = new IntentBuffer(this);
   /** True while the speed boost is running - exposed for the HUD and tests. */
   boosting = false;
-  /** True while the arms are up at the net. */
-  blocking = false;
   /** True from take-off until the feet are back down. */
   jumping = false;
   jumpPhase: JumpPhase = 'rising';
@@ -100,9 +89,6 @@ export class Player extends Athlete {
 
   private boostTimer = 0;
   private swingTimer = 0;
-  private blockTimer = 0;
-  private blockCooldown = 0;
-  private blockPressedAt = 0;
 
   private swingPressedAt = 0;
   private jumpTimer = 0;
@@ -114,26 +100,6 @@ export class Player extends Athlete {
 
   constructor() {
     super('player', 'human', HUMAN_HOMES[1]);
-  }
-
-  /**
-   * While blocking, the hitbox is a different shape: it starts at the tape and
-   * reaches across the net, because a block is played over the net rather than
-   * on the blocker's own side. Anywhere else in the game this is the ordinary
-   * cylinder from Athlete, which already grows with the jump.
-   */
-  override get hitbox(): Hitbox {
-    if (!this.blocking) return super.hitbox;
-    const forward = towardNet(this);
-    return {
-      center: {
-        x: this.pos.x + forward.x * BLOCK_OVERREACH,
-        y: this.pos.y + forward.y * BLOCK_OVERREACH,
-      },
-      radius: this.radius + BLOCK_WIDTH_BONUS,
-      floor: BLOCK_FLOOR,
-      ceiling: this.reachHeight,
-    };
   }
 
   /** Puts the player on their base line, ball in hand, awaiting the serve. */
@@ -149,11 +115,6 @@ export class Player extends Athlete {
   endServe(): void {
     this.serveMode = false;
     this.pendingToss = false;
-  }
-
-  /** Whether a block would engage from where the player is standing. */
-  canBlock(): boolean {
-    return this.blockCooldown <= 0 && !this.blocking && this.distanceToNet <= BLOCK_NET_RANGE;
   }
 
   /**
@@ -210,7 +171,7 @@ export class Player extends Athlete {
       debugLog.contact({
         athlete: this.id,
         action: 'block',
-        pressedAt: this.blockPressedAt,
+        pressedAt: this.blockStartedAt,
         touchedAt: atMs,
         executedAt: atMs,
       });
@@ -301,7 +262,7 @@ export class Player extends Athlete {
   private handlePresses(input: InputSnapshot, ctx: PlayerContext): void {
     for (const press of input.pressed) {
       if (press.action === 'block') {
-        this.startBlock(press.at);
+        if (!this.jumping) this.startBlock(press.at);
         continue; // a block is a state, not a buffered contact
       }
       if (press.action === 'jump') {
@@ -442,41 +403,6 @@ export class Player extends Athlete {
   // -------------------------------------------------------------------------
   // Block
   // -------------------------------------------------------------------------
-
-  /** Raises the arms, if the player is close enough to the net and not still
-   * recovering from the last attempt. A press from too far away simply does
-   * nothing - there is no block from midcourt. */
-  private startBlock(pressedAt: number): void {
-    if (this.jumping || !this.canBlock()) return;
-    this.blocking = true;
-    this.blockTimer = 0;
-    this.blockPressedAt = pressedAt;
-  }
-
-  private updateBlock(dt: number): void {
-    this.blockCooldown = Math.max(0, this.blockCooldown - dt);
-    if (!this.blocking) return;
-
-    this.blockTimer += dt;
-    if (this.blockTimer >= BLOCK_WINDOW) {
-      this.endBlock();
-      return;
-    }
-
-    // Up fast, hold, back down - so the zone is actually open for most of the
-    // window rather than only at one instant.
-    const remaining = BLOCK_WINDOW - this.blockTimer;
-    const rise = Math.min(1, this.blockTimer / BLOCK_RISE);
-    const fall = Math.min(1, remaining / BLOCK_FALL);
-    this.jumpHeight = BLOCK_JUMP_HEIGHT * Math.min(rise, fall);
-  }
-
-  private endBlock(): void {
-    this.blocking = false;
-    this.blockTimer = 0;
-    this.jumpHeight = 0;
-    this.blockCooldown = BLOCK_COOLDOWN;
-  }
 
   // -------------------------------------------------------------------------
   // Speed boost

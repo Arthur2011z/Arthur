@@ -1,5 +1,14 @@
 import { Vec2, Vec3, clamp, length, normalize } from '../utils/math';
 import {
+  BLOCK_COOLDOWN,
+  BLOCK_FALL,
+  BLOCK_FLOOR,
+  BLOCK_JUMP_HEIGHT,
+  BLOCK_NET_RANGE,
+  BLOCK_OVERREACH,
+  BLOCK_RISE,
+  BLOCK_WIDTH_BONUS,
+  BLOCK_WINDOW,
   COURT_LENGTH,
   COURT_WIDTH,
   NET_Y,
@@ -40,6 +49,12 @@ export class Athlete {
   pose: Pose = 'idle';
   /** Court-space direction the figure is facing, for drawing. */
   facing: Vec2 = { x: 0, y: -1 };
+  /** True while the arms are up at the net. */
+  blocking = false;
+
+  protected blockTimer = 0;
+  protected blockCooldown = 0;
+  private blockPressedAt = 0;
 
   constructor(
     readonly id: AthleteId,
@@ -56,12 +71,27 @@ export class Athlete {
   }
 
   /**
-   * The volume this athlete can currently play the ball in: a vertical
-   * cylinder from `floor` to `ceiling`. Subclasses reshape it - a blocker's
-   * reaches across the net and starts at the tape - but every contact in the
-   * game is still tested against this one shape.
+   * The volume this athlete can currently play the ball in.
+   *
+   * Normally a vertical cylinder from the feet to the reach height. While
+   * blocking it becomes a different shape entirely: it starts at the tape and
+   * reaches across the net, because a block is played over the net rather than
+   * on the blocker's own side. Every contact in the game is tested against
+   * this one shape, human and AI alike.
    */
   get hitbox(): Hitbox {
+    if (this.blocking) {
+      const forward = this.towardNet;
+      return {
+        center: {
+          x: this.pos.x + forward.x * BLOCK_OVERREACH,
+          y: this.pos.y + forward.y * BLOCK_OVERREACH,
+        },
+        radius: this.radius + BLOCK_WIDTH_BONUS,
+        floor: BLOCK_FLOOR,
+        ceiling: this.reachHeight,
+      };
+    }
     return {
       center: { ...this.pos },
       radius: this.radius,
@@ -69,6 +99,61 @@ export class Athlete {
       floor: Math.max(0, this.jumpHeight),
       ceiling: this.reachHeight,
     };
+  }
+
+  /** Unit vector from this athlete's own half toward the net. */
+  get towardNet(): Vec2 {
+    return this.team === 'human' ? { x: 0, y: -1 } : { x: 0, y: 1 };
+  }
+
+  // -------------------------------------------------------------------------
+  // Block. Shared by the human and the AI so there is one definition of the
+  // block zone, one window and one cooldown.
+  // -------------------------------------------------------------------------
+
+  /** Whether a block would engage from where this athlete is standing. */
+  canBlock(): boolean {
+    return this.blockCooldown <= 0 && !this.blocking && this.distanceToNet <= BLOCK_NET_RANGE;
+  }
+
+  /** Raises the arms, if close enough to the net and not still recovering from
+   * the last attempt. Too far away it simply does nothing - there is no block
+   * from midcourt. */
+  startBlock(pressedAt: number): void {
+    if (!this.canBlock()) return;
+    this.blocking = true;
+    this.blockTimer = 0;
+    this.blockPressedAt = pressedAt;
+  }
+
+  /** When the arms went up, for the contact log. */
+  get blockStartedAt(): number {
+    return this.blockPressedAt;
+  }
+
+  updateBlock(dt: number): void {
+    this.blockCooldown = Math.max(0, this.blockCooldown - dt);
+    if (!this.blocking) return;
+
+    this.blockTimer += dt;
+    if (this.blockTimer >= BLOCK_WINDOW) {
+      this.endBlock();
+      return;
+    }
+
+    // Up fast, hold, back down - so the zone is actually open for most of the
+    // window rather than only at one instant.
+    const remaining = BLOCK_WINDOW - this.blockTimer;
+    const rise = Math.min(1, this.blockTimer / BLOCK_RISE);
+    const fall = Math.min(1, remaining / BLOCK_FALL);
+    this.jumpHeight = BLOCK_JUMP_HEIGHT * Math.min(rise, fall);
+  }
+
+  endBlock(): void {
+    this.blocking = false;
+    this.blockTimer = 0;
+    this.jumpHeight = 0;
+    this.blockCooldown = BLOCK_COOLDOWN;
   }
 
   /** Moves along `dir` (court space, magnitude 0..1) and clamps back inside
