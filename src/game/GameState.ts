@@ -91,6 +91,14 @@ export class GameState {
   private slowMoRealTimer = 0;
   private aiServeTimer = 0;
 
+  constructor() {
+    // Open the first rally straight away. Without this the game sits forever
+    // with the ball on its reset position in the middle of the court, because
+    // every other route into beginRally() runs off the end of a *previous*
+    // rally and there has not been one yet.
+    this.beginRally();
+  }
+
   get athletes(): Athlete[] {
     return [this.player, this.teammate, ...this.opponents];
   }
@@ -180,6 +188,15 @@ export class GameState {
           ? this.rally.serveMissed(this.servingTeam)
           : this.rally.resolveEvent(event);
       this.awardPoint(result);
+      return;
+    }
+
+    // A dead ball with nobody serving is not a state play can continue from:
+    // it means a rally ended without another being opened. This has to come
+    // after the event above - a landing kills the ball too, and jumping
+    // straight to a new rally here would swallow the point it just decided.
+    if (this.autoServe && !this.awaitingServe && this.ball.state === 'dead') {
+      this.beginRally();
     }
   }
 
