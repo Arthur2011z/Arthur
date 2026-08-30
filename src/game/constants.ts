@@ -119,16 +119,22 @@ export const BOOST_INTERCEPT_HEIGHT = 1.3;
 // ---------------------------------------------------------------------------
 // Shots
 // ---------------------------------------------------------------------------
-/** Pass: a set delivered to the partner's side of the net, high enough and
- * close enough to the tape that they can attack it. */
-/** How far toward the net a set leads the partner, and the band it is kept
- * inside. Anchored to where the partner actually is - see Shots.passTarget. */
-export const PASS_LEAD = 2.5;
-/** The minimum is a safety margin, not a preference: a set aimed nearer the
- * tape than this is close enough that the ordinary pass spread can push it into
- * the net, turning a good set into a fault nobody played wrong. */
-export const PASS_MIN_DEPTH = 2;
-export const PASS_MAX_DEPTH = 4.5;
+/**
+ * Where a set is put, measured from the net. Anchored to the net rather than
+ * to the receiver: this is the spot an attack is launched from, and the
+ * attacker runs to meet it. Far enough off the tape that the ordinary pass
+ * spread cannot push it into the net.
+ */
+export const SET_NET_DEPTH = 2.2;
+/** How much of the receiver's measured sideways movement the set leads, as a
+ * fraction of the flight time. Below 1 because a player rarely holds one
+ * direction for the whole flight. */
+export const SET_LEAD_FACTOR = 0.6;
+/** Keeps a set off the side lines even when the receiver is hugging one. */
+export const SET_SIDE_MARGIN = 1.2;
+/** Slack on top of what the receiver can run in the flight time, covering the
+ * reach of an arm and the fact that they are usually already moving. */
+export const SET_ARRIVAL_SLACK = 1.5;
 export const PASS_ARRIVAL_HEIGHT = 2.9;
 export const PASS_TIME = 1.05;
 export const PASS_SPREAD_RAD = 0.035;
@@ -290,12 +296,6 @@ export const TEAMMATE_PROFILE: AiProfile = {
   attackSpikeChance: 0.4,
   blockChance: 1, // blocks whenever it reads an attack - that is its job here
 };
-
-/**
- * How close a set may land to the passer before setting is pointless. A player
- * already standing on the spot has nobody to set to and must attack instead.
- */
-export const AI_MIN_SET_DISTANCE = 1;
 
 /** Band of depths, from the net, an AI aims its attacks into. Targets are
  * displaced from here by the profile's slop and never clamped, so a sloppy

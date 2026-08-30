@@ -171,6 +171,11 @@ export class GameState {
       for (const ai of this.aiAthletes) ai.update(dt, nowMs, this.aiContext(ai));
     }
     if (this.awaitingServe) this.updateServeHold(dt);
+    // One place for everyone, after all movement and before any contact can be
+    // resolved: the athlete update methods have several early exits, and a
+    // velocity refreshed inside them would silently stop being refreshed for
+    // whoever took one of those exits.
+    for (const athlete of this.athletes) athlete.trackVelocity(dt);
 
     const event = advance(
       this.ball,

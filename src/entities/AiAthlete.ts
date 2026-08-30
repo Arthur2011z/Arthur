@@ -6,7 +6,6 @@ import {
   AI_ZONE_TRACKING,
   AI_ATTACK_MAX_DEPTH,
   AI_ATTACK_MIN_DEPTH,
-  AI_MIN_SET_DISTANCE,
   AI_SPIKE_MAX_NET_DISTANCE,
   AI_SPIKE_MIN_HEIGHT,
   AiProfile,
@@ -16,12 +15,14 @@ import {
   MAX_TOUCHES_PER_TEAM,
   NET_ZONE_HOME_DEPTH,
   NET_Y,
+  PASS_ARRIVAL_HEIGHT,
+  PLAYER_SPEED,
   ZONE_SPLIT_DEPTH,
 } from '../game/constants';
 import { debugLog } from '../game/Debug';
-import { predictAtHeight } from '../game/Physics';
+import { predictAtHeight, simulate } from '../game/Physics';
 import { Rally } from '../game/Rally';
-import { aiAttackShot, blockShot, farHalfY, passShot, passTarget } from '../game/Shots';
+import { aiAttackShot, blockShot, farHalfY, partnerCanArrive, passShot, passTarget } from '../game/Shots';
 import { Athlete, AthleteId, TeamId } from './Athlete';
 import { Ball } from './Ball';
 import { ContactKind } from './Player';
@@ -264,16 +265,84 @@ export class AiAthlete extends Athlete {
   private chooseShot(ball: Ball, ctx: AiContext): Vec3 {
     const mustCross = ctx.rally.touches >= MAX_TOUCHES_PER_TEAM - 1;
     const setSpot = passTarget(this, ctx.partner);
-    const setIsWorthIt = length(sub(setSpot, this.pos)) >= AI_MIN_SET_DISTANCE;
+    // Whether the *receiver* can be there, not whether the target happens to
+    // be far from the setter. Measuring the setter is what made a teammate
+    // standing at the net refuse to set to a human standing at the net.
+    const setIsWorthIt = partnerCanArrive(setSpot, ctx.partner, this.partnerSpeed(ctx));
 
-    if (!mustCross && setIsWorthIt) return passShot(this, ball, ctx.partner);
+    let decision: 'set_to_partner' | 'attack_last_contact' | 'attack_set_pointless';
+    let target = setSpot;
+    let velocity: Vec3;
 
-    const spike =
-      this.distanceToNet < AI_SPIKE_MAX_NET_DISTANCE &&
-      ball.pos.z > AI_SPIKE_MIN_HEIGHT &&
-      Math.random() < this.profile.attackSpikeChance;
+    if (!mustCross && setIsWorthIt) {
+      decision = 'set_to_partner';
+      velocity = passShot(this, ball, ctx.partner);
+    } else {
+      decision = mustCross ? 'attack_last_contact' : 'attack_set_pointless';
+      target = this.attackTarget();
+      const spike =
+        this.distanceToNet < AI_SPIKE_MAX_NET_DISTANCE &&
+        ball.pos.z > AI_SPIKE_MIN_HEIGHT &&
+        Math.random() < this.profile.attackSpikeChance;
+      velocity = aiAttackShot(this, ball, target, spike, this.profile.attackScatter);
+    }
 
-    return aiAttackShot(this, ball, this.attackTarget(), spike, this.profile.attackScatter);
+    this.logShot(decision, ball, ctx, target, velocity);
+    return velocity;
+  }
+
+  /** How fast the partner can close on a set: the human runs at their own
+   * speed, another AI at whatever its profile allows. */
+  private partnerSpeed(ctx: AiContext): number {
+    return ctx.partner.id === 'player'
+      ? PLAYER_SPEED
+      : (ctx.partner as AiAthlete).profile.speed;
+  }
+
+  /**
+   * Records what this contact decided and, separately, where the ball it just
+   * launched genuinely ends up.
+   *
+   * The arrival is integrated back out of the velocity rather than copied from
+   * the intent, so a target that is computed correctly and then lost or
+   * scattered elsewhere shows as a mismatch instead of hiding behind a log
+   * line that only repeats what the code meant to do.
+   */
+  private logShot(
+    decision: 'set_to_partner' | 'attack_last_contact' | 'attack_set_pointless',
+    ball: Ball,
+    ctx: AiContext,
+    target: Vec2,
+    velocity: Vec3,
+  ): void {
+    const path = simulate({ ...ball.pos }, velocity);
+    // Where a receiver would meet it: the first point past the apex that has
+    // dropped back to hitting height, otherwise wherever the flight ended.
+    let arrival = path[path.length - 1];
+    let falling = false;
+    for (let i = 1; i < path.length; i += 1) {
+      if (path[i].z < path[i - 1].z) falling = true;
+      if (falling && path[i].z <= PASS_ARRIVAL_HEIGHT) {
+        arrival = path[i];
+        break;
+      }
+    }
+
+    debugLog.set({
+      athlete: this.id,
+      decision,
+      fromX: this.pos.x,
+      fromY: this.pos.y,
+      partnerX: ctx.partner.pos.x,
+      partnerY: ctx.partner.pos.y,
+      partnerNetDistance: ctx.partner.distanceToNet,
+      targetX: target.x,
+      targetY: target.y,
+      usedX: arrival.x,
+      usedY: arrival.y,
+      usedZ: arrival.z,
+      touches: ctx.rally.touches,
+    });
   }
 
   /**

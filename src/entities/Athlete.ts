@@ -196,4 +196,29 @@ export class Athlete {
   get distanceToNet(): number {
     return this.team === 'human' ? this.pos.y - NET_Y : NET_Y - this.pos.y;
   }
+
+  /**
+   * How fast this athlete is actually travelling, in m/s, measured from where
+   * they were on the previous frame.
+   *
+   * Measured rather than declared: it then covers the human, the AI, the boost
+   * and a player being clamped against a line alike, and it cannot drift out of
+   * step with the position the way a separately maintained velocity would. A
+   * set that leads its target needs where the receiver is *going*, not where
+   * they happened to stand at the moment of contact.
+   */
+  velocity: Vec2 = { x: 0, y: 0 };
+
+  /** Call once per update, after any movement, to refresh `velocity`. */
+  trackVelocity(dt: number): void {
+    if (dt > 1e-6) {
+      this.velocity = {
+        x: (this.pos.x - this.prevPos.x) / dt,
+        y: (this.pos.y - this.prevPos.y) / dt,
+      };
+    }
+    this.prevPos = { ...this.pos };
+  }
+
+  private prevPos: Vec2 = { x: 0, y: 0 };
 }

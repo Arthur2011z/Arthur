@@ -68,7 +68,42 @@ export interface AimRecord {
   note?: string;
 }
 
-export type DebugRecord = ContactRecord | ExpiredRecord | AimRecord;
+/**
+ * What an AI did with one ball, recorded at the contact itself.
+ *
+ * `targetUsed` is deliberately not a copy of `targetComputed`: it is read back
+ * out of the velocity the ball was actually given, by integrating that flight
+ * forward. A target that is computed correctly and then lost, overwritten or
+ * scattered somewhere else on the way to the ball shows up as a difference
+ * between the two, which reading the intent alone could never reveal.
+ */
+export interface SetRecord {
+  kind: 'set';
+  at: number;
+  athlete: AthleteId;
+  /** Which branch of the decision this was. */
+  decision: 'set_to_partner' | 'attack_last_contact' | 'attack_set_pointless';
+  /** Where the setter stood at the moment of contact. */
+  fromX: number;
+  fromY: number;
+  /** Where the partner it is setting to stood at that moment. */
+  partnerX: number;
+  partnerY: number;
+  /** Distance from the net the partner had, before any lead is applied. */
+  partnerNetDistance: number;
+  /** The target the decision logic computed. */
+  targetX: number;
+  targetY: number;
+  /** Where the launched ball actually arrives, integrated from its velocity. */
+  usedX: number;
+  usedY: number;
+  /** Height at that arrival point. */
+  usedZ: number;
+  /** Contacts the team had used before this one. */
+  touches: number;
+}
+
+export type DebugRecord = ContactRecord | ExpiredRecord | AimRecord | SetRecord;
 
 const MAX_RECORDS = 200;
 
@@ -118,6 +153,10 @@ class DebugLog {
     this.push({ kind: 'aim', at: performance.now(), ...record });
   }
 
+  set(record: Omit<SetRecord, 'kind' | 'at'>): void {
+    this.push({ kind: 'set', at: performance.now(), ...record });
+  }
+
   clear(): void {
     this.records.length = 0;
   }
@@ -126,6 +165,21 @@ class DebugLog {
     this.records.push(record);
     if (this.records.length > MAX_RECORDS) this.records.shift();
     if (!this.isEnabled()) return;
+
+    if (record.kind === 'set') {
+      const p = (x: number, y: number) => `(${x.toFixed(2)}, ${y.toFixed(2)})`;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[set] ${record.athlete} ${record.decision}` +
+          ` touches=${record.touches}` +
+          ` | KI ${p(record.fromX, record.fromY)}` +
+          ` Partner ${p(record.partnerX, record.partnerY)}` +
+          ` (Netzabstand ${record.partnerNetDistance.toFixed(2)}m)` +
+          ` | Ziel berechnet ${p(record.targetX, record.targetY)}` +
+          ` -> tatsächlich ${p(record.usedX, record.usedY)} auf z=${record.usedZ.toFixed(2)}m`,
+      );
+      return;
+    }
 
     if (record.kind === 'aim') {
       const bits = [

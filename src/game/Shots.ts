@@ -16,9 +16,6 @@ import {
   NET_HEIGHT,
   NET_Y,
   PASS_ARRIVAL_HEIGHT,
-  PASS_LEAD,
-  PASS_MAX_DEPTH,
-  PASS_MIN_DEPTH,
   PASS_SPEED_JITTER,
   PASS_SPREAD_RAD,
   PASS_TIME,
@@ -29,6 +26,10 @@ import {
   SPIKE_SPEED_JITTER,
   SPIKE_SPEED_MAX,
   SPIKE_SPEED_MIN,
+  SET_ARRIVAL_SLACK,
+  SET_LEAD_FACTOR,
+  SET_NET_DEPTH,
+  SET_SIDE_MARGIN,
   SPIKE_SPREAD_RAD,
   SPIKE_SWIPE_INFLUENCE,
 } from './constants';
@@ -58,20 +59,42 @@ export const farHalfY = (athlete: Athlete, depth: number): number =>
   athlete.team === 'human' ? NET_Y - depth : NET_Y + depth;
 
 /**
- * Where a set is aimed: the partner's own position, led toward the net so they
- * can attack from it.
+ * Where a set is aimed: the attacking spot at the net, on the receiver's side
+ * of the court, led into the run they are already making.
  *
- * Anchoring it to where the partner actually stands is the point. A fixed
- * depth would work for a back-court player setting forward and be useless for
- * anyone already standing at the net - their "set" would land on top of them,
- * which is precisely how the net player's shots used to die on their own side.
+ * The depth is anchored to the *net*, not derived from where the receiver
+ * currently stands. Deriving it from the receiver was the bug this replaces:
+ * as the receiver moved up to attack, the target moved up with them, and once
+ * they were inside PASS_LEAD of the net it collapsed onto the setter's own
+ * position - so the closer the player got to the net, the less the set went
+ * there. A set goes to the net and the attacker runs to meet it; that is what
+ * makes it a set rather than a ball dropped wherever someone was standing.
+ *
+ * Sideways it leads the receiver's actual measured movement over the flight,
+ * so a player running across the court gets the ball where they will be.
  */
 export function passTarget(passer: Athlete, partner: Athlete): Vec2 {
-  const depth = clamp(partner.distanceToNet - PASS_LEAD, PASS_MIN_DEPTH, PASS_MAX_DEPTH);
+  const led = partner.pos.x + partner.velocity.x * PASS_TIME * SET_LEAD_FACTOR;
   return {
-    x: clamp(partner.pos.x, 1, COURT_WIDTH - 1),
-    y: ownHalfY(passer, depth),
+    x: clamp(led, SET_SIDE_MARGIN, COURT_WIDTH - SET_SIDE_MARGIN),
+    y: ownHalfY(passer, SET_NET_DEPTH),
   };
+}
+
+/**
+ * Whether setting is the right call: can the receiver actually be there when
+ * the ball arrives?
+ *
+ * This replaced a test on how far the target was from the *setter*, which
+ * measured the wrong person entirely. A setter standing near the net was
+ * treated as having nobody to set to and attacked instead - including when
+ * their partner was the human, waiting at the net for exactly that ball.
+ * What decides a set is whether the receiver can arrive, so that is what is
+ * asked.
+ */
+export function partnerCanArrive(target: Vec2, partner: Athlete, speed: number): boolean {
+  const distance = Math.hypot(target.x - partner.pos.x, target.y - partner.pos.y);
+  return distance <= speed * PASS_TIME + SET_ARRIVAL_SLACK;
 }
 
 /**
