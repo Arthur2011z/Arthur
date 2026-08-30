@@ -101,15 +101,38 @@ export class Hud {
     Object.assign(this.hintEl.style, {
       position: 'absolute',
       bottom: 'max(10px, env(safe-area-inset-bottom))',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      color: 'rgba(255, 255, 255, 0.72)',
+      // Centred by auto margins, not by left:50% and a transform. Anchored at
+      // 50% the box is only ever offered *half* the screen to lay itself out
+      // in - the transform moves it afterwards but never gives that width back
+      // - so the hint wrapped as if the window were half its real width.
+      left: '0',
+      right: '0',
+      margin: '0 auto',
+      width: 'max-content',
+      color: 'rgba(255, 255, 255, 0.82)',
       font: '500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      // Wraps rather than running off both edges: the full control list is
-      // wider than a phone screen.
-      maxWidth: 'min(92vw, 620px)',
+      // Shrinks a little before it wraps at all. Allowed to wrap as plain text
+      // at a fixed size, the full control list turns into three lines in a
+      // narrow window and climbs off the letterbox band into the court.
+      fontSize: 'clamp(9px, 2.4vw, 12px)',
+      maxWidth: 'min(94vw, 660px)',
+      // One entry per flex item, so a break can only ever fall between two
+      // entries. Wrapping the same string as text breaks at whatever word
+      // happens to be near the edge and leaves most of a line empty, which is
+      // what pushed it onto a third line.
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      columnGap: '0.55em',
+      rowGap: '0.1em',
+      // It has to sit somewhere, and plain white text is unreadable exactly
+      // where it lands - on the sand - so it carries the same backing as the
+      // score rather than relying on dark background being under it.
+      background: 'rgba(0, 0, 0, 0.25)',
+      padding: '4px 12px',
+      borderRadius: '999px',
       textAlign: 'center',
-      lineHeight: '1.45',
+      lineHeight: '1.4',
       pointerEvents: 'none',
     } satisfies Partial<CSSStyleDeclaration>);
     container.appendChild(this.hintEl);
@@ -118,10 +141,29 @@ export class Hud {
   /** Spells out the controls for whichever input device is currently in use,
    * so switching between phone and desktop never leaves the player guessing. */
   setHint(mode: 'touch' | 'keyboard'): void {
-    this.hintEl.textContent =
+    const entries =
       mode === 'keyboard'
-        ? 'WASD Laufen · E Pass · F Notfall · Leertaste Block · Q Schmettern/Aufschlag'
-        : '';
+        ? [
+            'WASD Laufen',
+            'E Pass',
+            'F Notfall',
+            'Leertaste Block',
+            'Q Schmettern/Aufschlag',
+          ]
+        : [];
+
+    this.hintEl.textContent = '';
+    entries.forEach((entry, i) => {
+      const el = document.createElement('span');
+      // The separator rides along with its entry so it can never be left
+      // stranded at the start of a wrapped line.
+      el.textContent = i === entries.length - 1 ? entry : `${entry} ·`;
+      el.style.whiteSpace = 'nowrap';
+      this.hintEl.appendChild(el);
+    });
+
+    // Touch play has no hint, and an empty pill is just a dark blob on the sand.
+    this.hintEl.style.display = entries.length === 0 ? 'none' : 'flex';
   }
 
   /** Edge-triggered read: true only on the frame Restart was pressed. */

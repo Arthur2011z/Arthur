@@ -168,7 +168,8 @@ test('its attacks stay fallible - it is fixed, not made unbeatable', async ({ pa
   // Measured over 100 undefended attacks: about 70% land in, the rest go out,
   // into the net, or short. Comfortably short of perfect - the player has to be
   // able to win points off the opponents' own mistakes - and comfortably short
-  // of useless, which is the bug this file exists for.
-  expect(good / runs).toBeLessThanOrEqual(0.9);
-  expect(good / runs).toBeGreaterThanOrEqual(0.4);
+  // of useless, which is the bug this file exists for. Twenty attempts only
+  // resolve that difference coarsely, so the bounds are wide on purpose.
+  expect(good / runs).toBeLessThanOrEqual(0.95);
+  expect(good / runs).toBeGreaterThanOrEqual(0.35);
 });

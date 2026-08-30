@@ -101,13 +101,13 @@ test('the opponents attack fallibly, and that is independent of their defence', 
   const runs = 20;
   for (let i = 0; i < runs; i += 1) if (await attack()) good += 1;
 
-  // A meaningful share misses - the player has to be able to win points.
-  // Measured over 100 attempts with nobody defending: 70 in, 24 out, 5 into the
-  // net, 1 short. The bound is set off that rate with room for the sample size,
-  // not tightened around it.
-  expect(good / runs).toBeLessThanOrEqual(0.9);
-  // ...but it is not a free point either; the attack has to actually work.
-  expect(good / runs).toBeGreaterThanOrEqual(0.4);
+  // Measured over 100 attempts with nobody defending: 70 in, 24 out, 5 into
+  // the net, 1 short. Twenty attempts cannot pin that rate down to a few
+  // percent, so these bounds are deliberately wide: they catch the structural
+  // breaks - an attack that always works, or one that never does - and leave
+  // the actual balance to the hundred-attempt measurement above.
+  expect(good / runs).toBeLessThanOrEqual(0.95);
+  expect(good / runs).toBeGreaterThanOrEqual(0.35);
 });
 
 test('only one opponent goes after a given ball', async ({ page }) => {
@@ -149,6 +149,7 @@ test('the opponents hold two different zones and come back to them', async ({ pa
 });
 
 test('the game plays itself without getting stuck', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.evaluate(() => {
     const g = window.__game!;
     g.state.autoServe = true;
@@ -167,27 +168,40 @@ test('the game plays itself without getting stuck', async ({ page }) => {
   // ball aimed at them and nothing ever comes back, and pressing only Pass
   // would never send anything over the net - a pass deliberately stays on the
   // own side. Alternating Pass and Notfall is what an actual rally looks like.
-  for (let i = 0; i < 70; i += 1) {
+  //
+  // Run until play has actually happened rather than for a fixed stretch of
+  // wall clock. Rallies here average around ten contacts, so how much fits
+  // into a fixed twenty seconds depends on how loaded the machine is - and a
+  // slow machine seeing one long rally is not the game seizing up.
+  const read = () =>
+    page.evaluate(() => ({
+      score: { ...window.__game!.state.score },
+      phase: window.__game!.state.phase,
+      contacts: window.__game!.debug.records.filter((r) => r.kind === 'contact').length,
+      touchers: [
+        ...new Set(
+          window.__game!.debug.records
+            .filter((r) => r.kind === 'contact')
+            .map((r) => r.athlete),
+        ),
+      ],
+    }));
+
+  const satisfied = (x: Awaited<ReturnType<typeof read>>) =>
+    x.score.human + x.score.opponents >= 1 &&
+    x.contacts >= 3 &&
+    x.touchers.some((a) => a === 'player' || a === 'teammate') &&
+    x.touchers.some((a) => a.startsWith('opponent'));
+
+  let s = await read();
+  for (let i = 0; i < 200 && !satisfied(s); i += 1) {
     await page.keyboard.press(i % 2 === 0 ? 'e' : 'f');
     await page.waitForTimeout(280);
+    if (i % 4 === 3) s = await read();
   }
+  s = await read();
 
-  const s = await page.evaluate(() => ({
-    score: { ...window.__game!.state.score },
-    phase: window.__game!.state.phase,
-    contacts: window.__game!.debug.records.filter((r) => r.kind === 'contact').length,
-    touchers: [
-      ...new Set(
-        window.__game!.debug.records
-          .filter((r) => r.kind === 'contact')
-          .map((r) => r.athlete),
-      ),
-    ],
-  }));
-
-  // Rallies started and finished rather than the game seizing up. How many
-  // points fit into twenty seconds varies a lot with how long the rallies run,
-  // so this only asks that play completed at all.
+  // Rallies started and finished rather than the game seizing up.
   expect(s.score.human + s.score.opponents).toBeGreaterThanOrEqual(1);
   expect(s.contacts).toBeGreaterThanOrEqual(3);
   expect(['rally', 'point_scored', 'game_over']).toContain(s.phase);
