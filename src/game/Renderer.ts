@@ -3,6 +3,7 @@ import { Ball } from '../entities/Ball';
 import { Player } from '../entities/Player';
 import { Vec2, Vec3 } from '../utils/math';
 import { Court } from './Court';
+import { debugLog } from './Debug';
 import {
   BALL_RADIUS,
   COURT_LENGTH,
@@ -46,6 +47,9 @@ const FIGURE_HEIGHT_M = 1.85;
 export class Renderer {
   /** Free-running clock for idle/run animation only. */
   private animTime = 0;
+  /** Whether the preview line was drawn on the previous frame, so the debug
+   * log records the start of a preview rather than every frame of it. */
+  private drewAimPath = false;
 
   advance(dt: number): void {
     this.animTime += dt;
@@ -225,7 +229,18 @@ export class Renderer {
    * frame as the aim and the ball both move.
    */
   drawAimPath(ctx: CanvasRenderingContext2D, court: Court, path: Vec3[] | null): void {
-    if (!path || path.length < 2) return;
+    if (!path || path.length < 2) {
+      if (path && this.drewAimPath) {
+        debugLog.aim({ stage: 'preview_drawn', points: path.length, note: 'skipped: path too short to draw' });
+      }
+      this.drewAimPath = false;
+      return;
+    }
+    // Logged once per aiming window rather than every frame. The record buffer
+    // is a small ring, and a per-frame entry here scrolls the pointer records
+    // that matter straight out of it.
+    if (!this.drewAimPath) debugLog.aim({ stage: 'preview_drawn', points: path.length });
+    this.drewAimPath = true;
 
     ctx.save();
     ctx.lineCap = 'round';

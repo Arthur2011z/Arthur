@@ -29,7 +29,46 @@ export interface ExpiredRecord {
   heldMs: number;
 }
 
-export type DebugRecord = ContactRecord | ExpiredRecord;
+/**
+ * One link in the chain that turns an aiming swipe into a spike: the aim phase
+ * opening, the finger going down, moving and lifting, the trajectory being
+ * computed, and the preview line being drawn.
+ *
+ * Contact records answer "did the ball move at the right moment". These answer
+ * a different question - "did the input reach the code that moves it at all" -
+ * and that is a chain with six links, any one of which can quietly swallow the
+ * gesture. Logging each one means the break can be located instead of guessed
+ * at.
+ */
+export interface AimRecord {
+  kind: 'aim';
+  stage:
+    | 'aim_phase_started'
+    | 'aim_phase_ended'
+    | 'swipe_down'
+    | 'swipe_move'
+    | 'swipe_up'
+    | 'aim_applied'
+    | 'trajectory_computed'
+    | 'preview_drawn'
+    | 'swing_started';
+  at: number;
+  /** Screen-space finger position, for the pointer stages. */
+  x?: number;
+  y?: number;
+  /** Travel in px and the resulting 0..1 strength, for swipe_move / swipe_up. */
+  travelPx?: number;
+  strength?: number;
+  /** Court-space aim direction once it has been applied to the player. */
+  dirX?: number;
+  dirY?: number;
+  /** Points in the computed preview polyline. */
+  points?: number;
+  /** Free-text reason a stage did nothing. */
+  note?: string;
+}
+
+export type DebugRecord = ContactRecord | ExpiredRecord | AimRecord;
 
 const MAX_RECORDS = 200;
 
@@ -75,6 +114,10 @@ class DebugLog {
     });
   }
 
+  aim(record: Omit<AimRecord, 'kind' | 'at'> & { at?: number }): void {
+    this.push({ kind: 'aim', at: performance.now(), ...record });
+  }
+
   clear(): void {
     this.records.length = 0;
   }
@@ -83,6 +126,20 @@ class DebugLog {
     this.records.push(record);
     if (this.records.length > MAX_RECORDS) this.records.shift();
     if (!this.isEnabled()) return;
+
+    if (record.kind === 'aim') {
+      const bits = [
+        record.x !== undefined ? `at=(${record.x.toFixed(0)}, ${record.y?.toFixed(0)})` : '',
+        record.travelPx !== undefined ? `travel=${record.travelPx.toFixed(0)}px` : '',
+        record.strength !== undefined ? `strength=${record.strength.toFixed(2)}` : '',
+        record.dirX !== undefined ? `dir=(${record.dirX.toFixed(2)}, ${record.dirY?.toFixed(2)})` : '',
+        record.points !== undefined ? `points=${record.points}` : '',
+        record.note ?? '',
+      ].filter(Boolean);
+      // eslint-disable-next-line no-console
+      console.log(`[aim] ${record.stage} t=${record.at.toFixed(1)}ms ${bits.join(' ')}`);
+      return;
+    }
 
     if (record.kind === 'contact') {
       // eslint-disable-next-line no-console

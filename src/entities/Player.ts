@@ -287,7 +287,14 @@ export class Player extends Athlete {
 
     // On touch, letting go of the aiming swipe is the swing - the equivalent
     // of the second Q press.
-    if (input.swipeReleased && this.jumping) this.startSwing(ctx.clock.wallMs);
+    if (input.swipeReleased) {
+      if (this.jumping) {
+        this.startSwing(ctx.clock.wallMs);
+        debugLog.aim({ stage: 'swing_started', note: 'released aiming swipe' });
+      } else {
+        debugLog.aim({ stage: 'swing_started', note: 'discarded: player is not airborne' });
+      }
+    }
   }
 
   /** While airborne the direction input aims the attack instead of steering
@@ -302,8 +309,15 @@ export class Player extends Athlete {
     if (swipe && length(swipe.dir) > 0) {
       this.aimDir = normalize(swipe.dir);
       this.swipeStrength = swipe.strength;
+      debugLog.aim({
+        stage: 'aim_applied',
+        dirX: this.aimDir.x,
+        dirY: this.aimDir.y,
+        strength: swipe.strength,
+      });
     } else if (input.aim) {
       this.aimDir = normalize(input.aim);
+      debugLog.aim({ stage: 'aim_applied', dirX: this.aimDir.x, dirY: this.aimDir.y, note: 'from stick/keys' });
     }
   }
 

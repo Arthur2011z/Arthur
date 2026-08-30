@@ -20,6 +20,7 @@ import {
   WIN_MARGIN,
   WIN_SCORE,
 } from './constants';
+import { debugLog } from './Debug';
 import { BallEvent, advance, simulate, velocityOverNet, velocityToTarget } from './Physics';
 import { FaultReason, Rally, RallyResult } from './Rally';
 
@@ -89,6 +90,10 @@ export class GameState {
 
   private pauseTimer = 0;
   private slowMoRealTimer = 0;
+  /** True while the aiming window is open, so its start and end are logged
+   * once each rather than every frame. */
+  private aiming = false;
+  private previewLogged = false;
   private aiServeTimer = 0;
 
   constructor() {
@@ -367,9 +372,18 @@ export class GameState {
   private updateSlowMotion(realDt: number): void {
     const wants = this.phase === 'rally' && this.player.wantsAimTime(this.ball);
     if (!wants) {
+      if (this.aiming) {
+        this.aiming = false;
+        this.previewLogged = false;
+        debugLog.aim({ stage: 'aim_phase_ended' });
+      }
       this.slowMoRealTimer = 0;
       this.timeScale = 1;
       return;
+    }
+    if (!this.aiming) {
+      this.aiming = true;
+      debugLog.aim({ stage: 'aim_phase_started', note: 'player hanging at the top of the jump with the ball in reach' });
     }
     this.slowMoRealTimer += realDt;
     this.timeScale = this.slowMoRealTimer <= SLOWMO_MAX_REAL ? SLOWMO_SCALE : 1;
@@ -379,7 +393,13 @@ export class GameState {
    * Null whenever there is nothing to aim. */
   aimPreview(): Vec3[] | null {
     if (this.timeScale === 1 || this.ball.state !== 'live') return null;
-    return simulate({ ...this.ball.pos }, this.player.previewSpike(this.ball));
+    const path = simulate({ ...this.ball.pos }, this.player.previewSpike(this.ball));
+    // Once per aiming window, for the same reason as Renderer.drawAimPath.
+    if (!this.previewLogged) {
+      this.previewLogged = true;
+      debugLog.aim({ stage: 'trajectory_computed', points: path.length });
+    }
+    return path;
   }
 
   /** Ends the current rally with the given result: scores it, moves the serve

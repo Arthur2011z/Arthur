@@ -102,15 +102,25 @@ test('the first press tosses the ball and jumps without touching it', async ({ p
 test('the serve jump gets the same slow motion and trajectory preview', async ({ page }) => {
   await humanServe(page);
   await page.keyboard.press('q');
-  await page.waitForFunction(() => window.__game!.state.timeScale < 1, undefined, {
-    timeout: 3000,
-  });
 
-  const preview = await page.evaluate(() =>
-    window.__game!.state.aimPreview()?.map((p) => ({ ...p })),
-  );
-  expect(preview).toBeDefined();
-  expect(preview!.length).toBeGreaterThan(15);
+  // Read the preview in the same step that finds the slow motion. The aiming
+  // window closes on its own after about a second, so waiting for it and then
+  // asking for the path in a second round trip is a race that a loaded machine
+  // loses - the window had already shut, and the test read null.
+  const points = await page
+    .waitForFunction(
+      () => {
+        const s = window.__game!.state;
+        if (s.timeScale === 1) return null;
+        const path = s.aimPreview();
+        return path ? path.length : null;
+      },
+      undefined,
+      { timeout: 3000 },
+    )
+    .then((handle) => handle.jsonValue());
+
+  expect(points).toBeGreaterThan(15);
 });
 
 test('the second press serves the ball over the net, firing on contact', async ({ page }) => {

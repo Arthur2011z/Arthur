@@ -47,6 +47,8 @@ const loop = new GameLoop((dt, nowMs) => {
   input.setButtonMode(
     gameState.awaitingServe && gameState.humanIsServing ? 'serve' : 'play',
   );
+  // Airborne, a touch on the Schmettern button is an aim rather than a press.
+  input.setAiming(gameState.player.jumping);
   if (hud.consumeRestart()) gameState.restart();
   hud.update({
     score: gameState.score,

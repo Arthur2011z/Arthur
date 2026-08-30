@@ -60,6 +60,13 @@ export class InputManager {
     this.buttons.setMode(mode);
   }
 
+  /** Passes the player's airborne state to the button cluster, which uses it to
+   * hand an aiming gesture starting on the Schmettern button through to the
+   * swipe surface instead of consuming it. */
+  setAiming(aiming: boolean): void {
+    this.buttons.setAiming(aiming);
+  }
+
   snapshot(): InputSnapshot {
     const pressed: PressedAction[] = [
       ...this.buttons.consumePressed(),
@@ -82,13 +89,22 @@ export class InputManager {
       aim,
       pressed,
       swipe: this.toCourtSwipe(this.swipe.active),
-      swipeReleased: this.toCourtSwipe(this.swipe.consumeRelease()),
+      // A release is passed on even when the finger barely moved. Aiming needs
+      // a real direction, so the live sample above still drops a stationary
+      // touch - but the *release* is the trigger to hit, and a quick flick
+      // that falls short of the swipe threshold should hit straight ahead
+      // rather than do nothing at all.
+      swipeReleased: this.toCourtSwipe(this.swipe.consumeRelease(), true),
       mode: this.mode,
     };
   }
 
-  private toCourtSwipe(raw: { dir: Vec2; strength: number } | null): SwipeSample | null {
-    if (!raw || raw.strength <= 0) return null;
+  private toCourtSwipe(
+    raw: { dir: Vec2; strength: number } | null,
+    keepTap = false,
+  ): SwipeSample | null {
+    if (!raw) return null;
+    if (!keepTap && raw.strength <= 0) return null;
     return { dir: this.court.screenToCourt(raw.dir), strength: raw.strength };
   }
 

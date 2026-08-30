@@ -92,10 +92,26 @@ export class Buttons {
   constructor(
     container: HTMLElement,
     private readonly onActivity: () => void,
+    /** True while the player is airborne and the next gesture is an aim, not a
+     * press. Supplied per frame by the game; see setAiming(). */
+    private aiming = false,
   ) {
     this.playEls = PLAY_BUTTONS.map((spec) => this.createButton(container, spec));
     this.serveEl = this.createButton(container, SERVE_BUTTON);
     this.setMode('play');
+  }
+
+  /**
+   * Tells the cluster whether the player is currently in the air.
+   *
+   * While they are, the Schmettern button stops behaving like a button: a
+   * touch starting on it is handed through to the swipe surface underneath, so
+   * the aiming swipe can begin exactly where the thumb already is. Without
+   * this the button swallowed the gesture on its own pointerdown and the
+   * aiming swipe was, in practice, impossible to start on a phone.
+   */
+  setAiming(aiming: boolean): void {
+    this.aiming = aiming;
   }
 
   setMode(mode: ButtonMode): void {
@@ -135,6 +151,15 @@ export class Buttons {
     } satisfies Partial<CSSStyleDeclaration>);
 
     el.addEventListener('pointerdown', (e) => {
+      // Airborne, the Schmettern button is where the thumb rests, and what the
+      // player does next is aim. The gesture is therefore left alone so it
+      // reaches the swipe surface below - releasing it is what swings, which
+      // is the same trigger a swipe from the sand uses. A tap without any drag
+      // still comes back through as a release, so tapping twice keeps working.
+      if (this.aiming && spec.action === 'jump') {
+        this.onActivity();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation(); // never let a button press start a swipe as well
       this.pressed.push({ action: spec.action, at: performance.now() });

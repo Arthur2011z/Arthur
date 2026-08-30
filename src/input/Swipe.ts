@@ -1,4 +1,5 @@
 import { Vec2, normalize } from '../utils/math';
+import { debugLog } from '../game/Debug';
 
 /** Finger travel (px) that counts as a full-strength swipe. */
 const FULL_STRENGTH_PX = 160;
@@ -46,11 +47,23 @@ export class Swipe {
   }
 
   private onPointerDown = (e: PointerEvent): void => {
-    if (this.pointerId !== null) return;
+    if (this.pointerId !== null) {
+      debugLog.aim({ stage: 'swipe_down', x: e.clientX, y: e.clientY, note: 'ignored: another pointer already owns the surface' });
+      return;
+    }
+    debugLog.aim({ stage: 'swipe_down', x: e.clientX, y: e.clientY });
     this.pointerId = e.pointerId;
     this.origin = { x: e.clientX, y: e.clientY };
     this.current = { dir: { x: 0, y: 0 }, strength: 0 };
-    this.surface.setPointerCapture(e.pointerId);
+    // Capture is a convenience - it keeps the drag alive if the finger leaves
+    // the surface. It is not allowed to be load-bearing: a throwing call here
+    // used to skip the listener registration below and leave pointerId set
+    // forever, which silently disabled every later swipe.
+    try {
+      this.surface.setPointerCapture(e.pointerId);
+    } catch {
+      /* the pointer is already gone; the listeners below still see it out */
+    }
     this.surface.addEventListener('pointermove', this.onPointerMove);
     this.surface.addEventListener('pointerup', this.onPointerUp);
     this.surface.addEventListener('pointercancel', this.onPointerUp);
@@ -60,11 +73,26 @@ export class Swipe {
   private onPointerMove = (e: PointerEvent): void => {
     if (e.pointerId !== this.pointerId) return;
     this.current = this.measure(e);
+    debugLog.aim({
+      stage: 'swipe_move',
+      x: e.clientX,
+      y: e.clientY,
+      travelPx: Math.hypot(e.clientX - this.origin.x, e.clientY - this.origin.y),
+      strength: this.current.strength,
+    });
   };
 
   private onPointerUp = (e: PointerEvent): void => {
     if (e.pointerId !== this.pointerId) return;
     this.released = this.measure(e);
+    debugLog.aim({
+      stage: 'swipe_up',
+      x: e.clientX,
+      y: e.clientY,
+      travelPx: Math.hypot(e.clientX - this.origin.x, e.clientY - this.origin.y),
+      strength: this.released.strength,
+      note: this.released.strength === 0 ? 'below the swipe threshold - reported as a tap' : undefined,
+    });
     this.current = null;
     this.pointerId = null;
     this.surface.removeEventListener('pointermove', this.onPointerMove);
