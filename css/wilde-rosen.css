@@ -208,6 +208,56 @@ a {
   font-size: 0.9375rem;
 }
 
+/* --- Häufige Fragen -------------------------------------------------------
+   <details>/<summary>, mehrere gleichzeitig offen. Plus wird beim Öffnen
+   zum Minus.
+   -------------------------------------------------------------------------- */
+
+.frage {
+  border-top: 1px solid rgba(237, 231, 220, 0.14);
+}
+
+.frage:last-child {
+  border-bottom: 1px solid rgba(237, 231, 220, 0.14);
+}
+
+.frage summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 1.125rem;
+  font-family: var(--schrift-ueberschrift);
+  font-weight: 500;
+  font-size: 1.0625rem;
+  color: var(--hell);
+  cursor: pointer;
+  list-style: none;
+}
+
+.frage summary::-webkit-details-marker {
+  display: none;
+}
+
+.frage summary::after {
+  content: "+";
+  flex: none;
+  font-family: var(--schrift-text);
+  font-weight: 300;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--glut);
+}
+
+.frage[open] summary::after {
+  content: "−";
+}
+
+.frage p {
+  padding-bottom: 1.25rem;
+  margin: 0;
+}
+
 /* --- Hervorgehobener Hinweis mit Glut-Rahmen ----------------------------- */
 
 .hinweis {
