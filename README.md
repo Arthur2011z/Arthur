@@ -23,7 +23,7 @@ bilder/               die Fotos (noch leer)
 
 - [x] Schritt 1 — Grundgerüst, Farben, Schriften, Sprungnavigation, Kopfbereich
       mit den sechs Auswahlkacheln
-- [ ] Schritt 2 — Was eine Schwitzhütte ist
+- [x] Schritt 2 — Was eine Schwitzhütte ist
 - [ ] Schritt 3 — Der Ablauf mit den vier Runden
 - [ ] Schritt 4 — Wer wir sind
 - [ ] Schritt 5 — Termine und Beitrag
