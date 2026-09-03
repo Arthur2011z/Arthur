@@ -27,7 +27,7 @@ bilder/               die Fotos (noch leer)
 - [x] Schritt 3 — Der Ablauf
 - [x] Schritt 4 — Wer wir sind (Text und Foto folgen von euch)
 - [x] Schritt 5 — Termine und Beitrag (Termine und Spanne folgen von euch)
-- [ ] Schritt 6 — Was du mitbringst
+- [x] Schritt 6 — Was du mitbringst (Essensregelung, Anfahrt folgen von euch)
 - [ ] Schritt 7 — Bevor du kommst
 - [ ] Schritt 8 — Häufige Fragen
 - [ ] Schritt 9 — Anfragen (Formular und WhatsApp)
@@ -45,8 +45,6 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 - Die nächsten Termine und wie oft im Jahr
 - Die Beitragsspanne
 - Der persönliche Text über die beiden Betreiber
-- Genaue Angaben zu Anfahrt und Parken
-- Ob jeder etwas zum Essen mitbringt oder gekocht wird
 - Impressumsdaten: vollständiger Name, Anschrift, E-Mail, Telefon
 - Die WhatsApp-Nummer für den Direktlink
 - Ein Zugangsschlüssel für den Formularversand (Web3Forms)
