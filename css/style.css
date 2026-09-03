@@ -1,0 +1,112 @@
+/* Arthur Gittel — Websites für kleine Betriebe im Kreis Stormarn
+   Grundlagen: Farben, Schrift, Reset, Fokus, Bewegung
+   Schrift "Archivo" wird per Google Fonts im <head> jeder Seite geladen
+   (Stärken 400/600/800/900), hier nur die Fallback-Kette. */
+
+:root {
+  --bg: #0b0c0e;
+  --bg-darkest: #050607;
+  --panel: #101216;
+  --orange: #ff6a13;
+  --orange-light: #ffa23d;
+  --glass-fill: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --text-body: #9a9ca3;
+  --text-heading: #f2f3f5;
+
+  --section-gap: clamp(4.5rem, 10vw, 8rem);
+  --content-width: min(100% - 2.5rem, 46rem);
+
+  --radius-tile: 16px;
+  --radius-field: 10px;
+  --radius-button: 999px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text-body);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: clamp(1.9rem, 5.5vw, 2.8rem);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+p {
+  max-width: 60ch;
+  margin: 0;
+}
+
+.content {
+  width: var(--content-width);
+  margin-inline: auto;
+  text-align: left;
+}
+
+section {
+  scroll-margin-top: 2rem;
+}
+
+/* Sichtbarer, oranger Fokusrahmen bei Tastaturbedienung */
+:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
