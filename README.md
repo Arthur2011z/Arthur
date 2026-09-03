@@ -24,7 +24,7 @@ bilder/               die Fotos (noch leer)
 - [x] Schritt 1 — Grundgerüst, Farben, Schriften, Sprungnavigation, Kopfbereich
       mit den sechs Auswahlkacheln
 - [x] Schritt 2 — Was eine Schwitzhütte ist
-- [x] Schritt 3 — Der Ablauf mit den vier Runden
+- [x] Schritt 3 — Der Ablauf
 - [ ] Schritt 4 — Wer wir sind
 - [ ] Schritt 5 — Termine und Beitrag
 - [ ] Schritt 6 — Was du mitbringst
@@ -42,7 +42,6 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
   Porträt der beiden. Richtwert vor dem Hochladen: höchstens 1600 Pixel
   Kantenlänge und 300 Kilobyte pro Bild, abgelegt unter `bilder/`.
 - Uhrzeiten des Ablaufs und Gesamtdauer
-- Was in den vier Runden inhaltlich passiert
 - Die nächsten Termine und wie oft im Jahr
 - Die Beitragsspanne
 - Der persönliche Text über die beiden Betreiber
