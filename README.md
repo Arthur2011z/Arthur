@@ -30,7 +30,7 @@ bilder/               die Fotos (noch leer)
 - [x] Schritt 6 — Was du mitbringst (Essensregelung, Anfahrt folgen von euch)
 - [x] Schritt 7 — Bevor du kommst
 - [x] Schritt 8 — Häufige Fragen
-- [ ] Schritt 9 — Anfragen (Formular und WhatsApp)
+- [x] Schritt 9 — Anfragen (Formular und WhatsApp)
 - [ ] Schritt 10 — Fußzeile, Impressum, Datenschutz
 
 ## Was noch fehlt
@@ -48,7 +48,6 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 - Genaue Angaben zu Anfahrt und Parken
 - Ob jeder etwas zum Essen mitbringt oder gekocht wird
 - Impressumsdaten: vollständiger Name, Anschrift, E-Mail, Telefon
-- Die WhatsApp-Nummer für den Direktlink
 - Ein Zugangsschlüssel für den Formularversand (Web3Forms)
 
 ## Vor dem Livegang

@@ -208,6 +208,65 @@ a {
   font-size: 0.9375rem;
 }
 
+/* --- Anfrageformular ------------------------------------------------------- */
+
+.formular {
+  margin: 1.75rem 0 2rem;
+  max-width: 30rem;
+}
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.25rem;
+}
+
+.feld label {
+  color: var(--hell);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.feld__optional {
+  color: var(--text);
+  font-weight: 300;
+}
+
+.feld input,
+.feld textarea {
+  font-family: var(--schrift-text);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--hell);
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(237, 231, 220, 0.28);
+  border-radius: var(--ecke-feld);
+  padding: 0.75rem 0.875rem;
+  min-height: 44px;
+}
+
+.feld textarea {
+  resize: vertical;
+  min-height: 8rem;
+}
+
+.feld input::placeholder,
+.feld textarea::placeholder {
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.formular .knopf {
+  border: 0;
+  cursor: pointer;
+  font-family: var(--schrift-text);
+}
+
+.whatsapp {
+  margin-bottom: 0.75rem;
+}
+
 /* --- Häufige Fragen -------------------------------------------------------
    <details>/<summary>, mehrere gleichzeitig offen. Plus wird beim Öffnen
    zum Minus.
@@ -347,6 +406,18 @@ a {
 
 .knopf:hover {
   background-color: #F0763C;
+}
+
+/* Zurückhaltendere Variante für einen zweiten Weg, keinen Wettbewerb zum
+   Haupt-Knopf */
+.knopf--whatsapp {
+  background-color: transparent;
+  color: var(--glut);
+  border: 1px solid var(--glut);
+}
+
+.knopf--whatsapp:hover {
+  background-color: rgba(228, 101, 43, 0.12);
 }
 
 /* ==========================================================================

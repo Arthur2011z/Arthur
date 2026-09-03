@@ -387,14 +387,76 @@
   </section>
 
   <!-- ====================================================================
-       6.9 Anfragen — folgt in Schritt 9
+       6.9 Anfragen
+
+       Versand über Web3Forms (https://web3forms.com). Kostenlos, kein Konto
+       nötig — nur eine E-Mail-Adresse bestätigen und den Zugangsschlüssel
+       unten eintragen. Ohne echten Schlüssel wird die Anfrage nicht
+       verschickt.
        ==================================================================== -->
   <section class="abschnitt abschnitt--tief" id="anfragen">
     <div class="inhalt">
       <h2>Termin anfragen</h2>
+
+      <p>
+        Schreib uns, wann du kommen möchtest und was du sonst noch wissen
+        willst. Wir melden uns zurück und sagen dir, ob der Termin noch frei
+        ist.
+      </p>
+
       <p class="platzhalter">
-        <span class="platzhalter__marke">Noch nicht gebaut</span>
-        Formular und WhatsApp-Link entstehen in einem späteren Schritt.
+        <span class="platzhalter__marke">Fehlt noch</span>
+        Ein echter Zugangsschlüssel von Web3Forms. Kostenlos unter
+        <code>web3forms.com</code> mit einer E-Mail-Adresse anlegen, den
+        Schlüssel kopieren und unten im Formular bei
+        <code>access_key</code> eintragen.
+      </p>
+
+      <form class="formular" action="https://api.web3forms.com/submit" method="POST">
+        <!-- PLATZHALTER: echten Web3Forms-Zugangsschlüssel eintragen -->
+        <input type="hidden" name="access_key" value="DEIN-WEB3FORMS-SCHLUESSEL-HIER">
+        <input type="hidden" name="subject" value="Neue Terminanfrage — Wilde Rosen">
+        <input type="hidden" name="from_name" value="Wilde Rosen — Anfrageformular">
+        <!-- Spamschutz: für Menschen unsichtbares Feld, das leer bleiben muss -->
+        <input type="text" name="botcheck" class="nur-vorlesen" tabindex="-1" autocomplete="off">
+
+        <div class="feld">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required autocomplete="name">
+        </div>
+
+        <div class="feld">
+          <label for="email">E-Mail</label>
+          <input type="email" id="email" name="email" required autocomplete="email">
+        </div>
+
+        <div class="feld">
+          <label for="telefon">Telefon <span class="feld__optional">(freiwillig)</span></label>
+          <input type="tel" id="telefon" name="telefon" autocomplete="tel">
+        </div>
+
+        <div class="feld">
+          <label for="wunschtermin">Wunschtermin</label>
+          <input type="text" id="wunschtermin" name="wunschtermin" placeholder="z. B. der nächste freie Termin">
+        </div>
+
+        <div class="feld">
+          <label for="nachricht">Deine Nachricht</label>
+          <textarea id="nachricht" name="nachricht" rows="5"></textarea>
+        </div>
+
+        <button type="submit" class="knopf">Anfrage senden</button>
+      </form>
+
+      <p class="whatsapp">
+        Lieber direkt schreiben? Auch über WhatsApp erreichst du uns.
+      </p>
+
+      <!-- PLATZHALTER geprüft, aber bitte gegenchecken: 0152 29262920 -->
+      <p>
+        <a class="knopf knopf--whatsapp" href="https://wa.me/4915229262920?text=Hallo%2C%20ich%20interessiere%20mich%20f%C3%BCr%20einen%20Termin%20bei%20Wilde%20Rosen." target="_blank" rel="noopener">
+          Auf WhatsApp schreiben
+        </a>
       </p>
     </div>
   </section>
