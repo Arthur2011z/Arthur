@@ -25,7 +25,7 @@ bilder/               die Fotos (noch leer)
       mit den sechs Auswahlkacheln
 - [x] Schritt 2 — Was eine Schwitzhütte ist
 - [x] Schritt 3 — Der Ablauf
-- [ ] Schritt 4 — Wer wir sind
+- [x] Schritt 4 — Wer wir sind (Text und Foto folgen von euch)
 - [ ] Schritt 5 — Termine und Beitrag
 - [ ] Schritt 6 — Was du mitbringst
 - [ ] Schritt 7 — Bevor du kommst

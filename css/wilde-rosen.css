@@ -126,6 +126,15 @@ a {
   margin: 2rem 0 2.25rem;
 }
 
+/* Hochkant, damit ein Porträt nicht die ganze Inhaltsbreite einnimmt */
+.bild--portraet {
+  max-width: 22rem;
+}
+
+.bild-platzhalter--portraet {
+  aspect-ratio: 4 / 5;
+}
+
 .bild figcaption {
   margin-top: 0.625rem;
   font-size: 0.9375rem;
