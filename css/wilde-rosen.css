@@ -267,6 +267,56 @@ a {
   margin-bottom: 0.75rem;
 }
 
+/* --- Unterseiten (Impressum, Datenschutz) --------------------------------- */
+
+.unterseite__kopf {
+  padding-block: 2.5rem clamp(2.5rem, 6vw, 3.5rem);
+}
+
+.zurueck {
+  display: inline-block;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  margin-bottom: 1.5rem;
+}
+
+.zurueck:hover {
+  color: var(--glut);
+}
+
+.unterseite__kopf h1 {
+  margin: 0;
+}
+
+/* Rechtstexte: Zwischenüberschriften brauchen Luft nach oben, aber nicht
+   die erste im Abschnitt. */
+.abschnitt h2:not(:first-child) {
+  margin-top: 2.25rem;
+}
+
+/* --- Fußzeile -------------------------------------------------------------- */
+
+.fuss {
+  padding-block: 2.5rem;
+}
+
+.fuss__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.fuss__links a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.fuss__links a:hover {
+  color: var(--glut);
+}
+
 /* --- Häufige Fragen -------------------------------------------------------
    <details>/<summary>, mehrere gleichzeitig offen. Plus wird beim Öffnen
    zum Minus.

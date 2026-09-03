@@ -15,11 +15,17 @@ python3 -m http.server 8000
 
 ```
 index.html            die Scrollseite
+impressum.html        Pflichtseite
+datenschutz.html      Pflichtseite (Entwurf, siehe unten)
 css/wilde-rosen.css   die Stildatei
 bilder/               die Fotos (noch leer)
 ```
 
 ## Baufortschritt
+
+Alle zehn Abschnitte aus der Projektbeschreibung sind gebaut. Was inhaltlich
+noch fehlt, steht als sichtbarer Platzhalter auf der Seite und unten in
+diesem Dokument.
 
 - [x] Schritt 1 — Grundgerüst, Farben, Schriften, Sprungnavigation, Kopfbereich
       mit den sechs Auswahlkacheln
@@ -31,7 +37,7 @@ bilder/               die Fotos (noch leer)
 - [x] Schritt 7 — Bevor du kommst
 - [x] Schritt 8 — Häufige Fragen
 - [x] Schritt 9 — Anfragen (Formular und WhatsApp)
-- [ ] Schritt 10 — Fußzeile, Impressum, Datenschutz
+- [x] Schritt 10 — Fußzeile, Impressum, Datenschutz
 
 ## Was noch fehlt
 
@@ -52,8 +58,14 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 
 ## Vor dem Livegang
 
-- Impressum und Datenschutzerklärung müssen vorhanden und von jeder Seite
-  erreichbar sein. Ohne beides ist die Seite abmahnfähig.
+- Impressum und Datenschutzerklärung sind als eigene Unterseiten angelegt und
+  über die Fußzeile von jeder Seite erreichbar — die Texte darin sind aber
+  Entwürfe. Das Impressum braucht eure echten Daten, die
+  Datenschutzerklärung sollte vor dem Livegang von jemandem gegengelesen
+  werden, der sich damit auskennt; sie ersetzt keine Rechtsberatung.
+- Der Formularversand (Web3Forms) verschickt erst, wenn ein echter
+  Zugangsschlüssel eingetragen ist — siehe Platzhalter im Abschnitt
+  „Anfragen" und Punkt unten.
 - Auf den Fotos darf keine fremde Person erkennbar sein, ohne dass ihr
   Einverständnis vorliegt.
 - Alle sichtbaren Platzhalter (gestrichelte Kästen) müssen ersetzt sein.
