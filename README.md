@@ -45,6 +45,8 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 - Die nächsten Termine und wie oft im Jahr
 - Die Beitragsspanne
 - Der persönliche Text über die beiden Betreiber
+- Genaue Angaben zu Anfahrt und Parken
+- Ob jeder etwas zum Essen mitbringt oder gekocht wird
 - Impressumsdaten: vollständiger Name, Anschrift, E-Mail, Telefon
 - Die WhatsApp-Nummer für den Direktlink
 - Ein Zugangsschlüssel für den Formularversand (Web3Forms)
