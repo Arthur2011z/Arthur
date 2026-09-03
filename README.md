@@ -28,7 +28,7 @@ bilder/               die Fotos (noch leer)
 - [x] Schritt 4 — Wer wir sind (Text und Foto folgen von euch)
 - [x] Schritt 5 — Termine und Beitrag (Termine und Spanne folgen von euch)
 - [x] Schritt 6 — Was du mitbringst (Essensregelung, Anfahrt folgen von euch)
-- [ ] Schritt 7 — Bevor du kommst
+- [x] Schritt 7 — Bevor du kommst
 - [ ] Schritt 8 — Häufige Fragen
 - [ ] Schritt 9 — Anfragen (Formular und WhatsApp)
 - [ ] Schritt 10 — Fußzeile, Impressum, Datenschutz
