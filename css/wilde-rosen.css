@@ -84,6 +84,12 @@ h3 {
   font-weight: 500;
 }
 
+/* Zwischenüberschriften brauchen Luft nach oben, sonst kleben sie am
+   vorangehenden Absatz. */
+.abschnitt h3 {
+  margin-top: 2.25rem;
+}
+
 h4 {
   font-size: 1.0625rem;
   font-weight: 500;
@@ -140,6 +146,38 @@ a {
   font-size: 0.9375rem;
   line-height: 1.6;
   max-width: 62ch;
+}
+
+/* --- Terminliste --------------------------------------------------------- */
+
+.termine {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+}
+
+.termin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.125rem 1rem;
+  padding-block: 0.875rem;
+  border-top: 1px solid rgba(237, 231, 220, 0.1);
+}
+
+.termin:last-child {
+  border-bottom: 1px solid rgba(237, 231, 220, 0.1);
+}
+
+.termin__datum {
+  font-family: var(--schrift-ueberschrift);
+  font-weight: 500;
+  font-size: 1.125rem;
+  color: var(--hell);
+}
+
+.termin__hinweis {
+  font-size: 0.9375rem;
 }
 
 /* --- Hervorgehobener Hinweis mit Glut-Rahmen ----------------------------- */
