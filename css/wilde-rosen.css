@@ -1,0 +1,330 @@
+/* ==========================================================================
+   Wilde Rosen — Schwitzhütte in Wulfsdorf
+   Eine Stildatei. Zuerst fürs Handy, danach für größere Bildschirme.
+   ========================================================================== */
+
+:root {
+  /* Farben — nicht durch eigene ersetzen */
+  --grund: #0F1412;        /* Grundfläche */
+  --tiefe: #080B0A;        /* dunkelste Fläche: Kopfbereich, Fußzeile, Kontakt */
+  --glut: #E4652B;         /* Glut, Akzent, Knöpfe */
+  --glut-dunkel: #8E2F12;  /* dunkle Glut */
+  --rose: #C4708A;         /* Rosenrot, Name */
+  --text: #A8A69C;         /* Fließtext */
+  --hell: #EDE7DC;         /* Überschriften und hervorgehobener Text */
+
+  /* Maße */
+  --abstand-abschnitt: clamp(4rem, 9vw, 7rem);
+  --breite-inhalt: min(100% - 2.5rem, 44rem);
+  --ecke: 14px;
+  --ecke-feld: 2px;
+
+  /* Schriften */
+  --schrift-ueberschrift: "Fraunces", Georgia, "Times New Roman", serif;
+  --schrift-text: "Karla", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* --- Grundlagen ---------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--grund);
+  color: var(--text);
+  font-family: var(--schrift-text);
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.75;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--ecke);
+}
+
+/* --- Typografie ---------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--schrift-ueberschrift);
+  color: var(--hell);
+  font-weight: 300;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 11.5vw, 4.5rem);
+  font-weight: 500;
+}
+
+h2 {
+  font-size: clamp(1.75rem, 6vw, 2.375rem);
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+p {
+  margin: 0 0 1.25rem;
+  max-width: 62ch;
+}
+
+strong {
+  color: var(--hell);
+  font-weight: 600;
+}
+
+a {
+  color: var(--glut);
+}
+
+/* --- Aufbau -------------------------------------------------------------- */
+
+.inhalt {
+  width: var(--breite-inhalt);
+  margin-inline: auto;
+}
+
+.abschnitt {
+  padding-block: var(--abstand-abschnitt);
+  scroll-margin-top: 2rem;
+}
+
+.abschnitt--tief {
+  background-color: var(--tiefe);
+}
+
+/* --- Sichtbarer Fokus ---------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--glut);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Nur für Bildschirmleser sichtbar */
+.nur-vorlesen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Platzhalter — bitte vor dem Livegang alle entfernen ----------------- */
+
+.platzhalter {
+  border: 1px dashed var(--glut-dunkel);
+  border-radius: var(--ecke);
+  padding: 1rem 1.25rem;
+  margin-block: 1.5rem;
+  color: var(--glut);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.platzhalter__marke {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--glut);
+  margin-bottom: 0.25rem;
+}
+
+/* Platzhalter für ein Bild: hält das spätere Seitenverhältnis frei. */
+.bild-platzhalter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 3 / 2;
+  border: 1px dashed var(--glut-dunkel);
+  border-radius: var(--ecke);
+  background-color: #12100E;
+  color: var(--glut);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* --- Knopf --------------------------------------------------------------- */
+
+.knopf {
+  display: inline-block;
+  background-color: var(--glut);
+  color: #150A04;
+  font-family: var(--schrift-text);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1;
+  text-decoration: none;
+  padding: 1.0625rem 1.75rem;
+  border: 0;
+  border-radius: var(--ecke);
+  min-height: 44px;
+}
+
+.knopf:hover {
+  background-color: #F0763C;
+}
+
+/* ==========================================================================
+   Kopfbereich
+   ========================================================================== */
+
+.kopf {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  background-color: var(--tiefe);
+  padding-block: clamp(2rem, 8vw, 5rem);
+  overflow: hidden;
+}
+
+/* Ebene 1: das Foto vom Feuer.
+   PLATZHALTER — sobald das Bild vorliegt, hier url("../bilder/feuer.jpg")
+   eintragen; am Layout ändert sich dadurch nichts. */
+.kopf__bild {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background-color: #1A0E07;
+  background-image: var(--feuer-bild, none);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Ebene 2: warmer Verlauf aus Glut-Orange, Rosenrot und dunklem Rostbraun */
+.kopf__verlauf {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(70% 50% at 20% 92%, rgba(228, 101, 43, 0.78), transparent 68%),
+    radial-gradient(55% 42% at 85% 12%, rgba(196, 112, 138, 0.4), transparent 70%),
+    linear-gradient(168deg, #2A1108 0%, #6B2A10 55%, #120A06 100%);
+}
+
+/* Ebene 3: dunkler Schleier für die Lesbarkeit */
+.kopf__schleier {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 11, 10, 0.62) 0%,
+    rgba(8, 11, 10, 0.5) 45%,
+    rgba(8, 11, 10, 0.74) 100%
+  );
+}
+
+.kopf h1 {
+  color: var(--rose);
+  margin-bottom: 0.5rem;
+}
+
+.kopf__ort {
+  color: var(--hell);
+  font-size: 1.0625rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.25rem;
+}
+
+.kopf__satz {
+  color: var(--text);
+  font-size: 1.125rem;
+  margin-bottom: 1.75rem;
+}
+
+/* --- Auswahlkacheln ------------------------------------------------------ */
+
+.kacheln {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.kachel {
+  display: block;
+  padding: 0.875rem 1.125rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--ecke);
+  background-color: rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.kachel:hover {
+  border-color: rgba(228, 101, 43, 0.6);
+}
+
+.kachel__titel {
+  display: block;
+  font-family: var(--schrift-ueberschrift);
+  font-weight: 500;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  color: var(--hell);
+}
+
+.kachel__zeile {
+  display: block;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin-top: 0.125rem;
+}
+
+/* --- Größere Bildschirme ------------------------------------------------- */
+
+@media (min-width: 30rem) {
+  .kacheln {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* --- Weniger Bewegung ---------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

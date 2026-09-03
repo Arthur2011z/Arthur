@@ -1,19 +1,185 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-    />
-    <title>Beach-Volleyball</title>
-    <link rel="stylesheet" href="/src/style.css" />
-  </head>
-  <body>
-    <div id="viewport">
-      <canvas id="game-canvas"></canvas>
-      <div id="overlay"></div>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wilde Rosen — Schwitzhütte in Wulfsdorf, Kreis Stormarn</title>
+<meta name="description" content="Wilde Rosen: Schwitzhütte in Wulfsdorf bei Hamburg, Kreis Stormarn. Vier Runden in der Dunkelheit, acht bis zehn Menschen, ein Feuer davor und ein Essen danach.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Karla:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/wilde-rosen.css">
+</head>
+<body>
+
+<!-- ======================================================================
+     Kopfbereich
+     ====================================================================== -->
+<header class="kopf">
+  <!-- PLATZHALTER Bild: Foto vom Feuer. Sobald es vorliegt, in der Stildatei
+       bei .kopf__bild --feuer-bild setzen: url("../bilder/feuer.jpg") -->
+  <div class="kopf__bild"></div>
+  <div class="kopf__verlauf"></div>
+  <div class="kopf__schleier"></div>
+
+  <div class="kopf__inhalt inhalt">
+    <h1>Wilde Rosen</h1>
+    <p class="kopf__ort">Schwitzhütte in Wulfsdorf, Kreis Stormarn</p>
+    <p class="kopf__satz">
+      Vier Runden in der Dunkelheit, acht bis zehn Menschen, ein Feuer davor
+      und ein Essen danach.
+    </p>
+
+    <nav class="kacheln" aria-label="Abschnitte dieser Seite">
+      <a class="kachel" href="#was-das-ist">
+        <span class="kachel__titel">Was das ist</span>
+        <span class="kachel__zeile">Hütte, Steine, Dampf</span>
+      </a>
+      <a class="kachel" href="#wie-es-ablaeuft">
+        <span class="kachel__titel">Wie es abläuft</span>
+        <span class="kachel__zeile">Vier Runden, Feuer, Essen</span>
+      </a>
+      <a class="kachel" href="#wer-wir-sind">
+        <span class="kachel__titel">Wer wir sind</span>
+        <span class="kachel__zeile">Die beiden hinter der Hütte</span>
+      </a>
+      <a class="kachel" href="#termine-und-beitrag">
+        <span class="kachel__titel">Termine und Beitrag</span>
+        <span class="kachel__zeile">Wann, und was es kostet</span>
+      </a>
+      <a class="kachel" href="#was-du-mitbringst">
+        <span class="kachel__titel">Was du mitbringst</span>
+        <span class="kachel__zeile">Und wie du herkommst</span>
+      </a>
+      <a class="kachel" href="#bevor-du-kommst">
+        <span class="kachel__titel">Bevor du kommst</span>
+        <span class="kachel__zeile">Gesundheit und Sicherheit</span>
+      </a>
+    </nav>
+
+    <a class="knopf" href="#anfragen">Termin anfragen</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- ====================================================================
+       6.2 Was eine Schwitzhütte ist — folgt in Schritt 2
+       ==================================================================== -->
+  <section class="abschnitt" id="was-das-ist">
+    <div class="inhalt">
+      <h2>Was eine Schwitzhütte ist</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht im nächsten Schritt.
+      </p>
     </div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+  </section>
+
+  <!-- ====================================================================
+       6.3 Der Ablauf — folgt in Schritt 3
+       ==================================================================== -->
+  <section class="abschnitt abschnitt--tief" id="wie-es-ablaeuft">
+    <div class="inhalt">
+      <h2>Der Ablauf</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.4 Wer wir sind — folgt in Schritt 4
+       ==================================================================== -->
+  <section class="abschnitt" id="wer-wir-sind">
+    <div class="inhalt">
+      <h2>Wer wir sind</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.5 Termine und Beitrag — folgt in Schritt 5
+       ==================================================================== -->
+  <section class="abschnitt abschnitt--tief" id="termine-und-beitrag">
+    <div class="inhalt">
+      <h2>Termine und Beitrag</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.6 Was du mitbringst — folgt in Schritt 6
+       ==================================================================== -->
+  <section class="abschnitt" id="was-du-mitbringst">
+    <div class="inhalt">
+      <h2>Was du mitbringen solltest</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.7 Bevor du kommst — folgt in Schritt 7
+       ==================================================================== -->
+  <section class="abschnitt abschnitt--tief" id="bevor-du-kommst">
+    <div class="inhalt">
+      <h2>Bevor du kommst</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.8 Häufige Fragen — folgt in Schritt 8
+       ==================================================================== -->
+  <section class="abschnitt" id="haeufige-fragen">
+    <div class="inhalt">
+      <h2>Häufige Fragen</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Dieser Abschnitt entsteht in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       6.9 Anfragen — folgt in Schritt 9
+       ==================================================================== -->
+  <section class="abschnitt abschnitt--tief" id="anfragen">
+    <div class="inhalt">
+      <h2>Termin anfragen</h2>
+      <p class="platzhalter">
+        <span class="platzhalter__marke">Noch nicht gebaut</span>
+        Formular und WhatsApp-Link entstehen in einem späteren Schritt.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ======================================================================
+     6.10 Fußzeile — folgt in Schritt 10
+     ====================================================================== -->
+<footer class="abschnitt abschnitt--tief">
+  <div class="inhalt">
+    <p class="platzhalter">
+      <span class="platzhalter__marke">Noch nicht gebaut</span>
+      Fußzeile mit Impressum und Datenschutz entsteht in einem späteren Schritt.
+    </p>
+  </div>
+</footer>
+
+</body>
 </html>

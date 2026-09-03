@@ -1,52 +1,79 @@
-# Beach-Volleyball
+# Wilde Rosen — Schwitzhütte in Wulfsdorf
 
-Mobile-first 2D-Top-Down-Beachvolleyball (2 gegen 2) für Touch-Bedienung auf Handy und
-Tablet. Reines HTML5 Canvas + TypeScript, kein Game-Framework.
+Website für die Schwitzhütte „Wilde Rosen" in Wulfsdorf, Kreis Stormarn.
+Eine Scrollseite mit einem Ziel: dass Menschen einen Termin anfragen.
 
-## Entwicklung
+Schlichtes HTML und CSS, kein Build-Schritt. Zum Ansehen genügt ein einfacher
+lokaler Server im Projektordner:
 
 ```bash
-npm install
-npm run dev        # lokaler Dev-Server mit Hot-Reload
-npm run typecheck  # nur Typprüfung
-npm run build       # erzeugt dist/index.html als einzelne, eigenständige Datei
-npm run preview     # den Production-Build lokal ansehen
-npm test            # Playwright-Tests (mobile Touch-Emulation)
+python3 -m http.server 8000
+# danach http://localhost:8000 im Browser öffnen
 ```
 
-`npm run build` bündelt die App zu **einer** self-contained `dist/index.html` (kein
-externer Request, alles inline) — diese Datei lässt sich direkt öffnen oder als
-eigenständige Seite verteilen.
+## Dateien
 
-## Steuerung
-
-- **Steuerknüppel** unten links: freies Laufen in der eigenen Feldhälfte.
-- **Wischen** auf dem Spielfeld in Ballrichtung: Hechtsprung, wenn der Ball zu weit
-  weg ist, um normal hinzulaufen.
-- **Schlag-Button**: Ballkontakt auslösen (schwacher Zufallsschlag ohne Sprung).
-- **Sprung-Button** (nur aktiv nahe am Netz): Sprung, während dessen die
-  Steuerknüppel-Richtung die Zielrichtung eines harten Schmetterschlags bestimmt.
-
-## Spielregeln
-
-- **KI-Mitspieler**: reagiert nur, wenn der Ball wirklich in seine Nähe kommt oder
-  auf ihn zufliegt (auch nach einem Hechtsprung-Zuspiel). Kommt der Ball zu
-  schnell/direkt, spielt er sofort eine Notlösung übers Netz; sonst stellt er ihn
-  hoch zum menschlichen Spieler. Kehrt danach zur Grundposition zurück.
-- **Gegner-KI** (2 Spieler): Der jeweils näher am Ball stehende Gegner läuft
-  automatisch hin und spielt zurück; der andere bleibt an seiner Grundposition.
-- **Punktesystem**: Rally-Point-Zählung bis 21, Gewinn mit 2 Punkten Vorsprung.
-  Wer den letzten Punkt gewonnen hat, bekommt den nächsten Aufschlag. Nach
-  Spielende erscheint ein "Neu starten"-Button.
+```
+index.html            die Scrollseite
+css/wilde-rosen.css   die Stildatei
+bilder/               die Fotos (noch leer)
+```
 
 ## Baufortschritt
 
-Das Spiel ist in kleinen, einzeln testbaren Schritten entstanden (siehe
-Commit-Historie):
+- [x] Schritt 1 — Grundgerüst, Farben, Schriften, Sprungnavigation, Kopfbereich
+      mit den sechs Auswahlkacheln
+- [ ] Schritt 2 — Was eine Schwitzhütte ist
+- [ ] Schritt 3 — Der Ablauf mit den vier Runden
+- [ ] Schritt 4 — Wer wir sind
+- [ ] Schritt 5 — Termine und Beitrag
+- [ ] Schritt 6 — Was du mitbringst
+- [ ] Schritt 7 — Bevor du kommst
+- [ ] Schritt 8 — Häufige Fragen
+- [ ] Schritt 9 — Anfragen (Formular und WhatsApp)
+- [ ] Schritt 10 — Fußzeile, Impressum, Datenschutz
 
-1. Steuerknüppel-Bewegung
-2. Wisch-Hechten mit automatischem Zuspiel zum KI-Mitspieler
-3. Schlag-Knopf mit schwachem Zufallsschlag
-4. Sprung-Knopf mit gezieltem Schmetterschlag am Netz
-5. KI-Mitspieler-Logik mit Grundposition
-6. Gegner-KI und Punktesystem (Rally-Point bis 21) ✅ fertig
+## Was noch fehlt
+
+Diese Angaben liegen nicht vor und wurden **nicht** erfunden. Im Quelltext sind
+die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
+
+- Alle Fotos: Feuer (Kopfbereich), Hütte mit Decken, Menschen am Feuer,
+  Porträt der beiden. Richtwert vor dem Hochladen: höchstens 1600 Pixel
+  Kantenlänge und 300 Kilobyte pro Bild, abgelegt unter `bilder/`.
+- Uhrzeiten des Ablaufs und Gesamtdauer
+- Was in den vier Runden inhaltlich passiert
+- Die nächsten Termine und wie oft im Jahr
+- Die Beitragsspanne
+- Der persönliche Text über die beiden Betreiber
+- Genaue Angaben zu Anfahrt und Parken
+- Ob jeder etwas zum Essen mitbringt oder gekocht wird
+- Impressumsdaten: vollständiger Name, Anschrift, E-Mail, Telefon
+- Die WhatsApp-Nummer für den Direktlink
+- Ein Zugangsschlüssel für den Formularversand (Web3Forms)
+
+## Vor dem Livegang
+
+- Impressum und Datenschutzerklärung müssen vorhanden und von jeder Seite
+  erreichbar sein. Ohne beides ist die Seite abmahnfähig.
+- Auf den Fotos darf keine fremde Person erkennbar sein, ohne dass ihr
+  Einverständnis vorliegt.
+- Alle sichtbaren Platzhalter (gestrichelte Kästen) müssen ersetzt sein.
+
+## Gestaltungsvorgaben
+
+Farben, Schriften und Maße stehen als Variablen am Anfang von
+`css/wilde-rosen.css` und werden nicht durch andere ersetzt.
+
+| Zweck | Wert |
+|---|---|
+| Grundfläche | `#0F1412` |
+| Dunkelste Fläche | `#080B0A` |
+| Glut, Akzent, Knöpfe | `#E4652B` |
+| Dunkle Glut | `#8E2F12` |
+| Rosenrot (Name) | `#C4708A` |
+| Fließtext | `#A8A69C` |
+| Überschriften | `#EDE7DC` |
+
+Überschriften in Fraunces (300, 500), Fließtext in Karla (300, 400, 600) mit
+17 Pixel, Zeilenhöhe 1.75 und höchstens 62 Zeichen Zeilenlänge.
