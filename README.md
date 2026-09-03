@@ -18,7 +18,7 @@ index.html            die Scrollseite
 impressum.html        Pflichtseite
 datenschutz.html      Pflichtseite (Entwurf, siehe unten)
 css/wilde-rosen.css   die Stildatei
-bilder/               die Fotos (noch leer)
+bilder/               die vier Fotos
 ```
 
 ## Baufortschritt
@@ -44,9 +44,6 @@ diesem Dokument.
 Diese Angaben liegen nicht vor und wurden **nicht** erfunden. Im Quelltext sind
 die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 
-- Alle Fotos: Feuer (Kopfbereich), Hütte mit Decken, Menschen am Feuer,
-  Porträt der beiden. Richtwert vor dem Hochladen: höchstens 1600 Pixel
-  Kantenlänge und 300 Kilobyte pro Bild, abgelegt unter `bilder/`.
 - Uhrzeiten des Ablaufs und Gesamtdauer
 - Die nächsten Termine und wie oft im Jahr
 - Die Beitragsspanne
@@ -66,8 +63,13 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
 - Der Formularversand (Web3Forms) verschickt erst, wenn ein echter
   Zugangsschlüssel eingetragen ist — siehe Platzhalter im Abschnitt
   „Anfragen" und Punkt unten.
-- Auf den Fotos darf keine fremde Person erkennbar sein, ohne dass ihr
-  Einverständnis vorliegt.
+- Die vier Fotos zeigen erkennbare Gesichter — vermutlich die beiden
+  Betreiber sowie mindestens eine weitere Person am Feuer. Bitte
+  gegenchecken, dass von allen erkennbaren Personen das Einverständnis
+  vorliegt, bevor die Seite live geht.
+- Der Kopfbereich lädt `bilder/feuer.jpg` als Hintergrund. Wenn ihr das
+  Foto austauscht, denselben Dateinamen verwenden oder den Pfad in
+  `css/wilde-rosen.css` bei `.kopf__bild` anpassen.
 - Alle sichtbaren Platzhalter (gestrichelte Kästen) müssen ersetzt sein.
 
 ## Gestaltungsvorgaben
