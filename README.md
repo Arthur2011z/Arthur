@@ -38,6 +38,9 @@ diesem Dokument.
 - [x] Schritt 8 — Häufige Fragen
 - [x] Schritt 9 — Anfragen (Formular und WhatsApp)
 - [x] Schritt 10 — Fußzeile, Impressum, Datenschutz
+- [x] Datenschutz als Popup — der Fußzeilen-Link auf der Startseite öffnet
+      die Datenschutzerklärung jetzt in einem Fenster über der Seite, statt
+      wegzunavigieren
 
 ## Was noch fehlt
 
@@ -71,6 +74,10 @@ die betreffenden Stellen als Platzhalter markiert und auf der Seite sichtbar.
   Foto austauscht, denselben Dateinamen verwenden oder den Pfad in
   `css/wilde-rosen.css` bei `.kopf__bild` anpassen.
 - Alle sichtbaren Platzhalter (gestrichelte Kästen) müssen ersetzt sein.
+- Der Datenschutz-Inhalt liegt jetzt an zwei Stellen im Quelltext: als
+  eigene Seite (`datenschutz.html`) und als Kopie im Popup in `index.html`
+  (im `<dialog id="datenschutz-dialog">`). Änderungen am Text bitte an
+  beiden Stellen nachziehen.
 
 ## Gestaltungsvorgaben
 

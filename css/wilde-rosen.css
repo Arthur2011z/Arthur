@@ -68,6 +68,10 @@ h4 {
   line-height: 1.2;
   margin: 0 0 1rem;
   text-wrap: balance;
+  /* Lange deutsche Komposita (Schwitzhütte, Datenschutzerklärung) sollen an
+     Silbengrenzen umbrechen statt mitten im Wort. */
+  -webkit-hyphens: auto;
+  hyphens: auto;
 }
 
 h1 {
@@ -284,6 +288,80 @@ a {
    die erste im Abschnitt. */
 .abschnitt h2:not(:first-child) {
   margin-top: 2.25rem;
+}
+
+/* --- Datenschutz-Popup ------------------------------------------------------
+   Natives <dialog>. Öffnen übernimmt das Skript am Seitenende, Schließen
+   per Kreuz, Klick auf die abgedunkelte Fläche oder Esc-Taste (Esc ist
+   eingebautes Verhalten von <dialog>, kein eigener Code nötig).
+   -------------------------------------------------------------------------- */
+
+.popup {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ohne dieses [open] bleibt das Popup dank der display:flex-Regel oben
+   unsichtbar, aber trotzdem im Layout und fängt Klicks ab — nur das
+   geöffnete <dialog> darf als Flexbox erscheinen. */
+.popup[open] {
+  display: flex;
+}
+
+.popup::backdrop {
+  background-color: rgba(8, 11, 10, 0.82);
+}
+
+.popup__karte {
+  position: relative;
+  width: min(100% - 1rem, 44rem);
+  max-height: 85vh;
+  overflow-y: auto;
+  background-color: var(--tiefe);
+  border: 1px solid rgba(237, 231, 220, 0.14);
+  border-radius: var(--ecke);
+  padding: 2rem 1.75rem;
+}
+
+/* Die Überschrift startet unterhalb des Schließen-Knopfs statt daneben,
+   damit sie die volle Kartenbreite nutzen kann und nicht unnötig umbricht. */
+.popup__karte h2 {
+  margin-top: 1.75rem;
+}
+
+.popup__karte h3 {
+  margin-top: 2rem;
+}
+
+.popup__schliessen {
+  position: absolute;
+  top: 0.875rem;
+  right: 0.875rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--hell);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.popup__schliessen:hover {
+  background-color: rgba(228, 101, 43, 0.18);
+  color: var(--glut);
 }
 
 /* --- Fußzeile -------------------------------------------------------------- */

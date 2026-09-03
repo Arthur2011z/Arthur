@@ -455,10 +455,155 @@
   <div class="inhalt">
     <nav class="fuss__links" aria-label="Rechtliches">
       <a href="impressum.html">Impressum</a>
-      <a href="datenschutz.html">Datenschutz</a>
+      <a href="datenschutz.html" id="datenschutz-link">Datenschutz</a>
     </nav>
   </div>
 </footer>
+
+<!-- ========================================================================
+     Datenschutz als Popup
+
+     Der Link oben bleibt ein echter Link zu datenschutz.html — funktioniert
+     also auch ohne JavaScript, per Rechtsklick, in neuem Tab und für
+     Suchmaschinen. Das Skript ganz unten fängt den Klick nur ab und öffnet
+     stattdessen dieses <dialog> auf derselben Seite. Der Inhalt ist eine
+     Kopie von datenschutz.html; beide Stellen bitte gemeinsam pflegen.
+     ======================================================================== -->
+<dialog id="datenschutz-dialog" class="popup" aria-labelledby="datenschutz-titel">
+  <div class="popup__karte">
+    <button type="button" class="popup__schliessen" id="datenschutz-schliessen" aria-label="Datenschutz schließen">×</button>
+
+    <h2 id="datenschutz-titel">Datenschutzerklärung</h2>
+
+    <p class="platzhalter">
+      <span class="platzhalter__marke">Vor dem Livegang prüfen</span>
+      Dieser Text ist ein Entwurf auf Grundlage der Formulare und Dienste,
+      die diese Seite tatsächlich einsetzt. Er ersetzt keine Rechtsberatung.
+      Die Platzhalter für den Verantwortlichen müssen ausgefüllt werden,
+      sobald die Impressumsdaten feststehen.
+    </p>
+
+    <h3>Verantwortlicher</h3>
+    <p>
+      [Vollständiger Name]<br>
+      [Straße und Hausnummer]<br>
+      [Postleitzahl und Ort]<br>
+      E-Mail: [E-Mail-Adresse]
+    </p>
+
+    <h3>Allgemeines zur Datenverarbeitung</h3>
+    <p>
+      Wir verarbeiten personenbezogene Daten nur, soweit dies zur
+      Bereitstellung dieser Website und ihrer Inhalte und Funktionen
+      erforderlich ist. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. a, b und f
+      der Datenschutz-Grundverordnung (DSGVO).
+    </p>
+
+    <h3>Hosting und Server-Logdateien</h3>
+    <p>
+      Beim Aufruf dieser Website erhebt der Hosting-Anbieter automatisch
+      Informationen in sogenannten Server-Logfiles, die dein Browser
+      übermittelt. Das sind unter anderem Browsertyp, Betriebssystem,
+      Referrer-URL, IP-Adresse und Zeitpunkt der Anfrage. Diese Daten sind
+      nicht bestimmten Personen zuordenbar und werden nicht mit anderen
+      Datenquellen zusammengeführt. Grundlage ist unser berechtigtes
+      Interesse an einem technisch fehlerfreien Betrieb der Seite (Art. 6
+      Abs. 1 lit. f DSGVO).
+    </p>
+
+    <h3>Google Fonts</h3>
+    <p>
+      Diese Seite bindet die Schriftarten Fraunces und Karla über Google
+      Fonts ein. Dabei stellt dein Browser eine Verbindung zu Servern von
+      Google her, wobei deine IP-Adresse übertragen wird. Grundlage ist
+      unser berechtigtes Interesse an einer einheitlichen, technisch
+      zuverlässigen Darstellung der Seite (Art. 6 Abs. 1 lit. f DSGVO).
+      Mehr Informationen bei
+      <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google</a>.
+    </p>
+
+    <h3>Kontaktformular</h3>
+    <p>
+      Wenn du das Formular unter „Termin anfragen" nutzt, werden die von
+      dir eingegebenen Daten — Name, E-Mail-Adresse, gegebenenfalls
+      Telefonnummer, Wunschtermin und deine Nachricht — zur Bearbeitung
+      deiner Anfrage verwendet und dir per E-Mail zugesandt. Grundlage ist
+      Art. 6 Abs. 1 lit. b DSGVO, da die Verarbeitung der Anbahnung eines
+      Vertrags über die Teilnahme an einem Termin dient.
+    </p>
+    <p>
+      Für den Versand nutzen wir den Dienst Web3Forms. Deine Angaben werden
+      dabei technisch über die Server dieses Anbieters an unsere
+      E-Mail-Adresse weitergeleitet, ohne dass wir ein eigenes
+      E-Mail-Postfach bei Web3Forms betreiben. Mehr Informationen in der
+      <a href="https://web3forms.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung von Web3Forms</a>.
+    </p>
+
+    <h3>WhatsApp</h3>
+    <p>
+      Diese Seite bietet einen Link an, über den du ein Gespräch mit uns
+      auf WhatsApp beginnen kannst. WhatsApp ist ein Dienst der WhatsApp
+      Ireland Limited, einem Unternehmen der Meta-Gruppe. Wenn du diesen
+      Link nutzt, öffnet sich die WhatsApp-App auf deinem Gerät, und die
+      weitere Kommunikation läuft über WhatsApp und unterliegt dessen
+      Datenschutzbestimmungen. Beim bloßen Betrachten dieser Seite werden
+      keine Daten an WhatsApp übertragen. Mehr Informationen in der
+      <a href="https://www.whatsapp.com/legal/privacy-policy" target="_blank" rel="noopener">Datenschutzerklärung von WhatsApp</a>.
+    </p>
+
+    <h3>Cookies</h3>
+    <p>
+      Diese Seite verwendet keine Cookies zu Analyse- oder
+      Marketingzwecken.
+    </p>
+
+    <h3>Deine Rechte</h3>
+    <p>
+      Du hast das Recht auf Auskunft über die von uns verarbeiteten Daten
+      zu deiner Person sowie auf Berichtigung, Löschung oder Einschränkung
+      der Verarbeitung dieser Daten. Außerdem hast du ein Widerspruchsrecht
+      gegen die Verarbeitung sowie ein Recht auf Datenübertragbarkeit.
+      Wende dich dazu an die oben genannte Kontaktadresse. Dir steht zudem
+      ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.
+    </p>
+
+    <p>
+      <a href="datenschutz.html">Datenschutzerklärung als eigene Seite öffnen</a>
+    </p>
+  </div>
+</dialog>
+
+<script>
+  // Datenschutz als Popup statt Seitenwechsel. Ohne JavaScript bleibt der
+  // Link ein ganz normaler Link zu datenschutz.html.
+  (function () {
+    var link = document.getElementById('datenschutz-link');
+    var dialog = document.getElementById('datenschutz-dialog');
+    var schliessen = document.getElementById('datenschutz-schliessen');
+
+    if (!link || !dialog || typeof dialog.showModal !== 'function') {
+      return;
+    }
+
+    link.addEventListener('click', function (ereignis) {
+      ereignis.preventDefault();
+      dialog.showModal();
+    });
+
+    schliessen.addEventListener('click', function () {
+      dialog.close();
+    });
+
+    // Klick auf die abgedunkelte Fläche außerhalb der Karte schließt das Popup
+    dialog.addEventListener('click', function (ereignis) {
+      if (ereignis.target === dialog) {
+        dialog.close();
+      }
+    });
+
+    // Esc-Taste schließt das native <dialog> bereits von selbst.
+  })();
+</script>
 
 </body>
 </html>
