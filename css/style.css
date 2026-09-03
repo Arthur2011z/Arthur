@@ -84,9 +84,12 @@ p {
 }
 
 .content {
-  width: var(--content-width);
+  width: 100%;
+  max-width: 46rem;
   margin-inline: auto;
+  padding-inline: 1.25rem;
   text-align: left;
+  box-sizing: border-box;
 }
 
 section {
@@ -97,6 +100,122 @@ section {
 :focus-visible {
   outline: 3px solid var(--orange);
   outline-offset: 2px;
+}
+
+/* ---------- Startbildschirm ---------- */
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding-block: clamp(3rem, 8vw, 5rem);
+  isolation: isolate;
+}
+
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 10%, rgba(255, 106, 19, 0.55), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 90% 5%, rgba(255, 162, 61, 0.35), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 100%, rgba(140, 30, 10, 0.6), transparent 65%),
+    linear-gradient(to bottom, #2a1408, #000000);
+}
+
+.hero__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15) 40%);
+}
+
+.hero__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Flex-Kinder schrumpfen sonst nicht unter ihre ungebrochene Textbreite */
+.hero__content > * {
+  min-width: 0;
+}
+
+.hero__claim {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-heading);
+  max-width: 32ch;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-tile);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.tile:hover,
+.tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--orange);
+}
+
+.tile__title {
+  color: var(--text-heading);
+  font-weight: 800;
+}
+
+.tile__sub {
+  color: var(--text-body);
+  font-size: 0.9rem;
+}
+
+.button {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.9rem 2rem;
+  border-radius: var(--radius-button);
+  background: linear-gradient(to right, var(--orange), var(--orange-light));
+  color: #0b0c0e;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+
+.button:hover,
+.button:focus-visible {
+  transform: translateY(-2px);
+}
+
+/* ---------- Platzhalter-Abschnitte ---------- */
+
+main section {
+  padding-block: var(--section-gap);
 }
 
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
