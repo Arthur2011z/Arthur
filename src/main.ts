@@ -5,10 +5,16 @@ import { GameState } from './game/GameState';
 import { Hud } from './game/Hud';
 import { Renderer } from './game/Renderer';
 import { InputManager } from './input/InputManager';
+import { setRandom } from './utils/random';
 
 const viewportEl = document.getElementById('viewport') as HTMLDivElement;
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const overlay = document.getElementById('overlay') as HTMLDivElement;
+
+// Each blocker's wall is drawn in their own figure colour, so it is always
+// obvious which of the two put it up.
+const PLAYER_BLOCK_COLOR = '#e63946';
+const TEAMMATE_BLOCK_COLOR = '#2a9d8f';
 
 const maybeCtx = canvas.getContext('2d');
 if (!maybeCtx) throw new Error('2D canvas context not available');
@@ -16,7 +22,7 @@ const ctx: CanvasRenderingContext2D = maybeCtx;
 
 const court = new Court(viewportEl, canvas, ctx);
 const renderer = new Renderer();
-const input = new InputManager(overlay);
+const input = new InputManager(overlay, canvas);
 const hud = new Hud(overlay);
 const gameState = new GameState();
 
@@ -28,9 +34,20 @@ function draw(): void {
   renderer.clear(ctx);
   renderer.drawCourt(ctx);
   renderer.drawLandingMarker(ctx, gameState.ball);
+  // Under the figures, over the court: the aim preview should read as being on
+  // the court, not pasted over the players.
+  renderer.drawAimPreview(ctx, gameState.player);
   renderer.drawTeammate(ctx, gameState.teammate);
   for (const opponent of gameState.opponents) renderer.drawOpponent(ctx, opponent);
   renderer.drawPlayer(ctx, gameState.player);
+  // Block walls last of the figures, so the bar sits over the net line and
+  // over whoever is standing at it.
+  if (gameState.player.isBlocking) {
+    renderer.drawBlockWall(ctx, gameState.player.pos, gameState.player.height, PLAYER_BLOCK_COLOR);
+  }
+  if (gameState.teammate.isBlocking) {
+    renderer.drawBlockWall(ctx, gameState.teammate.pos, gameState.teammate.height, TEAMMATE_BLOCK_COLOR);
+  }
   // Ball drawn last (on top): while holding serve it sits exactly on the
   // player's position and would otherwise be fully hidden behind the larger
   // player token.
@@ -40,6 +57,10 @@ function draw(): void {
 const loop = new GameLoop((dt) => {
   if (hud.consumeRestart()) gameState.restart();
   gameState.update(dt, input.snapshot());
+  // Serve UI: while the human team is preparing to serve, the four action
+  // buttons give way to the single Aufschlag button, and back again the moment
+  // the ball is struck and the rally is running.
+  input.setServeMode(gameState.awaitingServe !== null);
   hud.update(gameState.score, gameState.phase, gameState.winner);
   draw();
 });
@@ -49,11 +70,13 @@ window.addEventListener('orientationchange', resize);
 resize();
 loop.start();
 
-// Debug hook for automated (Playwright) tests: harmless in a locally-opened
+// Debug hooks for automated (Playwright) tests: harmless in a locally-opened
 // single-file build, never sent anywhere.
 declare global {
   interface Window {
     __game?: { state: GameState; court: Court };
+    __setRandom?: (fn: () => number) => void;
   }
 }
 window.__game = { state: gameState, court };
+window.__setRandom = setRandom;

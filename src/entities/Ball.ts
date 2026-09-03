@@ -4,10 +4,28 @@ import { COURT_WIDTH, NET_Y } from '../game/constants';
 export type BallToucher = 'player' | 'teammate' | 'opponent1' | 'opponent2' | null;
 /** 'idle': resting, untouched, ready for the next serve (scoring reacts to
  * reaching this from 'flying'). 'flying': in a parabolic arc. 'held': briefly
- * frozen mid-air by a successful dive-catch, on its way to being relaunched -
+ * frozen mid-air on its way to being relaunched -
  * distinct from 'idle' precisely so that transient freeze isn't mistaken for a
  * real landing. */
 export type BallFlightState = 'idle' | 'flying' | 'held';
+
+/** Height of a flight at progress `u` (0..1). Split out as a pure function so
+ * the aim preview can draw exactly the arc the ball will actually fly - one
+ * formula, not a lookalike that could drift out of sync with update(). */
+export function flightHeightAt(u: number, peakHeight: number, initialHeight: number): number {
+  return peakHeight * 4 * u * (1 - u) + initialHeight * (1 - u);
+}
+
+/** A flight that has not been launched yet - everything needed to draw the
+ * exact arc a shot would take. Same fields launch() consumes, so a preview and
+ * the real thing cannot describe different curves. */
+export interface AimPreview {
+  from: Vec2;
+  target: Vec2;
+  duration: number;
+  peakHeight: number;
+  initialHeight: number;
+}
 
 export interface LaunchOptions {
   duration: number;
@@ -37,7 +55,7 @@ export class Ball {
   lastToucher: BallToucher = null;
 
   private start: Vec2 = { ...this.pos };
-  private duration = 0;
+  private flightDuration = 0;
   private elapsed = 0;
   private peakHeight = 0;
   /** Height at the moment of launch (0 for a fresh serve off the ground; the
@@ -49,7 +67,7 @@ export class Ball {
     this.start = { ...from };
     this.target = { ...to };
     this.pos = { ...from };
-    this.duration = opts.duration;
+    this.flightDuration = opts.duration;
     this.elapsed = 0;
     this.peakHeight = opts.peakHeight;
     this.state = 'flying';
@@ -59,10 +77,10 @@ export class Ball {
 
   update(dt: number): void {
     if (this.state !== 'flying') return;
-    this.elapsed = Math.min(this.elapsed + dt, this.duration);
-    const u = this.duration > 0 ? this.elapsed / this.duration : 1;
+    this.elapsed = Math.min(this.elapsed + dt, this.flightDuration);
+    const u = this.flightDuration > 0 ? this.elapsed / this.flightDuration : 1;
     this.pos = lerpVec2(this.start, this.target, u);
-    this.height = this.peakHeight * 4 * u * (1 - u) + this.initialHeight * (1 - u);
+    this.height = flightHeightAt(u, this.peakHeight, this.initialHeight);
     if (u >= 1) {
       this.state = 'idle';
     }
@@ -70,6 +88,14 @@ export class Ball {
 
   /** Seconds left before this flight reaches its target; 0 when not flying. */
   get timeRemaining(): number {
-    return this.state === 'flying' ? Math.max(0, this.duration - this.elapsed) : 0;
+    return this.state === 'flying' ? Math.max(0, this.flightDuration - this.elapsed) : 0;
+  }
+
+  /** Total duration of the current flight, as launched (independent of how
+   * far into it we are) - a proxy for how fast/hard this particular shot
+   * was hit, since every shot type in the game uses a fixed duration (see
+   * the callers of launch()): short = fast/hard, long = soft/easy. */
+  get duration(): number {
+    return this.flightDuration;
   }
 }

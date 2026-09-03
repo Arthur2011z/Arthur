@@ -39,24 +39,32 @@ async function setScore(page: Page, human: number, opponents: number) {
   );
 }
 
+/** Forces the RNG used by the opponent's error/attack roll (see utils/random.ts). */
+async function forceRandom(page: Page, value: number) {
+  await page.evaluate((value) => (window as any).__setRandom(() => value), value);
+}
+
 test.describe('Step 6: opponent AI + scoring', () => {
-  test('the closer opponent returns an incoming ball; the other stays home', async ({ page }) => {
+  test('the opponent whose zone the ball lands in returns it; the other stays home', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(distIndex);
+    // This test is about which opponent reacts, not the error/attack roll -
+    // force the safe default branch so it's not flaky.
+    await forceRandom(page, 0.99);
 
-    // Aimed near opponent1's home (2.5, 3) - well past opponent2's (5.5, 3).
-    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 3 }, 2);
+    // Lands deep - the back defender's zone (opponents[1]).
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 1.5 }, 2);
 
     await page.waitForFunction(
-      () => (window as any).__game.state.ball.lastToucher === 'opponent1',
+      () => (window as any).__game.state.ball.lastToucher === 'opponent2',
       undefined,
       { timeout: 3000 },
     );
     const after = await getState(page);
     expect(after.ball.state).toBe('flying');
     expect(after.ball.target.y).toBeGreaterThan(8); // returned into the human half
-    // opponent2 never had to react.
-    expect(after.opponents[1].state).toBe('home');
+    // The net defender never had to react.
+    expect(after.opponents[0].state).toBe('home');
   });
 
   test('a ball landing untouched in the human half scores a point for the opponents', async ({ page }) => {
@@ -88,10 +96,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
 
     await setScore(page, 20, 0);
     // Lands untouched in the opponent half -> point for the human team -> 21:0.
-    // Straight down the centerline (x=4), at least 1.5m from either
-    // opponent's home the whole flight - geometrically out of HIT_RANGE, so
-    // neither opponent can possibly reach it in time.
-    await launchBall(page, { x: 4, y: 8 }, { x: 4, y: 0.3 }, 0.5);
+    // Far baseline corner: the back defender's zone, but ~4.9m from its base
+    // and this flight is over in 0.5s, so it cannot get there in time.
+    await launchBall(page, { x: 4, y: 8 }, { x: 0.5, y: 0.5 }, 0.5);
 
     await page.waitForFunction(() => (window as any).__game.state.phase === 'game_over', undefined, {
       timeout: 2000,
@@ -109,10 +116,9 @@ test.describe('Step 6: opponent AI + scoring', () => {
     await page.goto(distIndex);
 
     await setScore(page, 20, 19);
-    // Straight down the centerline (x=4): at least 1.5m from either
-    // opponent's home (2.5,3) / (5.5,3) at every point - geometrically out of
-    // HIT_RANGE the whole flight, so neither can possibly reach it in time.
-    await launchBall(page, { x: 4, y: 8 }, { x: 4, y: 0.3 }, 0.5);
+    // Far baseline corner - unreachable in the 0.5s flight, see the test
+    // above.
+    await launchBall(page, { x: 4, y: 8 }, { x: 0.5, y: 0.5 }, 0.5);
     await page.waitForFunction(() => (window as any).__game.state.phase === 'game_over', undefined, {
       timeout: 2000,
     });
@@ -129,5 +135,64 @@ test.describe('Step 6: opponent AI + scoring', () => {
     expect(after.score).toEqual({ human: 0, opponents: 0 });
     expect(after.winner).toBeNull();
     await expect(page.locator('#game-over-overlay')).toBeHidden();
+  });
+
+  test('a forced error roll nets the ball out on the opponent\'s own side, scoring for the human team', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await forceRandom(page, 0); // below OPPONENT_ERROR_CHANCE - always the error branch
+
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeLessThan(8); // dropped back on the opponent's own side
+    expect(after.ball.target.y).toBeGreaterThan(0);
+  });
+
+  test('a forced attack roll is noticeably faster than the safe default return', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    // Above the error chance, below error+attack - always the attack branch.
+    await forceRandom(page, 0.2);
+
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeGreaterThan(8); // still a legal return into the human half
+    // OPPONENT_ATTACK_DURATION (0.6s) is clearly under OPPONENT_RETURN_DURATION
+    // (1.1s) - sampled right at the moment of contact, so this is close to the
+    // full duration either way.
+    const timeRemaining: number = await page.evaluate(() => (window as any).__game.state.ball.timeRemaining);
+    expect(timeRemaining).toBeLessThan(0.9);
+  });
+
+  test('the safe default return (no forced error/attack) is the slower of the two', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(distIndex);
+    await forceRandom(page, 0.99); // above error+attack - always the safe default branch
+
+    // Aimed into the net zone, so the net defender (opponents[0]) is the one
+    // responsible for it.
+    await launchBall(page, { x: 2.5, y: 8 }, { x: 2.5, y: 6 }, 2);
+    await page.waitForFunction(() => (window as any).__game.state.ball.lastToucher === 'opponent1', undefined, {
+      timeout: 3000,
+    });
+
+    const after = await getState(page);
+    expect(after.ball.target.y).toBeGreaterThan(8);
+    const timeRemaining: number = await page.evaluate(() => (window as any).__game.state.ball.timeRemaining);
+    expect(timeRemaining).toBeGreaterThan(0.9); // OPPONENT_RETURN_DURATION (1.1s)
   });
 });
