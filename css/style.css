@@ -4,20 +4,21 @@
    (Stärken 400/600/800/900), hier nur die Fallback-Kette. */
 
 :root {
-  --bg: #0b0c0e;
-  --bg-darkest: #050607;
-  --panel: #101216;
+  --bg: #100d0b;
+  --bg-darkest: #0a0706;
+  --panel: #17120f;
   --orange: #ff6a13;
   --orange-light: #ffa23d;
+  --gold: #ffb454;
   --glass-fill: rgba(255, 255, 255, 0.07);
   --glass-border: rgba(255, 255, 255, 0.2);
-  --text-body: #9a9ca3;
+  --text-body: #b4b0aa;
   --text-heading: #f2f3f5;
 
   --section-gap: clamp(4.5rem, 10vw, 8rem);
 
-  --radius-tile: 16px;
-  --radius-field: 10px;
+  --radius-tile: 20px;
+  --radius-field: 14px;
   --radius-button: 999px;
 }
 
@@ -119,9 +120,10 @@ section {
   z-index: -1;
   background-image:
     radial-gradient(ellipse 60% 50% at 15% 10%, rgba(255, 106, 19, 0.55), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 55% 4%, rgba(255, 180, 84, 0.28), transparent 65%),
     radial-gradient(ellipse 55% 45% at 90% 5%, rgba(255, 162, 61, 0.35), transparent 60%),
     radial-gradient(ellipse 70% 55% at 50% 100%, rgba(140, 30, 10, 0.6), transparent 65%),
-    linear-gradient(to bottom, #2a1408, #000000);
+    linear-gradient(to bottom, #2a1408, #0a0706);
 }
 
 .hero__bg::after {
@@ -219,7 +221,7 @@ main section {
 }
 
 main section > .content > p:first-of-type {
-  margin-top: 1.25rem;
+  margin-top: 1.75rem;
 }
 
 /* Der orange Schein aus dem Startbildschirm läuft oben in den Abschnitt
@@ -255,7 +257,7 @@ main section > .content > p:first-of-type {
 .card {
   position: relative;
   overflow: hidden;
-  padding: 1.5rem 1.5rem 1.75rem;
+  padding: 1.75rem 1.75rem 2rem;
   border-radius: var(--radius-tile);
   background: var(--panel);
   border: 1px solid var(--glass-border);
@@ -307,9 +309,9 @@ main section > .content > p:first-of-type {
 .slanted {
   position: relative;
   background: var(--panel);
-  clip-path: polygon(0 3.5vw, 100% 0, 100% calc(100% - 3.5vw), 0 100%);
-  margin-block: -3.5vw;
-  padding-block: calc(var(--section-gap) + 3.5vw);
+  clip-path: polygon(0 2.5vw, 100% 0, 100% calc(100% - 2.5vw), 0 100%);
+  margin-block: -2.5vw;
+  padding-block: calc(var(--section-gap) + 2.5vw);
   overflow: hidden;
 }
 
@@ -364,7 +366,7 @@ main section > .content > p:first-of-type {
 /* ---------- Abschnitt 03: Warum ich ---------- */
 
 .prose {
-  margin-top: 1.25rem;
+  margin-top: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
