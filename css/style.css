@@ -15,7 +15,6 @@
   --text-heading: #f2f3f5;
 
   --section-gap: clamp(4.5rem, 10vw, 8rem);
-  --content-width: min(100% - 2.5rem, 46rem);
 
   --radius-tile: 16px;
   --radius-field: 10px;
@@ -365,7 +364,7 @@ main section > .content > p:first-of-type {
 /* ---------- Abschnitt 03: Warum ich ---------- */
 
 .prose {
-  margin-top: 1.75rem;
+  margin-top: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -509,6 +508,26 @@ main section > .content > p:first-of-type {
   border: none;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.form__status {
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-field);
+  font-size: 0.95rem;
+  max-width: none;
+}
+
+.form__status--ok {
+  background: rgba(255, 106, 19, 0.12);
+  border: 1px solid rgba(255, 106, 19, 0.4);
+  color: var(--text-heading);
+}
+
+.form__status--error {
+  background: rgba(255, 106, 19, 0.08);
+  border: 1px dashed rgba(255, 106, 19, 0.5);
+  color: var(--orange-light);
 }
 
 /* Unsichtbare Spam-Falle für Web3Forms, für Menschen nicht sichtbar */

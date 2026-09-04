@@ -10,10 +10,26 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Schriftart nicht blockierend laden (preload + onload-Swap): ein
+      normales <link rel="stylesheet"> hier würde sonst jedes <script> am
+      Seitenende so lange aufhalten, bis Google Fonts geantwortet hat -
+      bei einer langsamen Verbindung, einem Adblocker oder einem
+      Firmen-Proxy, der die Domain sperrt, bliebe das Kontaktformular
+      so lange ohne die JS-Verbesserung.
+    -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap"
+      />
+    </noscript>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -229,6 +245,7 @@
 
           <form
             class="form"
+            id="kontakt-form"
             action="https://api.web3forms.com/submit"
             method="POST"
           >
@@ -273,6 +290,13 @@
             </div>
 
             <button type="submit" class="button">Unverbindlich anfragen</button>
+            <p
+              class="form__status"
+              id="form-status"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></p>
           </form>
         </div>
       </section>
@@ -292,5 +316,48 @@
         </nav>
       </div>
     </footer>
+
+    <script>
+      // Einzige JS-Ausnahme auf dieser Seite: das Kontaktformular per fetch
+      // an Web3Forms schicken, damit Besucher nach dem Absenden nicht auf
+      // einer rohen API-Antwort landen, sondern eine Rückmeldung auf der
+      // Seite sehen. Ohne JavaScript funktioniert der normale Versand
+      // trotzdem (ganz normales <form action="..." method="POST">).
+      (function () {
+        var form = document.getElementById("kontakt-form");
+        var status = document.getElementById("form-status");
+        if (!form || !status) return;
+
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          status.hidden = false;
+          status.className = "form__status";
+          status.textContent = "Wird gesendet …";
+
+          fetch(form.action, {
+            method: "POST",
+            body: new FormData(form),
+            headers: { Accept: "application/json" },
+          })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(function (result) {
+              if (!result.success) {
+                throw new Error(result.message || "Unbekannter Fehler");
+              }
+              form.reset();
+              status.className = "form__status form__status--ok";
+              status.textContent =
+                "Danke! Ich melde mich innerhalb von zwei Tagen zurück.";
+            })
+            .catch(function () {
+              status.className = "form__status form__status--error";
+              status.textContent =
+                "Das hat leider nicht geklappt. Schreibt mir stattdessen direkt an arthur.gittel@icloud.com.";
+            });
+        });
+      })();
+    </script>
   </body>
 </html>
