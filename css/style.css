@@ -361,6 +361,15 @@ main section > .content > p:first-of-type {
   margin: 0;
 }
 
+/* ---------- Abschnitt 03: Warum ich ---------- */
+
+.prose {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
 @media (prefers-reduced-motion: reduce) {
   html {
