@@ -385,6 +385,35 @@ main section > .content > p:first-of-type {
   color: var(--orange-light);
 }
 
+/* ---------- Farbband vor dem Kontakt ---------- */
+
+.cta-band {
+  background: linear-gradient(to right, #6b1d0a, var(--orange-light));
+  padding-block: clamp(3rem, 8vw, 5rem);
+}
+
+.cta-band__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.cta-band h2 {
+  color: #fff;
+}
+
+.cta-band p {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.button--dark {
+  background: var(--bg-darkest);
+  background-image: none;
+  color: var(--text-heading);
+  margin-top: 0.5rem;
+}
+
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
 @media (prefers-reduced-motion: reduce) {
   html {
