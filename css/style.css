@@ -1,0 +1,627 @@
+/* Arthur Gittel — Websites für kleine Betriebe im Kreis Stormarn
+   Grundlagen: Farben, Schrift, Reset, Fokus, Bewegung
+   Schrift "Archivo" wird per Google Fonts im <head> jeder Seite geladen
+   (Stärken 400/600/800/900), hier nur die Fallback-Kette. */
+
+:root {
+  --bg: #100d0b;
+  --bg-darkest: #0a0706;
+  --panel: #17120f;
+  --orange: #ff6a13;
+  --orange-light: #ffa23d;
+  --gold: #ffb454;
+  --glass-fill: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --text-body: #b4b0aa;
+  --text-heading: #f2f3f5;
+
+  --section-gap: clamp(4.5rem, 10vw, 8rem);
+
+  --radius-tile: 20px;
+  --radius-field: 14px;
+  --radius-button: 999px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text-body);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+h1 {
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: clamp(1.9rem, 5.5vw, 2.8rem);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+p {
+  max-width: 60ch;
+  margin: 0;
+}
+
+.content {
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+section {
+  scroll-margin-top: 2rem;
+}
+
+/* Sichtbarer, oranger Fokusrahmen bei Tastaturbedienung */
+:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* ---------- Startbildschirm ---------- */
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding-block: clamp(3rem, 8vw, 5rem);
+  isolation: isolate;
+}
+
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 10%, rgba(255, 106, 19, 0.55), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 55% 4%, rgba(255, 180, 84, 0.28), transparent 65%),
+    radial-gradient(ellipse 55% 45% at 90% 5%, rgba(255, 162, 61, 0.35), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 100%, rgba(140, 30, 10, 0.6), transparent 65%),
+    linear-gradient(to bottom, #2a1408, #0a0706);
+}
+
+.hero__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15) 40%);
+}
+
+.hero__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Flex-Kinder schrumpfen sonst nicht unter ihre ungebrochene Textbreite */
+.hero__content > * {
+  min-width: 0;
+}
+
+.hero__claim {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-heading);
+  max-width: 32ch;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-tile);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.tile:hover,
+.tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--orange);
+}
+
+.tile__title {
+  color: var(--text-heading);
+  font-weight: 800;
+}
+
+.tile__sub {
+  color: var(--text-body);
+  font-size: 0.9rem;
+}
+
+.button {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.9rem 2rem;
+  border-radius: var(--radius-button);
+  background: linear-gradient(to right, var(--orange), var(--orange-light));
+  color: #0b0c0e;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+
+.button:hover,
+.button:focus-visible {
+  transform: translateY(-2px);
+}
+
+/* ---------- Abschnitte allgemein ---------- */
+
+main section {
+  padding-block: var(--section-gap);
+}
+
+main section > .content > p:first-of-type {
+  margin-top: 1.75rem;
+}
+
+/* Der orange Schein aus dem Startbildschirm läuft oben in den Abschnitt
+   hinein, damit der Übergang nicht hart abbricht. */
+.section-glow {
+  position: relative;
+}
+
+.section-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  height: 40%;
+  background: linear-gradient(to bottom, rgba(255, 106, 19, 0.16), transparent);
+}
+
+/* ---------- Abschnitt 01: Was ich mache ---------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-top: 2.5rem;
+}
+
+@media (min-width: 720px) {
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.75rem 1.75rem 2rem;
+  border-radius: var(--radius-tile);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 3px;
+  background: linear-gradient(to right, var(--orange), transparent);
+}
+
+.card h3 {
+  margin-bottom: 0.6rem;
+}
+
+.card p {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--orange);
+}
+
+.not-box {
+  margin-top: 2.5rem;
+  padding: 1.5rem 1.75rem;
+  border-radius: var(--radius-tile);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
+}
+
+.not-box h3 {
+  margin-bottom: 0.5rem;
+}
+
+.not-box p {
+  margin: 0;
+}
+
+/* ---------- Schräg angeschnittene Flächen (Abschnitt 02 + 04) ---------- */
+
+.slanted {
+  position: relative;
+  background: var(--panel);
+  clip-path: polygon(0 2.5vw, 100% 0, 100% calc(100% - 2.5vw), 0 100%);
+  margin-block: -2.5vw;
+  padding-block: calc(var(--section-gap) + 2.5vw);
+  overflow: hidden;
+}
+
+.slanted__glow {
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 55%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(255, 106, 19, 0.22), transparent 70%);
+  pointer-events: none;
+}
+
+/* ---------- Abschnitt 02: Wie es abläuft ---------- */
+
+.steps {
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1.25rem;
+  padding-block: 1.75rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.step:last-child {
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.step__num {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(to bottom right, var(--orange), var(--orange-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.step h3 {
+  margin-bottom: 0.4rem;
+}
+
+.step p {
+  margin: 0;
+}
+
+/* ---------- Abschnitt 03: Warum ich ---------- */
+
+.prose {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ---------- Platzhalter für noch fehlende Inhalte (Abschnitt 10) ---------- */
+
+.todo-box {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-tile);
+  background: rgba(255, 106, 19, 0.08);
+  border: 1px dashed rgba(255, 106, 19, 0.5);
+  font-size: 0.95rem;
+}
+
+.todo-box strong {
+  color: var(--orange-light);
+}
+
+/* ---------- Farbband vor dem Kontakt ---------- */
+
+.cta-band {
+  background: linear-gradient(to right, #6b1d0a, var(--orange-light));
+  padding-block: clamp(3rem, 8vw, 5rem);
+}
+
+.cta-band__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.cta-band h2 {
+  color: #fff;
+}
+
+.cta-band p {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.button--dark {
+  background: var(--bg-darkest);
+  background-image: none;
+  color: var(--text-heading);
+  margin-top: 0.5rem;
+}
+
+/* ---------- Abschnitt 05: Kontakt ---------- */
+
+.kontakt {
+  background: var(--bg-darkest);
+}
+
+.hint-box {
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-tile);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  color: var(--text-heading);
+}
+
+.contact-direct {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.contact-direct__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-tile);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  color: var(--text-heading);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.contact-direct__item--todo {
+  color: var(--orange-light);
+  border-style: dashed;
+  border-color: rgba(255, 106, 19, 0.5);
+}
+
+.contact-direct__label {
+  color: var(--text-body);
+  font-weight: 400;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 2.5rem;
+  max-width: 32rem;
+}
+
+.form__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form__row label {
+  color: var(--text-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.form__row input,
+.form__row textarea {
+  font: inherit;
+  color: var(--text-heading);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-field);
+  padding: 0.75rem 1rem;
+}
+
+.form__row textarea {
+  resize: vertical;
+}
+
+.form__row input:focus-visible,
+.form__row textarea:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 1px;
+}
+
+.form .button {
+  align-self: flex-start;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.form__status {
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-field);
+  font-size: 0.95rem;
+  max-width: none;
+}
+
+.form__status--ok {
+  background: rgba(255, 106, 19, 0.12);
+  border: 1px solid rgba(255, 106, 19, 0.4);
+  color: var(--text-heading);
+}
+
+.form__status--error {
+  background: rgba(255, 106, 19, 0.08);
+  border: 1px dashed rgba(255, 106, 19, 0.5);
+  color: var(--orange-light);
+}
+
+/* Unsichtbare Spam-Falle für Web3Forms, für Menschen nicht sichtbar */
+.botcheck {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* ---------- Fußzeile ---------- */
+
+.footer {
+  background: var(--bg-darkest);
+  border-top: 1px solid var(--glass-border);
+  padding-block: 2.5rem;
+}
+
+.footer__content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.footer__name {
+  color: var(--text-heading);
+  font-weight: 800;
+  margin: 0 0 0.25rem;
+}
+
+.footer__claim {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.footer__links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer__links a {
+  color: var(--text-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer__links a:hover,
+.footer__links a:focus-visible {
+  color: var(--orange-light);
+}
+
+/* ---------- Rechtliche Unterseiten (Impressum / Datenschutz) ---------- */
+
+.legal-page {
+  padding-block: var(--section-gap);
+}
+
+.legal-page .content > * + * {
+  margin-top: 1.25rem;
+}
+
+.legal-page h3 {
+  margin-top: 2rem;
+}
+
+.legal-page a {
+  color: var(--orange-light);
+}
+
+.legal-page .back-link {
+  display: inline-block;
+  margin-bottom: 2rem;
+  color: var(--text-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-page h1 {
+  font-size: clamp(1.8rem, 7vw, 3rem);
+}
+
+/* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
