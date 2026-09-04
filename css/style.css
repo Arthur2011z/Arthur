@@ -370,6 +370,21 @@ main section > .content > p:first-of-type {
   gap: 1.25rem;
 }
 
+/* ---------- Platzhalter für noch fehlende Inhalte (Abschnitt 10) ---------- */
+
+.todo-box {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-tile);
+  background: rgba(255, 106, 19, 0.08);
+  border: 1px dashed rgba(255, 106, 19, 0.5);
+  font-size: 0.95rem;
+}
+
+.todo-box strong {
+  color: var(--orange-light);
+}
+
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
 @media (prefers-reduced-motion: reduce) {
   html {
