@@ -414,6 +414,111 @@ main section > .content > p:first-of-type {
   margin-top: 0.5rem;
 }
 
+/* ---------- Abschnitt 05: Kontakt ---------- */
+
+.kontakt {
+  background: var(--bg-darkest);
+}
+
+.hint-box {
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-tile);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  color: var(--text-heading);
+}
+
+.contact-direct {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.contact-direct__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-tile);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  color: var(--text-heading);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.contact-direct__item--todo {
+  color: var(--orange-light);
+  border-style: dashed;
+  border-color: rgba(255, 106, 19, 0.5);
+}
+
+.contact-direct__label {
+  color: var(--text-body);
+  font-weight: 400;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 2.5rem;
+  max-width: 32rem;
+}
+
+.form__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form__row label {
+  color: var(--text-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.form__row input,
+.form__row textarea {
+  font: inherit;
+  color: var(--text-heading);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-field);
+  padding: 0.75rem 1rem;
+}
+
+.form__row textarea {
+  resize: vertical;
+}
+
+.form__row input:focus-visible,
+.form__row textarea:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 1px;
+}
+
+.form .button {
+  align-self: flex-start;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+/* Unsichtbare Spam-Falle für Web3Forms, für Menschen nicht sichtbar */
+.botcheck {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
 @media (prefers-reduced-motion: reduce) {
   html {

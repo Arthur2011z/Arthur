@@ -204,10 +204,76 @@
         </div>
       </div>
 
-      <section id="kontakt">
+      <section id="kontakt" class="kontakt">
         <div class="content">
           <h2>Kontakt</h2>
-          <p>Platzhalter — Inhalt folgt in Schritt 7.</p>
+          <p>
+            Schreibt mir kurz, was ihr macht und was ihr euch vorstellt. Ich
+            melde mich innerhalb von zwei Tagen zurück.
+          </p>
+          <p class="hint-box">
+            Ihr wisst noch nicht genau, was ihr wollt? Kein Problem — schreibt
+            das einfach ins Freitextfeld. Wir klären den Rest am Telefon.
+          </p>
+
+          <div class="contact-direct">
+            <a class="contact-direct__item" href="mailto:arthur.gittel@icloud.com">
+              <span class="contact-direct__label">E-Mail</span>
+              arthur.gittel@icloud.com
+            </a>
+            <span class="contact-direct__item contact-direct__item--todo">
+              <span class="contact-direct__label">Telefon</span>
+              Noch offen — Telefonnummer folgt
+            </span>
+          </div>
+
+          <form
+            class="form"
+            action="https://api.web3forms.com/submit"
+            method="POST"
+          >
+            <!--
+              TODO Formular-Versand: Web3Forms braucht einen Access Key.
+              So bekommt ihr ihn: auf https://web3forms.com die Adresse
+              arthur.gittel@icloud.com eintragen, den Key per Mail
+              zuschicken lassen und unten bei "value" einsetzen.
+              Ohne gültigen Key kommen keine Nachrichten an!
+            -->
+            <input
+              type="hidden"
+              name="access_key"
+              value="TODO-WEB3FORMS-ACCESS-KEY-EINTRAGEN"
+            />
+            <input
+              type="hidden"
+              name="subject"
+              value="Neue Anfrage von der Website"
+            />
+            <input type="checkbox" name="botcheck" class="botcheck" tabindex="-1" autocomplete="off" />
+
+            <div class="form__row">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" required autocomplete="name" />
+            </div>
+            <div class="form__row">
+              <label for="betrieb">Betrieb</label>
+              <input type="text" id="betrieb" name="betrieb" required autocomplete="organization" />
+            </div>
+            <div class="form__row">
+              <label for="email">E-Mail</label>
+              <input type="email" id="email" name="email" required autocomplete="email" />
+            </div>
+            <div class="form__row">
+              <label for="telefon">Telefon</label>
+              <input type="tel" id="telefon" name="telefon" autocomplete="tel" />
+            </div>
+            <div class="form__row">
+              <label for="nachricht">Was macht ihr, was stellt ihr euch vor?</label>
+              <textarea id="nachricht" name="nachricht" rows="5" required></textarea>
+            </div>
+
+            <button type="submit" class="button">Unverbindlich anfragen</button>
+          </form>
         </div>
       </section>
     </main>
