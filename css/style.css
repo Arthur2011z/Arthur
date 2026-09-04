@@ -302,6 +302,65 @@ main section > .content > p:first-of-type {
   margin: 0;
 }
 
+/* ---------- Schräg angeschnittene Flächen (Abschnitt 02 + 04) ---------- */
+
+.slanted {
+  position: relative;
+  background: var(--panel);
+  clip-path: polygon(0 3.5vw, 100% 0, 100% calc(100% - 3.5vw), 0 100%);
+  margin-block: -3.5vw;
+  padding-block: calc(var(--section-gap) + 3.5vw);
+  overflow: hidden;
+}
+
+.slanted__glow {
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 55%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(255, 106, 19, 0.22), transparent 70%);
+  pointer-events: none;
+}
+
+/* ---------- Abschnitt 02: Wie es abläuft ---------- */
+
+.steps {
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1.25rem;
+  padding-block: 1.75rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.step:last-child {
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.step__num {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(to bottom right, var(--orange), var(--orange-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.step h3 {
+  margin-bottom: 0.4rem;
+}
+
+.step p {
+  margin: 0;
+}
+
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
 @media (prefers-reduced-motion: reduce) {
   html {
