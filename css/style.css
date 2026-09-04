@@ -59,6 +59,7 @@ h3 {
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
+  overflow-wrap: break-word;
 }
 
 h1 {
@@ -517,6 +518,79 @@ main section > .content > p:first-of-type {
   width: 1px;
   height: 1px;
   opacity: 0;
+}
+
+/* ---------- Fußzeile ---------- */
+
+.footer {
+  background: var(--bg-darkest);
+  border-top: 1px solid var(--glass-border);
+  padding-block: 2.5rem;
+}
+
+.footer__content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.footer__name {
+  color: var(--text-heading);
+  font-weight: 800;
+  margin: 0 0 0.25rem;
+}
+
+.footer__claim {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.footer__links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer__links a {
+  color: var(--text-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer__links a:hover,
+.footer__links a:focus-visible {
+  color: var(--orange-light);
+}
+
+/* ---------- Rechtliche Unterseiten (Impressum / Datenschutz) ---------- */
+
+.legal-page {
+  padding-block: var(--section-gap);
+}
+
+.legal-page .content > * + * {
+  margin-top: 1.25rem;
+}
+
+.legal-page h3 {
+  margin-top: 2rem;
+}
+
+.legal-page a {
+  color: var(--orange-light);
+}
+
+.legal-page .back-link {
+  display: inline-block;
+  margin-bottom: 2rem;
+  color: var(--text-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-page h1 {
+  font-size: clamp(1.8rem, 7vw, 3rem);
 }
 
 /* Bewegung sparsam: Hover hebt Elemente leicht an, sonst nichts */
