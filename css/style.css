@@ -304,6 +304,35 @@ main section > .content > p:first-of-type {
   margin: 0;
 }
 
+/* ---------- Illustrationsrahmen (Platzhalter bis echte Screenshots
+   vorliegen) — bewusst allgemein gehalten, an kein bestimmtes Motiv
+   gebunden, damit ein späterer Austausch nur die Bilddatei betrifft ---------- */
+
+.illu {
+  position: relative;
+  margin-top: 2.5rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-tile);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.illu::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 3px;
+  background: linear-gradient(to right, var(--orange), transparent);
+}
+
+.illu img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 /* ---------- Schräg angeschnittene Flächen (Abschnitt 02 + 04) ---------- */
 
 .slanted {
