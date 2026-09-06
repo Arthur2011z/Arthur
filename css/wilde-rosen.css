@@ -4,14 +4,20 @@
    ========================================================================== */
 
 :root {
-  /* Farben — nicht durch eigene ersetzen */
-  --grund: #0F1412;        /* Grundfläche */
-  --tiefe: #080B0A;        /* dunkelste Fläche: Kopfbereich, Fußzeile, Kontakt */
-  --glut: #E4652B;         /* Glut, Akzent, Knöpfe */
-  --glut-dunkel: #8E2F12;  /* dunkle Glut */
-  --rose: #C4708A;         /* Rosenrot, Name */
-  --text: #A8A69C;         /* Fließtext */
-  --hell: #EDE7DC;         /* Überschriften und hervorgehobener Text */
+  /* Farben — nicht durch eigene ersetzen.
+     Die Seite ist ein Wald: gedämpft und tief, kein Neon. Sattes Grün
+     entsteht durch Abstufung, nicht durch Leuchtkraft. Glut-Orange bleibt
+     Nebenakzent und erscheint nur dort, wo tatsächlich Feuer im Spiel ist. */
+  --grund: #0C120E;        /* Grundfläche */
+  --tiefe: #070A08;        /* dunkelste Fläche: Kopfbereich, Fußzeile, Kontakt */
+  --wald: #7FA86B;         /* Waldgrün, Hauptakzent */
+  --moos: #2F4A33;         /* tiefes Moosgrün, Verläufe und Schichtung */
+  --tanne: #16281B;        /* dunkles Tannengrün, Verläufe */
+  --glut: #E4652B;         /* Glut, Nebenakzent: Startbild, Hinweiskasten */
+  --glut-dunkel: #8E2F12;  /* dunkle Glut, Platzhalter-Markierungen */
+  --rose: #C4708A;         /* Rosenrot, Name und kleine Markierungen */
+  --text: #A3AC9F;         /* Fließtext */
+  --hell: #E8EEE3;         /* Überschriften und hervorgehobener Text */
 
   /* Maße */
   --abstand-abschnitt: clamp(4rem, 9vw, 7rem);
@@ -111,7 +117,7 @@ strong {
 }
 
 a {
-  color: var(--glut);
+  color: var(--wald);
 }
 
 /* --- Aufbau -------------------------------------------------------------- */
@@ -126,8 +132,23 @@ a {
   scroll-margin-top: 2rem;
 }
 
+/* Ein Wald hat Schichten: Die abwechselnden Abschnitte liegen minimal heller
+   als die Grundfläche, nicht dunkler. Die hellere Fläche ist keine eigene
+   Farbe, sondern Moosgrün mit sehr geringer Deckkraft über dem Grund.
+   Ältere Browser ohne color-mix bekommen schlicht die Grundfläche. */
 .abschnitt--tief {
+  background-color: var(--grund);
+  background-color: color-mix(in srgb, var(--moos) 14%, var(--grund));
+  border-top: 1px solid color-mix(in srgb, var(--moos) 45%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--moos) 45%, transparent);
+}
+
+/* Kontakt und Fußzeile bleiben die dunkelste Fläche — dort läuft die Seite
+   nach unten aus. */
+#anfragen,
+.fuss {
   background-color: var(--tiefe);
+  border-color: color-mix(in srgb, var(--moos) 35%, transparent);
 }
 
 /* --- Bilder im Fließtext ------------------------------------------------- */
@@ -168,7 +189,7 @@ a {
   width: 0.4375rem;
   height: 0.4375rem;
   border-radius: 50%;
-  background-color: var(--glut);
+  background-color: var(--wald);
 }
 
 /* --- Terminliste --------------------------------------------------------- */
@@ -185,11 +206,11 @@ a {
   align-items: baseline;
   gap: 0.125rem 1rem;
   padding-block: 0.875rem;
-  border-top: 1px solid rgba(237, 231, 220, 0.1);
+  border-top: 1px solid rgba(232, 238, 227, 0.1);
 }
 
 .termin:last-child {
-  border-bottom: 1px solid rgba(237, 231, 220, 0.1);
+  border-bottom: 1px solid rgba(232, 238, 227, 0.1);
 }
 
 .termin__datum {
@@ -235,7 +256,7 @@ a {
   font-weight: 400;
   color: var(--hell);
   background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(237, 231, 220, 0.28);
+  border: 1px solid rgba(232, 238, 227, 0.28);
   border-radius: var(--ecke-feld);
   padding: 0.75rem 0.875rem;
   min-height: 44px;
@@ -277,7 +298,7 @@ a {
 }
 
 .zurueck:hover {
-  color: var(--glut);
+  color: var(--wald);
 }
 
 .unterseite__kopf h1 {
@@ -320,7 +341,7 @@ a {
 }
 
 .popup::backdrop {
-  background-color: rgba(8, 11, 10, 0.82);
+  background-color: rgba(7, 10, 8, 0.82);
 }
 
 .popup__karte {
@@ -329,7 +350,7 @@ a {
   max-height: 85vh;
   overflow-y: auto;
   background-color: var(--tiefe);
-  border: 1px solid rgba(237, 231, 220, 0.14);
+  border: 1px solid rgba(232, 238, 227, 0.14);
   border-radius: var(--ecke);
   padding: 2rem 1.75rem;
 }
@@ -360,8 +381,8 @@ a {
 }
 
 .popup__schliessen:hover {
-  background-color: rgba(228, 101, 43, 0.18);
-  color: var(--glut);
+  background-color: rgba(127, 168, 107, 0.18);
+  color: var(--wald);
 }
 
 /* --- Fußzeile -------------------------------------------------------------- */
@@ -383,7 +404,7 @@ a {
 }
 
 .fuss__links a:hover {
-  color: var(--glut);
+  color: var(--wald);
 }
 
 /* --- Häufige Fragen -------------------------------------------------------
@@ -392,11 +413,11 @@ a {
    -------------------------------------------------------------------------- */
 
 .frage {
-  border-top: 1px solid rgba(237, 231, 220, 0.14);
+  border-top: 1px solid rgba(232, 238, 227, 0.14);
 }
 
 .frage:last-child {
-  border-bottom: 1px solid rgba(237, 231, 220, 0.14);
+  border-bottom: 1px solid rgba(232, 238, 227, 0.14);
 }
 
 .frage summary {
@@ -424,7 +445,7 @@ a {
   font-weight: 300;
   font-size: 1.5rem;
   line-height: 1;
-  color: var(--glut);
+  color: var(--wald);
 }
 
 .frage[open] summary::after {
@@ -452,7 +473,7 @@ a {
 /* --- Sichtbarer Fokus ---------------------------------------------------- */
 
 :focus-visible {
-  outline: 2px solid var(--glut);
+  outline: 2px solid var(--wald);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -499,7 +520,7 @@ a {
   aspect-ratio: 3 / 2;
   border: 1px dashed var(--glut-dunkel);
   border-radius: var(--ecke);
-  background-color: #12100E;
+  background-color: var(--grund);
   color: var(--glut);
   font-size: 0.875rem;
   text-align: center;
@@ -510,8 +531,8 @@ a {
 
 .knopf {
   display: inline-block;
-  background-color: var(--glut);
-  color: #150A04;
+  background-color: var(--wald);
+  color: var(--tiefe);
   font-family: var(--schrift-text);
   font-weight: 600;
   font-size: 1.0625rem;
@@ -524,19 +545,19 @@ a {
 }
 
 .knopf:hover {
-  background-color: #F0763C;
+  background-color: color-mix(in srgb, var(--wald) 85%, var(--hell));
 }
 
 /* Zurückhaltendere Variante für einen zweiten Weg, keinen Wettbewerb zum
    Haupt-Knopf */
 .knopf--whatsapp {
   background-color: transparent;
-  color: var(--glut);
-  border: 1px solid var(--glut);
+  color: var(--wald);
+  border: 1px solid var(--wald);
 }
 
 .knopf--whatsapp:hover {
-  background-color: rgba(228, 101, 43, 0.12);
+  background-color: rgba(127, 168, 107, 0.12);
 }
 
 /* ==========================================================================
@@ -555,46 +576,69 @@ a {
   overflow: hidden;
 }
 
-/* Ebene 1: das Foto vom Feuer.
-   PLATZHALTER — sobald das Bild vorliegt, hier url("../bilder/feuer.jpg")
-   eintragen; am Layout ändert sich dadurch nichts. */
+/* Ebene 1: das Foto vom Feuer, unverändert und ohne Farbfilter. */
 .kopf__bild {
   position: absolute;
   inset: 0;
   z-index: -3;
-  background-color: #1A0E07;
+  background-color: var(--tanne);
   background-image: url("../bilder/feuer.jpg");
   background-size: cover;
   background-position: center 65%;
 }
 
-/* Ebene 2: warmer Verlauf aus Glut-Orange, Rosenrot und dunklem Rostbraun */
+/* Ebene 2: der Wald. Tannengrün fällt von oben links ein, Moosgrün kommt
+   von rechts wie durchscheinendes Blattwerk, unten läuft das Bild in sehr
+   dunklem Grün aus. Der letzte Verlauf hält den Feuerbereich unten in der
+   Mitte warm, damit die Flamme nicht grün überdeckt wird.
+   Alle Werte stammen aus der Farbtabelle: Tanne rgb(22,40,27),
+   Moos rgb(47,74,51), Grund rgb(12,18,14), Glut rgb(228,101,43). */
 .kopf__verlauf {
   position: absolute;
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(70% 50% at 20% 92%, rgba(228, 101, 43, 0.5), transparent 68%),
-    radial-gradient(55% 42% at 85% 12%, rgba(196, 112, 138, 0.25), transparent 70%),
-    linear-gradient(168deg, rgba(42, 17, 8, 0.55) 0%, rgba(107, 42, 16, 0.32) 55%, rgba(18, 10, 6, 0.6) 100%);
+    /* Tannengrün fällt von oben links ein */
+    radial-gradient(70% 62% at 2% 0%, rgba(22, 40, 27, 0.95), transparent 68%),
+    /* Moosgrün von rechts, wie durchscheinendes Blattwerk */
+    radial-gradient(52% 46% at 100% 16%, rgba(47, 74, 51, 0.62), transparent 70%),
+    /* Tiefes Grün in den unteren Ecken, damit das Bild nach unten ausläuft */
+    radial-gradient(56% 50% at 2% 96%, rgba(22, 40, 27, 0.88), transparent 72%),
+    radial-gradient(46% 42% at 100% 94%, rgba(22, 40, 27, 0.75), transparent 72%),
+    /* Der senkrechte Verlauf lässt die Bildmitte frei — dort steht das
+       Feuer, das nicht grün überdeckt werden soll. */
+    linear-gradient(180deg, rgba(22, 40, 27, 0.68) 0%, rgba(22, 40, 27, 0.2) 32%, transparent 58%, rgba(7, 10, 8, 0.8) 97%);
 }
 
-/* Ebene 3: dunkler Schleier für die Lesbarkeit */
+/* Ebene 3: grünstichiger Schleier, der Foto und Farbe verbindet und den Text
+   trägt. Der radiale Verlauf hat sein Zentrum genau auf der Flamme und ist
+   dort offen — so bleibt das Feuer warm und wird nicht grün überdeckt,
+   während alles ringsum in den Wald zurücktritt. */
 .kopf__schleier {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(
-    180deg,
-    rgba(8, 11, 10, 0.62) 0%,
-    rgba(8, 11, 10, 0.5) 45%,
-    rgba(8, 11, 10, 0.74) 100%
-  );
+  background:
+    /* Offen bleibt nur der Feuerbereich unterhalb der Kacheln. Weiter oben
+       liegt der Schleier auch über der Flamme, sonst wird der Text auf den
+       Kacheln unlesbar. */
+    radial-gradient(34% 30% at 62% 92%, transparent 25%, rgba(22, 40, 27, 0.45) 80%, rgba(12, 18, 14, 0.62) 100%),
+    linear-gradient(180deg, rgba(7, 10, 8, 0.62) 0%, rgba(22, 40, 27, 0.46) 40%, rgba(22, 40, 27, 0.5) 70%, rgba(7, 10, 8, 0.5) 100%);
 }
 
 .kopf h1 {
   color: var(--rose);
   margin-bottom: 0.5rem;
+}
+
+/* Einzige Ausnahme bei den Knöpfen: Im Startbild brennt das Feuer, dort
+   bleibt der Knopf in Glut-Orange. Alle übrigen Knöpfe sind Waldgrün. */
+.kopf .knopf {
+  background-color: var(--glut);
+}
+
+.kopf .knopf:hover {
+  background-color: color-mix(in srgb, var(--glut) 88%, var(--hell));
 }
 
 .kopf__ort {
@@ -632,7 +676,7 @@ a {
 }
 
 .kachel:hover {
-  border-color: rgba(228, 101, 43, 0.6);
+  border-color: rgba(127, 168, 107, 0.6);
 }
 
 .kachel__titel {
