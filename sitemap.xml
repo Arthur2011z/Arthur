@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Die Adressen unten enthalten einen Platzhalter-Domainnamen
+  (www.arthur-gittel.de). Vor dem Livegang durch die echte Domain
+  ersetzen, sonst kann Google die Seiten nicht zuordnen.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.arthur-gittel.de/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.arthur-gittel.de/impressum</loc>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.arthur-gittel.de/datenschutz</loc>
+    <priority>0.3</priority>
+  </url>
+</urlset>

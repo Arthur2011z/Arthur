@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Websites für kleine Betriebe im Kreis Stormarn | Arthur Gittel</title>
+    <title>Websites für kleine Betriebe im Kreis Stormarn — Arthur Gittel</title>
     <meta
       name="description"
-      content="Arthur Gittel baut Websites für kleine Betriebe im Kreis Stormarn: verständlich, aufs Handy zugeschnitten, bei Google auffindbar."
+      content="Websites für kleine Betriebe in Stormarn und Umgebung: aufs Handy zugeschnitten, bei Google auffindbar, verständlich erklärt. Anfrage und Entwurf kosten nichts."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,15 +31,43 @@
       />
     </noscript>
     <link rel="stylesheet" href="css/style.css" />
+
+    <!--
+      Strukturierte Daten für die lokale Suche. Bewusst nur Felder, für die
+      es echte Angaben gibt: kein erfundener Standort, keine erfundenen
+      Öffnungszeiten, keine erfundenen Bewertungen.
+
+      NOCH ZU ERGÄNZEN vor dem Livegang:
+      - "url" und "@id": echte Domain eintragen (unten steht ein Platzhalter)
+      - "address": sobald die Anschrift fürs Impressum feststeht
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "Arthur Gittel",
+        "description": "Websites für kleine Betriebe im Kreis Stormarn und Umgebung. Aufs Handy zugeschnitten, bei Google auffindbar, ohne Fachbegriffe erklärt.",
+        "url": "https://www.arthur-gittel.de/",
+        "email": "arthur.gittel@icloud.com",
+        "telephone": "+4917622530366",
+        "areaServed": [
+          { "@type": "AdministrativeArea", "name": "Kreis Stormarn" },
+          { "@type": "City", "name": "Ahrensburg" },
+          { "@type": "City", "name": "Bad Oldesloe" }
+        ]
+      }
+    </script>
   </head>
   <body>
     <header class="hero">
       <div class="hero__bg" aria-hidden="true"></div>
       <div class="content hero__content">
-        <h1>Arthur Gittel</h1>
-        <p class="hero__claim">
-          Websites für kleine Betriebe im Kreis Stormarn
-        </p>
+        <h1 class="hero__title">
+          <span class="hero__name">Arthur Gittel</span>
+          <span class="hero__claim">
+            Websites für kleine Betriebe im Kreis Stormarn
+          </span>
+        </h1>
         <nav class="tiles" aria-label="Seitenbereiche">
           <a class="tile" href="#was-ich-mache">
             <span class="tile__title">Was ich mache</span>
@@ -71,9 +99,17 @@
         <div class="content">
           <h2>Was ich mache</h2>
           <p>
-            Eure Website soll auf dem Handy gut aussehen, bei Google gefunden
-            werden und euch nicht mit Fachbegriffen nerven. Mehr braucht es
-            für den Anfang meistens nicht.
+            Eure Website — manche sagen auch Homepage dazu — soll auf dem
+            Handy gut aussehen, bei Google gefunden werden und euch nicht mit
+            Fachbegriffen nerven. Mehr braucht es für den Anfang meistens
+            nicht.
+          </p>
+
+          <p>
+            Ich mache Webdesign für Handwerk, Dienstleister und Selbständige
+            hier aus der Gegend — von Ahrensburg bis Bad Oldesloe, auf Wunsch
+            auch am Hamburger Rand. Wer zum ersten Mal eine Website erstellen
+            lassen will, bekommt von mir vorher erklärt, was dabei passiert.
           </p>
 
           <div class="illu">
@@ -96,8 +132,8 @@
             <article class="card">
               <h3>Aufs Handy zugeschnitten</h3>
               <p>
-                Eure Seite funktioniert auf dem Handy, weil dort die meisten
-                eurer Kunden landen.
+                Eure Seite funktioniert auf dem Handy, weil die meisten eurer
+                Kunden mobil unterwegs sind.
               </p>
             </article>
             <article class="card">
@@ -348,8 +384,8 @@
           </p>
         </div>
         <nav class="footer__links" aria-label="Rechtliches">
-          <a href="impressum.html">Impressum</a>
-          <a href="datenschutz.html">Datenschutz</a>
+          <a href="/impressum">Impressum</a>
+          <a href="/datenschutz">Datenschutz</a>
         </nav>
       </div>
     </footer>

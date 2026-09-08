@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Domain vor dem Livegang eintragen (Platzhalter):
+Sitemap: https://www.arthur-gittel.de/sitemap.xml

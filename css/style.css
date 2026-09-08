@@ -146,11 +146,32 @@ section {
   min-width: 0;
 }
 
+/* Name und Angebotszeile stehen in derselben <h1> (eine Überschrift erster
+   Ordnung, die Name und Leistung enthält). Die beiden Zeilen bekommen ihre
+   bisherigen Schriftbilder über die Spans zurück, damit sich optisch nichts
+   ändert. */
+.hero__title {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero__name {
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .hero__claim {
   padding-top: 1.25rem;
   border-top: 1px solid var(--glass-border);
   color: var(--text-heading);
   max-width: 32ch;
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .tiles {
@@ -222,6 +243,12 @@ main section {
 
 main section > .content > p:first-of-type {
   margin-top: 1.75rem;
+}
+
+/* Aufeinanderfolgende Absätze brauchen Luft dazwischen, sonst lesen sie
+   sich wie ein einziger Block. */
+main section > .content > p + p {
+  margin-top: 1.25rem;
 }
 
 /* Der orange Schein aus dem Startbildschirm läuft oben in den Abschnitt
