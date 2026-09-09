@@ -443,6 +443,161 @@ main section > .content > p + p {
   color: var(--orange-light);
 }
 
+/* ---------- Preise ---------- */
+
+.preise {
+  margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .preise {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  /* Auf dem Handy steht Gold zuerst, auf breiten Schirmen links Silber. */
+  .preis-karte--silber {
+    order: 1;
+  }
+
+  .preis-karte--gold {
+    order: 2;
+  }
+}
+
+.preis-karte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem 1.75rem 2rem;
+  border-radius: var(--radius-tile);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+}
+
+.preis-karte--gold {
+  border: 2px solid var(--orange);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 106, 19, 0.1),
+    var(--panel) 55%
+  );
+}
+
+.preis-karte__badge {
+  align-self: flex-start;
+  margin-bottom: 0.85rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--radius-button);
+  background: var(--orange);
+  color: #1a0d04;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.preis-karte__name {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-heading);
+}
+
+.preis-karte__preis {
+  margin: 0.4rem 0 0;
+  font-size: clamp(2.4rem, 7vw, 3.1rem);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--text-heading);
+}
+
+.preis-karte--gold .preis-karte__preis {
+  color: var(--gold);
+}
+
+.preis-karte__zusatz {
+  margin: 0.2rem 0 1.1rem;
+  font-size: 0.95rem;
+  color: var(--text-body);
+}
+
+.preis-karte p {
+  margin: 0;
+}
+
+.preis-karte__button {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 0.9rem;
+}
+
+.preis-karte .todo-box + .preis-karte__button,
+.preis-karte p + .preis-karte__button {
+  margin-top: 1.75rem;
+}
+
+.button--ghost {
+  background: transparent;
+  background-image: none;
+  color: var(--text-heading);
+  border: 1px solid var(--glass-border);
+}
+
+.abo-box {
+  margin-top: 1.5rem;
+  padding: 1.75rem;
+  border-radius: var(--radius-tile);
+  background: var(--bg-darkest);
+  border: 1px solid var(--glass-border);
+}
+
+.abo-box__name {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-heading);
+}
+
+.abo-box__preis {
+  margin: 0.3rem 0 1.1rem;
+  font-size: clamp(1.9rem, 5vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--text-heading);
+}
+
+.abo-box p {
+  margin: 0;
+}
+
+.abo-box__liste {
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.abo-box__laufzeit {
+  margin-top: 1.1rem !important;
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.hinweis-box {
+  margin-top: 1.75rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-tile);
+  background: rgba(255, 106, 19, 0.1);
+  border-left: 4px solid var(--orange);
+}
+
+.hinweis-box strong {
+  color: var(--orange-light);
+}
+
 /* ---------- Farbband vor dem Kontakt ---------- */
 
 .cta-band {
