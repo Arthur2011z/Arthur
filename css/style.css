@@ -580,6 +580,10 @@ main section > .content > p + p {
   gap: 0.6rem;
 }
 
+.abo-box__erklaerung {
+  margin-top: 1.1rem !important;
+}
+
 .abo-box__laufzeit {
   margin-top: 1.1rem !important;
   color: var(--text-heading);
