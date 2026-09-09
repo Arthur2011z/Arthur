@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>PRAXISNAME — Tierarztpraxis in Hamburg-Volksdorf (Gestaltungsdemo)</title>
+<meta name="description" content="Unbeauftragter Gestaltungsentwurf für eine Tierarztpraxis. Nicht die offizielle Seite der Praxis.">
+<link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Demo-Hinweis: steht auf jeder Seite und wird nicht entfernt. -->
+<div class="demo-hinweis">
+  <div class="huelle">
+    <p><strong>Unbeauftragter Gestaltungsentwurf.</strong> Diese Seite ist eine
+    Demonstration von Arthur Gittel und <strong>nicht die offizielle Seite der
+    Praxis</strong>. Alle Zeiten, Texte und Kontaktangaben sind Platzhalter.</p>
+  </div>
+</div>
+
+<header class="kopf">
+  <div class="huelle">
+    <h1>PRAXISNAME</h1>
+    <p class="ort">Tierarztpraxis in Hamburg-Volksdorf</p>
+
+    <!-- Der Inhalt hier ist das Ergebnis ohne JavaScript. app.js ersetzt ihn
+         durch den berechneten Status. -->
+    <div class="status" id="status" data-offen="ja">
+      <p class="status-zeile">
+        <span class="status-punkt" aria-hidden="true"></span>
+        <span id="status-text">Sprechzeiten heute</span>
+      </p>
+      <p class="status-zusatz" id="status-zusatz">
+        Die heutigen Zeiten finden Sie in der Übersicht weiter unten.
+      </p>
+    </div>
+
+    <a class="knopf knopf-haupt" id="anruf-haupt" href="tel:+4940000000">Praxis anrufen</a>
+    <a class="notfall-verweis" href="#notfall">Es ist ein Notfall →</a>
+  </div>
+</header>
+
+<main>
+
+  <section id="sprechzeiten" class="abgesetzt">
+    <div class="huelle">
+      <h2>Sprechzeiten</h2>
+      <table class="zeiten-tabelle">
+        <caption>Beispielzeiten — Platzhalter für die Demonstration.</caption>
+        <tbody>
+          <tr data-tag="1"><th scope="row">Montag</th>    <td>9–12 Uhr und 15–18 Uhr</td></tr>
+          <tr data-tag="2"><th scope="row">Dienstag</th>  <td>9–12 Uhr und 15–18 Uhr</td></tr>
+          <tr data-tag="3"><th scope="row">Mittwoch</th>  <td>9–12 Uhr</td></tr>
+          <tr data-tag="4"><th scope="row">Donnerstag</th><td>9–12 Uhr und 15–18 Uhr</td></tr>
+          <tr data-tag="5"><th scope="row">Freitag</th>   <td>9–12 Uhr und 15–18 Uhr</td></tr>
+          <tr data-tag="6"><th scope="row">Samstag</th>   <td>10–12 Uhr</td></tr>
+          <tr data-tag="0"><th scope="row">Sonntag</th>   <td>geschlossen</td></tr>
+        </tbody>
+      </table>
+      <p class="hinweis">
+        Termine vereinbaren Sie bitte telefonisch. In dringenden Fällen kommen
+        Sie auch ohne Termin — rufen Sie vorher kurz an, damit wir uns auf Sie
+        einstellen können. Bitte bringen Sie den Impfpass mit.
+      </p>
+    </div>
+  </section>
+
+  <!-- Einziger Bereich, in dem die Signalfarbe verwendet wird. -->
+  <section id="notfall" class="notfall">
+    <div class="huelle">
+      <h2>Im Notfall</h2>
+      <p>
+        Bleiben Sie ruhig und rufen Sie zuerst an, bevor Sie losfahren. So
+        können wir uns vorbereiten und Ihnen sagen, worauf Sie unterwegs achten
+        sollten. Transportieren Sie Ihr Tier möglichst ruhig und warm.
+      </p>
+      <a class="knopf knopf-notfall" href="tel:+4940000001">Notfallnummer anrufen</a>
+      <p class="notdienst">
+        Außerhalb der Sprechzeiten, nachts und an Feiertagen ist der
+        tierärztliche Notdienst für Hamburg zuständig. Die zuständige Stelle
+        wird über die Notdienstauskunft der Tierärztekammer vermittelt.
+      </p>
+    </div>
+  </section>
+
+  <section id="leistungen">
+    <div class="huelle">
+      <h2>Leistungen</h2>
+      <p>Ein Überblick über das, was in der Praxis behandelt wird.</p>
+      <ul class="karten">
+        <li class="karte">
+          <h3>Vorsorge und Impfung</h3>
+          <p>Regelmäßige Untersuchungen und Impfungen für Hund, Katze und
+          Kleintiere. Wir besprechen mit Ihnen, welche Impfungen für Ihr Tier
+          sinnvoll sind und wann die nächsten anstehen.</p>
+        </li>
+        <li class="karte">
+          <h3>Wurmkur und Parasiten</h3>
+          <p>Untersuchung auf Würmer, Flöhe und Zecken sowie passende
+          Behandlung. Auf Wunsch stellen wir einen Plan auf, der zum Alter und
+          zur Haltung Ihres Tieres passt.</p>
+        </li>
+        <li class="karte">
+          <h3>Kastration</h3>
+          <p>Kastration von Katern, Katzen, Rüden und Hündinnen. Vorab
+          besprechen wir den Ablauf, die Vorbereitung und die Zeit danach in
+          Ruhe mit Ihnen.</p>
+        </li>
+        <li class="karte">
+          <h3>Operationen</h3>
+          <p>Eingriffe in Narkose, zum Beispiel an Haut, Zähnen oder Gewebe.
+          Ihr Tier wird währenddessen überwacht und bleibt bis zum Aufwachen
+          bei uns.</p>
+        </li>
+        <li class="karte">
+          <h3>Labor</h3>
+          <p>Blut-, Kot- und Urinuntersuchungen. Viele Werte bestimmen wir
+          direkt in der Praxis, umfangreichere Untersuchungen gehen an ein
+          Fachlabor.</p>
+        </li>
+        <li class="karte">
+          <h3>Weitere Behandlungen</h3>
+          <p>Wundversorgung, Zahnbehandlung, Ultraschall und Röntgen. Wenn eine
+          Untersuchung besondere Geräte braucht, überweisen wir an eine Klinik
+          und stimmen uns dort ab.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="praxis" class="abgesetzt">
+    <div class="huelle">
+      <h2>Praxis und Team</h2>
+      <p>
+        Die Praxis liegt in Hamburg-Volksdorf und betreut Hunde, Katzen und
+        Kleintiere aus dem Stadtteil und der Umgebung. Wir nehmen uns Zeit für
+        das Gespräch und erklären, was wir tun und warum.
+      </p>
+      <ul class="karten team">
+        <li class="karte">
+          <div class="platzhalter-bild">Platzhalter — hier stünde eine eigene Aufnahme der Praxis</div>
+          <h3>Tierärztin, Praxisleitung</h3>
+          <p>Schwerpunkt Innere Medizin und Vorsorge. In der Demonstration steht
+          hier später der Text, den die Praxis selbst über sich schreibt.</p>
+        </li>
+        <li class="karte">
+          <div class="platzhalter-bild">Platzhalter — hier stünde eine eigene Aufnahme der Praxis</div>
+          <h3>Tierärztin</h3>
+          <p>Schwerpunkt Chirurgie und Zahnbehandlung. Auch dieser Text ist ein
+          Platzhalter und wird durch eigene Angaben ersetzt.</p>
+        </li>
+      </ul>
+      <p class="hinweis">
+        Für diese Demonstration werden keine Fotos echter Personen verwendet.
+      </p>
+    </div>
+  </section>
+
+  <section id="kontakt">
+    <div class="huelle">
+      <h2>Anfahrt und Kontakt</h2>
+      <dl class="kontakt-liste">
+        <dt>Adresse (Platzhalter)</dt>
+        <dd>Musterweg 12, 22359 Hamburg-Volksdorf</dd>
+        <dt>Telefon (Platzhalter)</dt>
+        <dd><a href="tel:+4940000000">040 000000</a></dd>
+        <dt>E-Mail (Platzhalter)</dt>
+        <dd><a href="mailto:praxis@demo.example">praxis@demo.example</a></dd>
+      </dl>
+      <p>
+        Vor dem Haus stehen einige Parkplätze zur Verfügung, weitere finden Sie
+        in den Seitenstraßen. Mit der U-Bahn erreichen Sie uns über die
+        Haltestelle Volksdorf, von dort sind es wenige Minuten zu Fuß.
+      </p>
+      <div class="karten-platzhalter">
+        <p>
+          Hier stünde eine Karte. Sie wird bewusst nicht automatisch geladen,
+          damit beim Aufruf der Seite keine Daten an einen Kartendienst gehen.
+        </p>
+        <p><a href="https://www.openstreetmap.org/search?query=Volksdorf%2C%20Hamburg"
+              rel="noopener noreferrer" target="_blank">Karte bei OpenStreetMap öffnen</a></p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="fuss">
+  <div class="huelle">
+    <ul>
+      <li><a href="impressum.html">Impressum</a></li>
+      <li><a href="datenschutz.html">Datenschutz</a></li>
+    </ul>
+    <p>
+      Unbeauftragter Gestaltungsentwurf von Arthur Gittel. Nicht die offizielle
+      Seite der Praxis. Keine echten Kontaktdaten, keine Terminbuchung.
+    </p>
+  </div>
+</footer>
+
+<!-- Nur auf dem Handy: der Anruf ist die haeufigste und eiligste Handlung. -->
+<div class="anrufleiste">
+  <a class="knopf knopf-haupt" href="tel:+4940000000">Praxis anrufen</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

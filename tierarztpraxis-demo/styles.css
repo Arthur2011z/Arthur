@@ -1,0 +1,382 @@
+/* ==========================================================================
+   Tierarztpraxis Volksdorf — unbeauftragte Gestaltungsdemo
+   Alle Farben, Abstaende und Schriftgroessen sind hier zentral definiert.
+   ========================================================================== */
+
+/* --- Schrift: selbst gehostet, kein externer Request ---------------------- */
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('fonts/source-sans-3-latin.woff2') format('woff2-variations'),
+       url('fonts/source-sans-3-latin.woff2') format('woff2');
+  font-weight: 400 700;   /* Variable Font, deckt 400/600/700 aus einer Datei */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Tokens --------------------------------------------------------------- */
+:root {
+  --flaeche:            #FBFAF8;
+  --flaeche-abgesetzt:  #F1EEE9;
+  --text:               #2E3330;
+  --text-gedaempft:     #5F6663;
+  --gruen:              #3F7D62;   /* nur als Flaeche mit weisser Schrift */
+  --gruen-dunkel:       #2C5A46;   /* Textfarbe auf hellem Grund */
+  --notfall:            #B4432B;   /* AUSSCHLIESSLICH im Notfallbereich */
+
+  --radius: 12px;
+  --schatten: 0 1px 3px rgb(46 51 48 / .06), 0 6px 20px rgb(46 51 48 / .05);
+  --rand: 1px solid rgb(46 51 48 / .10);
+
+  --spalte: 68rem;      /* maximale Seitenbreite */
+  --lesebreite: 62ch;   /* maximale Zeilenlaenge im Fliesstext */
+  --gasse: 1.25rem;     /* seitlicher Innenabstand */
+}
+
+/* --- Grundlagen ----------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--flaeche);
+  color: var(--text);
+  font-family: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 1.125rem;   /* 18 px Mindestgroesse fuer den Fliesstext */
+  line-height: 1.7;
+  font-weight: 400;
+}
+
+h1, h2, h3 {
+  line-height: 1.25;
+  font-weight: 700;
+  text-transform: none;   /* keine Grossbuchstaben-Ueberschriften */
+  margin: 0 0 .5em;
+  text-wrap: balance;
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.1875rem; font-weight: 600; }
+
+p { margin: 0 0 1em; max-width: var(--lesebreite); }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--gruen-dunkel); }
+
+/* Sichtbarer Fokusrahmen bei Tastaturbedienung */
+:focus-visible {
+  outline: 3px solid var(--gruen-dunkel);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* --- Layout --------------------------------------------------------------- */
+.huelle {
+  max-width: var(--spalte);
+  margin-inline: auto;
+  padding-inline: var(--gasse);
+}
+
+section {
+  padding-block: 2.5rem;
+  scroll-margin-top: 1.5rem;   /* Sprungziele nicht unter den Rand schieben */
+}
+
+.abgesetzt { background: var(--flaeche-abgesetzt); }
+
+/* --- Demo-Hinweis (auf jeder Seite, nicht schliessbar) -------------------- */
+.demo-hinweis {
+  background: var(--flaeche-abgesetzt);
+  border-bottom: var(--rand);
+  color: var(--text);
+  font-size: .9375rem;
+  line-height: 1.5;
+  padding-block: .75rem;
+}
+.demo-hinweis p { max-width: none; margin: 0; }
+.demo-hinweis strong { font-weight: 600; }
+
+/* --- Kopfbereich ---------------------------------------------------------- */
+.kopf { padding-block: 1.75rem 0; }
+.kopf h1 { margin-bottom: .125rem; }
+.kopf .ort {
+  color: var(--text-gedaempft);
+  font-size: 1.0625rem;
+  margin: 0;
+}
+
+/* --- Oeffnungsstatus ------------------------------------------------------ */
+.status {
+  margin-top: 1.25rem;
+  background: #fff;
+  border: var(--rand);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 1rem 1.125rem;
+}
+.status-zeile {
+  display: flex;
+  align-items: baseline;
+  gap: .625rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+  max-width: none;
+}
+/* Der Punkt ist reine Zier — die Aussage steht immer im Text daneben. */
+.status-punkt {
+  flex: none;
+  width: .75rem;
+  height: .75rem;
+  border-radius: 50%;
+  background: var(--gruen);
+  translate: 0 -.15em;
+}
+.status[data-offen="nein"] .status-punkt { background: var(--text-gedaempft); }
+.status-zusatz {
+  margin: .375rem 0 0;
+  color: var(--text-gedaempft);
+  font-size: 1rem;
+}
+
+/* --- Knoepfe -------------------------------------------------------------- */
+.knopf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 56px;
+  padding: .75rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color .15s ease;
+}
+.knopf-haupt {
+  background: var(--gruen-dunkel);
+  color: #fff;
+  margin-top: 1rem;
+  box-shadow: var(--schatten);
+}
+.knopf-haupt:hover { background: #24493a; }
+
+.knopf-notfall {
+  background: #fff;
+  color: var(--notfall);
+  margin-top: 1rem;
+}
+.knopf-notfall:hover { background: var(--flaeche-abgesetzt); }
+
+/* Sprunglink zum Notfallbereich — bewusst in Gruen, nicht in der Signalfarbe */
+.notfall-verweis {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: .5rem;
+  color: var(--gruen-dunkel);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+/* --- Sprechzeiten --------------------------------------------------------- */
+.zeiten-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;   /* verhindert seitliches Schieben auf schmalen Geraeten */
+  margin-top: .5rem;
+  font-variant-numeric: tabular-nums;
+}
+.zeiten-tabelle caption {
+  text-align: left;
+  color: var(--text-gedaempft);
+  font-size: 1rem;
+  padding-bottom: .5rem;
+}
+.zeiten-tabelle th,
+.zeiten-tabelle td {
+  text-align: left;
+  padding: .625rem .5rem;
+  border-bottom: var(--rand);
+  vertical-align: top;
+}
+.zeiten-tabelle th[scope='row'] {
+  font-weight: 600;
+  width: 40%;
+}
+/* Weiss, nicht --flaeche-abgesetzt: der Abschnitt hat diese Farbe bereits,
+   die Hervorhebung waere sonst unsichtbar. */
+.zeiten-tabelle tr[aria-current='date'] {
+  background: #fff;
+  box-shadow: inset 4px 0 0 var(--gruen);
+}
+.zeiten-tabelle tr[aria-current='date'] th[scope='row'] { padding-left: 1rem; }
+.zeiten-tabelle tr[aria-current='date'] th[scope='row']::after {
+  content: ' (heute)';
+  font-weight: 400;
+  color: var(--text-gedaempft);
+}
+.hinweis {
+  color: var(--text-gedaempft);
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+/* --- Notfallbereich (einziger Ort mit der Signalfarbe) -------------------- */
+.notfall {
+  background: var(--notfall);
+  color: #fff;
+}
+.notfall h2 { color: #fff; }
+.notfall p { color: #fff; }
+.notfall .knopf-notfall { max-width: 26rem; }
+.notfall .notdienst {
+  margin-top: 1.25rem;
+  font-size: 1rem;
+  border-top: 1px solid rgb(255 255 255 / .35);
+  padding-top: 1rem;
+}
+
+/* --- Karten (Leistungen, Team) -------------------------------------------- */
+.karten {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+.karte {
+  background: #fff;
+  border: var(--rand);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 1.25rem;
+}
+.karte h3 { color: var(--gruen-dunkel); }
+.karte p { font-size: 1.0625rem; margin-bottom: 0; }
+
+/* Platzhalterflaeche statt Foto — bewusst als solche erkennbar */
+.platzhalter-bild {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border: 2px dashed rgb(46 51 48 / .22);
+  border-radius: var(--radius);
+  background: var(--flaeche-abgesetzt);
+  color: var(--text-gedaempft);
+  font-size: .9375rem;
+  text-align: center;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* --- Kontakt -------------------------------------------------------------- */
+.kontakt-liste {
+  margin: 1.25rem 0 0;
+  display: grid;
+  gap: .25rem;
+}
+.kontakt-liste dt {
+  color: var(--text-gedaempft);
+  font-size: 1rem;
+}
+.kontakt-liste dd {
+  margin: 0 0 .875rem;
+  font-size: 1.1875rem;
+  font-weight: 600;
+}
+.kontakt-liste a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.karten-platzhalter {
+  margin-top: 1.5rem;
+  padding: 2rem 1.25rem;
+  border: 2px dashed rgb(46 51 48 / .22);
+  border-radius: var(--radius);
+  background: var(--flaeche-abgesetzt);
+  text-align: center;
+}
+.karten-platzhalter p {
+  max-width: none;
+  color: var(--text-gedaempft);
+  font-size: 1rem;
+}
+
+/* --- Fusszeile ------------------------------------------------------------ */
+.fuss {
+  background: var(--flaeche-abgesetzt);
+  border-top: var(--rand);
+  padding-block: 2rem;
+  font-size: 1rem;
+}
+.fuss ul {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+.fuss a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+.fuss p { color: var(--text-gedaempft); }
+
+/* --- Feste Anrufleiste auf dem Handy -------------------------------------- */
+.anrufleiste {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10;
+  background: rgb(251 250 248 / .96);
+  border-top: var(--rand);
+  padding: .625rem var(--gasse);
+  padding-bottom: calc(.625rem + env(safe-area-inset-bottom, 0px));
+  backdrop-filter: blur(6px);
+}
+/* Solange der grosse Anrufknopf oben im Bild steht, waere die Leiste doppelt.
+   Ohne JavaScript bleibt sie sichtbar — dann ist sie nur redundant, nie weg. */
+.anrufleiste[hidden] { display: none; }
+.anrufleiste .knopf-haupt { margin-top: 0; }
+
+/* Bodenpolster, damit die Leiste nichts verdeckt */
+body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+/* --- Breite Bildschirme --------------------------------------------------- */
+@media (min-width: 720px) {
+  .anrufleiste { display: none; }
+  body { padding-bottom: 0; }
+
+  h1 { font-size: 2.25rem; }
+  h2 { font-size: 1.75rem; }
+
+  .kopf { padding-block: 3rem 0; }
+  section { padding-block: 3.5rem; }
+
+  .status { max-width: 34rem; }
+  .knopf-haupt { max-width: 22rem; }
+
+  .karten { grid-template-columns: repeat(2, 1fr); }
+  .zeiten-tabelle { max-width: 34rem; }
+}
+
+@media (min-width: 1024px) {
+  .karten { grid-template-columns: repeat(3, 1fr); }
+  .team.karten { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* --- Bewegung reduzieren -------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
