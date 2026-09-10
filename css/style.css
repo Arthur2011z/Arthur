@@ -354,7 +354,12 @@ main section > .content > p + p {
   background: linear-gradient(to right, var(--orange), transparent);
 }
 
-.illu img {
+/* Gilt bewusst fuer img UND svg: liegt die Zeichnung direkt als <svg> im
+   HTML (etwa in einer Vorschau ohne externe Dateien), behaelt sie sonst ihre
+   feste Pixelbreite, und der Rahmen mit overflow: hidden schneidet sie auf
+   dem Handy ab. */
+.illu img,
+.illu svg {
   width: 100%;
   height: auto;
   display: block;
