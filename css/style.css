@@ -3,7 +3,18 @@
    Schrift "Archivo" wird per Google Fonts im <head> jeder Seite geladen
    (Stärken 400/600/800/900), hier nur die Fallback-Kette. */
 
+/* Die Seite laeuft im dunklen und im hellen Modus. Der dunkle Modus ist der
+   Entwurfszustand und steht hier als Grundeinstellung. Weiter unten schaltet
+   ein Block auf Helligkeit um, sobald das Geraet des Besuchers hell
+   eingestellt ist. Dafuer braucht es kein JavaScript.
+
+   Regel fuer spaetere Aenderungen: Farben immer als Token hier oben
+   eintragen, nie direkt in einer Regel. Sonst kippt nur einer der beiden
+   Modi, und es faellt erst spaet auf. */
+
 :root {
+  color-scheme: dark;
+
   --bg: #100d0b;
   --bg-darkest: #0a0706;
   --panel: #17120f;
@@ -15,11 +26,72 @@
   --text-body: #b4b0aa;
   --text-heading: #f2f3f5;
 
+  /* Orange als Schriftfarbe. Auf hellem Grund braucht es einen dunkleren
+     Ton, sonst ist es nicht mehr lesbar. */
+  --accent-text: #ffa23d;
+  --accent-tint: rgba(255, 106, 19, 0.08);
+  --accent-tint-strong: rgba(255, 106, 19, 0.12);
+  --accent-line: rgba(255, 106, 19, 0.5);
+
+  /* Schrift auf orangem Grund (Knopf, Empfohlen-Schild) */
+  --on-accent: #0b0c0e;
+
+  /* Verlauf der grossen Schrittnummern. Auf weissem Grund waere das helle
+     Orange mit 2,87:1 zu schwach, deshalb schaltet es unten mit um. */
+  --num-from: #ff6a13;
+  --num-to: #ffa23d;
+
+  /* Farbband vor dem Kontakt. Es ist in beiden Modi gleich, deshalb stehen
+     die Werte nur hier. Das helle Ende war frueher --orange-light; weisse
+     Schrift kam dort auf 2,0:1 und war auf dem Handy kaum zu lesen, weil der
+     Text bei 390px bis auf 95% der Bandbreite reicht. */
+  --band-from: #6b1d0a;
+  --band-to: #a84a0c;
+
+  --text-muted: #8f8b85;
+  --border-soft: rgba(255, 255, 255, 0.12);
+
+  /* Der Startbildschirm bleibt in beiden Modi dunkel-orange, er ist das
+     Erkennungszeichen der Seite. Seine Kacheln brauchen deshalb eigene
+     Werte, die nicht mitschalten. */
+  --hero-fill: rgba(255, 255, 255, 0.07);
+  --hero-border: rgba(255, 255, 255, 0.2);
+  --hero-heading: #f2f3f5;
+  --hero-text: #b4b0aa;
+
   --section-gap: clamp(4.5rem, 10vw, 8rem);
 
   --radius-tile: 20px;
   --radius-field: 14px;
   --radius-button: 999px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    /* Warmes Off-White statt reinem Weiss, damit das Orange nicht
+       herausschreit und die Seite denselben Charakter behaelt. */
+    --bg: #faf7f3;
+    --bg-darkest: #f1eae1;
+    --panel: #ffffff;
+    --glass-fill: rgba(28, 25, 23, 0.04);
+    --glass-border: rgba(28, 25, 23, 0.16);
+    --text-body: #55504a;
+    --text-heading: #1c1917;
+
+    --gold: #b23c06;
+    --accent-text: #b23c06;
+    --accent-tint: rgba(255, 106, 19, 0.1);
+    --accent-tint-strong: rgba(255, 106, 19, 0.16);
+    --accent-line: rgba(178, 60, 6, 0.45);
+
+    --text-muted: #6f6862;
+    --border-soft: rgba(28, 25, 23, 0.14);
+
+    --num-from: #b23c06;
+    --num-to: #d9600f;
+  }
 }
 
 *,
@@ -151,6 +223,7 @@ section {
    bisherigen Schriftbilder über die Spans zurück, damit sich optisch nichts
    ändert. */
 .hero__title {
+  color: var(--hero-heading);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -164,8 +237,8 @@ section {
 
 .hero__claim {
   padding-top: 1.25rem;
-  border-top: 1px solid var(--glass-border);
-  color: var(--text-heading);
+  border-top: 1px solid var(--hero-border);
+  color: var(--hero-heading);
   max-width: 32ch;
   font-size: 1.0625rem;
   font-weight: 400;
@@ -193,8 +266,8 @@ section {
   gap: 0.15rem;
   padding: 1rem 1.25rem;
   border-radius: var(--radius-tile);
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  background: var(--hero-fill);
+  border: 1px solid var(--hero-border);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   text-decoration: none;
@@ -208,12 +281,12 @@ section {
 }
 
 .tile__title {
-  color: var(--text-heading);
+  color: var(--hero-heading);
   font-weight: 800;
 }
 
 .tile__sub {
-  color: var(--text-body);
+  color: var(--hero-text);
   font-size: 0.9rem;
 }
 
@@ -224,7 +297,7 @@ section {
   padding: 0.9rem 2rem;
   border-radius: var(--radius-button);
   background: linear-gradient(to right, var(--orange), var(--orange-light));
-  color: #0b0c0e;
+  color: var(--on-accent);
   font-weight: 800;
   text-decoration: none;
   transition: transform 0.15s ease;
@@ -340,7 +413,7 @@ main section > .content > p + p {
   margin-top: 2.5rem;
   padding: 1.5rem;
   border-radius: var(--radius-tile);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-soft);
   overflow: hidden;
 }
 
@@ -410,7 +483,7 @@ main section > .content > p + p {
   font-size: 2.6rem;
   font-weight: 900;
   line-height: 1;
-  background: linear-gradient(to bottom right, var(--orange), var(--orange-light));
+  background: linear-gradient(to bottom right, var(--num-from), var(--num-to));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -439,13 +512,13 @@ main section > .content > p + p {
   margin-top: 2rem;
   padding: 1.25rem 1.5rem;
   border-radius: var(--radius-tile);
-  background: rgba(255, 106, 19, 0.08);
-  border: 1px dashed rgba(255, 106, 19, 0.5);
+  background: var(--accent-tint);
+  border: 1px dashed var(--accent-line);
   font-size: 0.95rem;
 }
 
 .todo-box strong {
-  color: var(--orange-light);
+  color: var(--accent-text);
 }
 
 /* ---------- Preise ---------- */
@@ -486,7 +559,7 @@ main section > .content > p + p {
   border: 2px solid var(--orange);
   background: linear-gradient(
     to bottom,
-    rgba(255, 106, 19, 0.1),
+    var(--accent-tint-strong),
     var(--panel) 55%
   );
 }
@@ -497,7 +570,7 @@ main section > .content > p + p {
   padding: 0.3rem 0.85rem;
   border-radius: var(--radius-button);
   background: var(--orange);
-  color: #1a0d04;
+  color: var(--on-accent);
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -553,7 +626,7 @@ main section > .content > p + p {
 /* Der Nicht-enthalten-Teil bleibt sachlich: gedämpfte Schrift statt Kreuzen
    oder roter Farbe, damit Silber nicht schlechtgemacht wird. */
 .preis-liste--nicht {
-  color: #8f8b85;
+  color: var(--text-muted);
 }
 
 .preis-karte__fussnote {
@@ -635,18 +708,18 @@ main section > .content > p + p {
   margin-top: 1.75rem;
   padding: 1.25rem 1.5rem;
   border-radius: var(--radius-tile);
-  background: rgba(255, 106, 19, 0.1);
+  background: var(--accent-tint-strong);
   border-left: 4px solid var(--orange);
 }
 
 .hinweis-box strong {
-  color: var(--orange-light);
+  color: var(--accent-text);
 }
 
 /* ---------- Farbband vor dem Kontakt ---------- */
 
 .cta-band {
-  background: linear-gradient(to right, #6b1d0a, var(--orange-light));
+  background: linear-gradient(to right, var(--band-from), var(--band-to));
   padding-block: clamp(3rem, 8vw, 5rem);
 }
 
@@ -662,7 +735,7 @@ main section > .content > p + p {
 }
 
 .cta-band p {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .button--dark {
@@ -708,9 +781,9 @@ main section > .content > p + p {
 }
 
 .contact-direct__item--todo {
-  color: var(--orange-light);
+  color: var(--accent-text);
   border-style: dashed;
-  border-color: rgba(255, 106, 19, 0.5);
+  border-color: var(--accent-line);
 }
 
 .contact-direct__label {
@@ -777,15 +850,15 @@ main section > .content > p + p {
 }
 
 .form__status--ok {
-  background: rgba(255, 106, 19, 0.12);
-  border: 1px solid rgba(255, 106, 19, 0.4);
+  background: var(--accent-tint-strong);
+  border: 1px solid var(--accent-line);
   color: var(--text-heading);
 }
 
 .form__status--error {
-  background: rgba(255, 106, 19, 0.08);
-  border: 1px dashed rgba(255, 106, 19, 0.5);
-  color: var(--orange-light);
+  background: var(--accent-tint);
+  border: 1px dashed var(--accent-line);
+  color: var(--accent-text);
 }
 
 /* Unsichtbare Spam-Falle für Web3Forms, für Menschen nicht sichtbar */
@@ -837,7 +910,7 @@ main section > .content > p + p {
 
 .footer__links a:hover,
 .footer__links a:focus-visible {
-  color: var(--orange-light);
+  color: var(--accent-text);
 }
 
 /* ---------- Rechtliche Unterseiten (Impressum / Datenschutz) ---------- */
@@ -855,7 +928,7 @@ main section > .content > p + p {
 }
 
 .legal-page a {
-  color: var(--orange-light);
+  color: var(--accent-text);
 }
 
 .legal-page .back-link {
