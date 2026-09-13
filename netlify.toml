@@ -1,0 +1,21 @@
+# Netlify liefert ausschliesslich die Tierarztpraxis-Demo aus.
+# Das Volleyballspiel im Wurzelverzeichnis wird nicht veroeffentlicht.
+
+[build]
+  command = "node tierarztpraxis-demo/build-site.mjs"
+  publish = "tierarztpraxis-demo/dist"
+
+# Es ist eine Demo: sie soll nicht neben der echten Seite in Suchergebnissen
+# auftauchen. Der Header steht zusaetzlich in dist/_headers, damit er auch bei
+# einem Deploy ohne diese Datei greift.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

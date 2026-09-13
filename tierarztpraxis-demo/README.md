@@ -32,8 +32,12 @@ dokumentiert, damit sie bei späteren Änderungen nicht versehentlich fallen:
 | `styles.css` | Design-Tokens und gesamtes Layout |
 | `app.js` | Öffnungsstatus und Steuerung der Anrufleiste |
 | `fonts/source-sans-3-latin.woff2` | Source Sans 3, SIL OFL 1.1, selbst gehostet |
+| `build-site.mjs` | stellt `dist/` für Netlify zusammen |
+| `build-artifact.mjs` | baut eine Einzeldatei für die Artifact-Veröffentlichung |
 | `playwright.config.ts` | eigene Testkonfiguration, getrennt vom Spiel im Repo |
 | `tests/demo.spec.ts` | die zehn Testfälle |
+
+`dist/` und `artifact.html` werden erzeugt und sind nicht eingecheckt.
 
 Reines HTML/CSS/JS, kein Build. `index.html` lässt sich direkt im Browser
 öffnen. Das Vite-Projekt im Wurzelverzeichnis bleibt unberührt.
@@ -62,6 +66,34 @@ Datenobjekt in `app.js`; daraus entsteht „Jetzt geöffnet — bis 18 Uhr" oder
 „Jetzt geschlossen — wieder morgen ab 9 Uhr". Grundlage ist die Uhrzeit des
 Geräts. Ohne JavaScript zeigt die Seite einen neutralen Hinweis auf die
 Sprechzeiten-Tabelle darunter; die Tabelle selbst ist immer vollständig da.
+
+## Veröffentlichung auf Netlify
+
+`netlify.toml` im Wurzelverzeichnis steuert das. Netlify führt
+`node tierarztpraxis-demo/build-site.mjs` aus und liefert
+`tierarztpraxis-demo/dist` aus — das Volleyballspiel im Wurzelverzeichnis wird
+**nicht** veröffentlicht.
+
+In Netlify: *Add new site → Import an existing project → GitHub →
+`Arthur2011z/Arthur`*, Branch `claude/tierarztpraxis-volksdorf-demo-jsyioe`.
+Build-Befehl und Publish-Verzeichnis liest Netlify aus `netlify.toml`, sie
+müssen nicht eingetragen werden.
+
+**Den Site-Namen bewusst wählen.** Er wird zur Adresse. Er darf nicht mit der
+echten Praxis verwechselbar sein — passend wäre etwa `praxisentwurf-volksdorf`.
+Kein Name, der wie der offizielle Auftritt aussieht.
+
+Gegen Indexierung wirken zwei Dinge zusammen: `robots.txt` mit `Disallow: /`
+und der Header `X-Robots-Tag: noindex, nofollow, noarchive` auf allen Pfaden.
+Der Header ist der wirksamere Teil, weil er auch bei direkt verlinkten Seiten
+greift.
+
+Prüfen, dass die ausgelieferte Fassung stimmt:
+
+```
+node tierarztpraxis-demo/build-site.mjs
+DEMO_DIR=dist npx playwright test --config=tierarztpraxis-demo/playwright.config.ts
+```
 
 ## Tests
 

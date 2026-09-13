@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 
@@ -14,7 +14,8 @@ export default defineConfig({
   webServer: {
     command: 'python3 -m http.server 8765 --bind 127.0.0.1',
     url: 'http://127.0.0.1:8765/index.html',
-    cwd: hier,
+    /* DEMO_DIR=dist prüft das Verzeichnis, das Netlify tatsächlich ausliefert. */
+    cwd: process.env.DEMO_DIR ? join(hier, process.env.DEMO_DIR) : hier,
     reuseExistingServer: true,
   },
   use: {
