@@ -91,6 +91,106 @@ test('T1 — 320 px: nichts überlappt, nichts steht über den Rand', async ({ p
   expect(ueberstand).toEqual([]);
 });
 
+/* ==========================================================================
+   Teil 2 — Waermere Gestaltung
+   ========================================================================== */
+
+const SAND = 'rgb(216, 165, 95)';   // #D8A55F
+
+test('T2 — die neuen Farbwerte stehen als Variablen in der Datei', async ({ page }) => {
+  await page.goto('/index.html');
+  const werte = await page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    const namen = ['--flaeche', '--flaeche-abgesetzt', '--text', '--text-gedaempft',
+                   '--gruen', '--gruen-dunkel', '--sand', '--notfall'];
+    return namen.map((n) => [n, s.getPropertyValue(n).trim()] as [string, string]);
+  });
+  for (const [name, wert] of werte) console.log(`  ${name.padEnd(20)} ${wert}`);
+
+  const soll: Record<string, string> = {
+    '--flaeche': '#FBF7F0', '--flaeche-abgesetzt': '#F3EDE3',
+    '--text': '#2B302C', '--text-gedaempft': '#61665F',
+    '--gruen': '#3F7D62', '--gruen-dunkel': '#2C5A46',
+    '--sand': '#D8A55F', '--notfall': '#B4432B',
+  };
+  for (const [name, wert] of werte) {
+    expect(wert.toUpperCase(), `${name} falsch`).toBe(soll[name]);
+  }
+});
+
+test('T2 — der Sandton wird auf keinem Knopf und in keinem Text verwendet', async ({ page }) => {
+  for (const seite of SEITEN) {
+    await page.goto(seite);
+    const treffer = await page.evaluate((sand) => {
+      const raus: string[] = [];
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+        const s = getComputedStyle(el);
+        if (s.color === sand) raus.push(`Textfarbe: ${el.tagName.toLowerCase()}.${el.className}`);
+        if (el.matches('a.knopf, button') && s.backgroundColor === sand) {
+          raus.push(`Knopfflaeche: ${el.tagName.toLowerCase()}.${el.className}`);
+        }
+      }
+      return raus;
+    }, SAND);
+    console.log(`  ${seite}: ${treffer.length ? treffer.join(', ') : 'kein Sandton in Text oder Knöpfen'}`);
+    expect(treffer).toEqual([]);
+  }
+});
+
+test('T2 — „Ihr erster Besuch bei uns" steht zwischen Leistungen und Team', async ({ page }) => {
+  await page.goto('/index.html');
+  const ids = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('main > section')).map((s) => s.id)
+  );
+  console.log(`  Reihenfolge: ${ids.join(' → ')}`);
+  expect(ids.indexOf('erstbesuch')).toBe(ids.indexOf('leistungen') + 1);
+  expect(ids.indexOf('praxis')).toBe(ids.indexOf('erstbesuch') + 1);
+  await expect(page.locator('#erstbesuch h2')).toHaveText('Ihr erster Besuch bei uns');
+});
+
+test('T2 — kein einziges Bild eingebunden, nur Platzhalterflächen', async ({ page }) => {
+  for (const seite of SEITEN) {
+    await page.goto(seite);
+    const zaehler = await page.evaluate(() => {
+      const mitHintergrundbild = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+        .filter((el) => {
+          const b = getComputedStyle(el).backgroundImage;
+          return b !== 'none' && b.includes('url(');
+        }).length;
+      return {
+        img: document.querySelectorAll('img').length,
+        picture: document.querySelectorAll('picture, source').length,
+        iframe: document.querySelectorAll('iframe').length,
+        svgBild: document.querySelectorAll('svg image').length,
+        hintergrund: mitHintergrundbild,
+      };
+    });
+    console.log(`  ${seite}: img ${zaehler.img}, picture ${zaehler.picture}, iframe ${zaehler.iframe}, ` +
+                `svg-image ${zaehler.svgBild}, Hintergrundbilder ${zaehler.hintergrund}`);
+    expect(zaehler.img + zaehler.picture + zaehler.iframe + zaehler.svgBild + zaehler.hintergrund).toBe(0);
+  }
+  await page.goto('/index.html');
+  const platzhalter = await page.locator('.platzhalter-bild').count();
+  console.log(`  Platzhalterflächen: ${platzhalter}`);
+  expect(platzhalter).toBeGreaterThanOrEqual(4);
+});
+
+test('T2 — kein Satz enthält ein Heilversprechen', async ({ page }) => {
+  /* Woerter, die eine Wirkung oder einen Erfolg zusagen. Rechtlich heikel. */
+  const verboten = [
+    'garantier', 'heilen', 'heilung', 'geheilt', 'schmerzfrei', 'beschwerdefrei',
+    'wieder gesund', 'erfolgsquote', 'behandlungserfolg', 'sicher wieder',
+    'verspricht', 'versprechen', 'zuverlässig gesund', '!',
+  ];
+  for (const seite of SEITEN) {
+    await page.goto(seite);
+    const text = (await page.locator('body').innerText()).toLowerCase();
+    const gefunden = verboten.filter((w) => text.includes(w));
+    console.log(`  ${seite}: ${gefunden.length ? 'GEFUNDEN: ' + gefunden.join(', ') : 'nichts beanstandet'}`);
+    expect(gefunden).toEqual([]);
+  }
+});
+
 /* --- Testfall 1: Alles Wichtige ohne Scrollen bei 380 px ------------------ */
 test('1 — Status, Anrufknopf und Notfallhinweis sind bei 380 px ohne Scrollen sichtbar', async ({ page }) => {
   await page.setViewportSize({ width: 380, height: 640 });
@@ -197,20 +297,38 @@ test('6 — gemessene Kontraste erfüllen WCAG AA', async ({ page }) => {
       const [r, g, b] = rgb.match(/\d+/g)!.slice(0, 3).map(Number);
       return 0.2126 * kanal(r) + 0.7152 * kanal(g) + 0.0722 * kanal(b);
     };
-    /* Sucht den ersten nicht-transparenten Hintergrund oberhalb des Elements. */
+    /* Legt alle halbtransparenten Hintergründe der Kette übereinander und gibt
+       die tatsächlich sichtbare Farbe zurück. Ohne dieses Zusammenrechnen
+       liefert eine Fläche wie rgba(216,165,95,.10) einen falschen Wert. */
     const hintergrund = (el: Element): string => {
+      const schichten: Array<[number[], number]> = [];
       let k: Element | null = el;
       while (k) {
         const bg = getComputedStyle(k).backgroundColor;
-        if (bg && !bg.startsWith('rgba(0, 0, 0, 0)')) return bg;
+        const teile = bg.match(/[\d.]+/g);
+        if (teile) {
+          const a = teile.length > 3 ? parseFloat(teile[3]) : 1;
+          if (a > 0) {
+            schichten.push([teile.slice(0, 3).map(Number), a]);
+            if (a === 1) break;
+          }
+        }
         k = k.parentElement;
       }
-      return 'rgb(255, 255, 255)';
+      // Von unten nach oben zusammenrechnen.
+      let ergebnis = [255, 255, 255];
+      for (const [farbe, a] of schichten.reverse()) {
+        ergebnis = ergebnis.map((u, i) => a * farbe[i] + (1 - a) * u);
+      }
+      return `rgb(${ergebnis.map((c) => Math.round(c)).join(', ')})`;
     };
 
     const proben: Array<[string, string]> = [
       ['Fließtext', '#leistungen > .huelle > p'],
-      ['Fließtext (abgesetzt)', '#praxis > .huelle > p'],
+      ['Fließtext (abgesetzt)', '#erstbesuch > .huelle > p'],
+      ['Erstbesuch-Karte', '.erstbesuch-liste p'],
+      ['Erstbesuch-Überschrift', '.erstbesuch-liste h3'],
+      ['Platzhalterfläche', '.platzhalter-bild'],
       ['Kartentext', '.karte p'],
       ['Gedämpfter Text', '.hinweis'],
       ['Überschrift h1', 'h1'],
