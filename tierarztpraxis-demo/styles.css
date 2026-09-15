@@ -27,9 +27,11 @@
   --schatten: 0 1px 3px rgb(46 51 48 / .06), 0 6px 20px rgb(46 51 48 / .05);
   --rand: 1px solid rgb(46 51 48 / .10);
 
-  --spalte: 68rem;      /* maximale Seitenbreite */
+  --spalte: 1100px;     /* maximale Breite des Inhaltsbereichs */
   --lesebreite: 62ch;   /* maximale Zeilenlaenge im Fliesstext */
-  --gasse: 1.25rem;     /* seitlicher Innenabstand */
+  --gasse: 20px;        /* seitlicher Innenabstand: Handy */
+  --abschnitt: 2.5rem;  /* vertikaler Abstand zwischen Abschnitten */
+  --spaltenabstand: 3rem;
 }
 
 /* --- Grundlagen ----------------------------------------------------------- */
@@ -45,7 +47,7 @@ body {
   background: var(--flaeche);
   color: var(--text);
   font-family: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 1.125rem;   /* 18 px Mindestgroesse fuer den Fliesstext */
+  font-size: 1.0625rem;  /* 17 px auf dem Handy, ab 600 px 18 px */
   line-height: 1.7;
   font-weight: 400;
 }
@@ -82,11 +84,17 @@ a { color: var(--gruen-dunkel); }
 }
 
 section {
-  padding-block: 2.5rem;
+  padding-block: var(--abschnitt);
   scroll-margin-top: 1.5rem;   /* Sprungziele nicht unter den Rand schieben */
 }
 
 .abgesetzt { background: var(--flaeche-abgesetzt); }
+
+/* Zweispaltige Anordnung ab Tablet quer. Auf schmalen Geraeten bleibt alles
+   untereinander und in der Reihenfolge des Quelltexts. Die Aufteilung findet
+   INNERHALB eines Abschnitts statt — die Reihenfolge der Abschnitte aendert
+   sich dadurch nie. */
+.zweispaltig > * { min-width: 0; }   /* verhindert Ueberlaufen von Rastern */
 
 /* --- Demo-Hinweis (auf jeder Seite, nicht schliessbar) -------------------- */
 .demo-hinweis {
@@ -150,10 +158,10 @@ section {
   align-items: center;
   justify-content: center;
   gap: .5rem;
-  min-height: 56px;
+  min-height: 52px;      /* zwischen 44 und 56 px, ab Tablet 56 px */
   padding: .75rem 1.25rem;
   border-radius: var(--radius);
-  font-size: 1.1875rem;
+  font-size: 1.125rem;
   font-weight: 600;
   text-decoration: none;
   transition: background-color .15s ease;
@@ -243,8 +251,11 @@ section {
 }
 
 /* --- Karten (Leistungen, Team) -------------------------------------------- */
+/* Stufenlos statt fester Spaltenzahl: das Raster waechst mit der Breite mit,
+   statt bei 720 und 1024 px zu springen. */
 .karten {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
   gap: 1rem;
   margin-top: 1.25rem;
   padding: 0;
@@ -352,27 +363,97 @@ section {
 /* Bodenpolster, damit die Leiste nichts verdeckt */
 body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 
-/* --- Breite Bildschirme --------------------------------------------------- */
-@media (min-width: 720px) {
+/* ==========================================================================
+   Stufen. Vorher gab es nur 720 und 1024 px — dazwischen fiel das Tablet
+   durch und der Inhalt klebte als schmale Spalte links.
+   480 breites Handy · 600 Schrift · 768 Tablet hoch · 900 zweispaltig ·
+   1100 Deckelung
+   ========================================================================== */
+
+/* --- Breites Handy -------------------------------------------------------- */
+@media (min-width: 480px) {
+  .knopf { min-height: 56px; }
+  .knopf-haupt { max-width: 24rem; }
+}
+
+/* --- Schriftgroesse ------------------------------------------------------- */
+@media (min-width: 600px) {
+  body { font-size: 1.125rem; }   /* 18 px ab hier */
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.625rem; }
+}
+
+/* --- Tablet hochkant ------------------------------------------------------ */
+@media (min-width: 768px) {
+  :root { --gasse: 32px; --abschnitt: 3.25rem; }
+
   .anrufleiste { display: none; }
   body { padding-bottom: 0; }
 
+  .kopf { padding-block: 3rem 0; }
+  .status { max-width: none; }
+
+  /* Tabelle links, Terminhinweis rechts — statt Hinweis unter der Tabelle,
+     wo rechts daneben nur Leere stand. */
+  .zeiten-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 1.5rem var(--spaltenabstand);
+    align-items: start;
+  }
+  .zeiten-layout .hinweis { margin-top: 0; }
+  /* Schmalere Tagesspalte, damit die Zeiten in einer Zeile stehen. */
+  .zeiten-layout .zeiten-tabelle th[scope='row'] { width: 34%; }
+
+  /* Statusblock und Anrufknopf nebeneinander, damit der Kopf die Breite
+     nutzt statt den Knopf allein unter einer breiten Karte zu lassen. */
+  .kopf-aktionen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
+    gap: 1.25rem var(--spaltenabstand);
+    align-items: center;
+    margin-top: 1.5rem;
+  }
+  .kopf-aktionen .status { margin-top: 0; }
+  .kopf-aktionen .knopf-haupt { margin-top: 0; max-width: none; }
+  .kopf-knoepfe {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .25rem;
+  }
+
+  .notfall-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
+    gap: 1.5rem var(--spaltenabstand);
+    align-items: start;
+  }
+  .notfall-layout .knopf-notfall { margin-top: 0; max-width: none; }
+
+  .kontakt-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+    gap: 1.5rem var(--spaltenabstand);
+    align-items: start;
+  }
+  .kontakt-layout .kontakt-liste { margin-top: 0; }
+  .kontakt-layout .karten-platzhalter { margin-top: 1rem; }
+}
+
+/* --- Tablet quer und aufwaerts: Kopfbereich zweispaltig ------------------- */
+@media (min-width: 900px) {
   h1 { font-size: 2.25rem; }
   h2 { font-size: 1.75rem; }
 
-  .kopf { padding-block: 3rem 0; }
-  section { padding-block: 3.5rem; }
+  .kopf-aktionen { grid-template-columns: minmax(0, 1fr) minmax(0, 20rem); }
 
-  .status { max-width: 34rem; }
-  .knopf-haupt { max-width: 22rem; }
-
-  .karten { grid-template-columns: repeat(2, 1fr); }
-  .zeiten-tabelle { max-width: 34rem; }
+  .team.karten { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (min-width: 1024px) {
-  .karten { grid-template-columns: repeat(3, 1fr); }
-  .team.karten { grid-template-columns: repeat(2, 1fr); }
+/* --- Computer ------------------------------------------------------------- */
+@media (min-width: 1100px) {
+  :root { --gasse: 48px; --abschnitt: 4rem; }
 }
 
 /* --- Bewegung reduzieren -------------------------------------------------- */

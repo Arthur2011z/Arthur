@@ -3,6 +3,94 @@ import { test, expect, Page } from '@playwright/test';
 const SEITEN = ['/index.html', '/impressum.html', '/datenschutz.html'];
 const SIGNALFARBE = 'rgb(180, 67, 43)'; // #B4432B
 
+/* ==========================================================================
+   Teil 1 — Darstellungsfehler: Anordnung über alle acht Prüfbreiten
+   ========================================================================== */
+
+const PRUEFBREITEN = [320, 390, 430, 768, 834, 1024, 1180, 1440];
+
+/* T1.1–T1.3: Inhalt mittig, gleicher Abstand links und rechts. */
+for (const breite of [768, 834, 1024, 1180, 1440]) {
+  test(`T1 — ${breite} px: Inhalt mittig, Abstände links und rechts gleich`, async ({ page }) => {
+    await page.setViewportSize({ width: breite, height: 900 });
+    await page.goto('/index.html');
+
+    const m = await page.evaluate(() => {
+      const h = document.querySelector('#leistungen .huelle') as HTMLElement;
+      const r = h.getBoundingClientRect();
+      const cs = getComputedStyle(h);
+      return {
+        links: Math.round(r.left + parseFloat(cs.paddingLeft)),
+        rechts: Math.round(window.innerWidth - r.right + parseFloat(cs.paddingRight)),
+        inhalt: Math.round(r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)),
+      };
+    });
+    console.log(`  ${breite} px: links ${m.links}, rechts ${m.rechts}, Inhaltsbreite ${m.inhalt}`);
+    expect(Math.abs(m.links - m.rechts), 'Abstände ungleich').toBeLessThanOrEqual(1);
+    expect(m.inhalt, 'Inhaltsbereich über 1100 px').toBeLessThanOrEqual(1100);
+  });
+}
+
+/* T1.4: kein waagerechtes Scrollen bei keiner der acht Breiten. */
+test('T1 — kein waagerechtes Scrollen bei allen acht Prüfbreiten', async ({ page }) => {
+  for (const breite of PRUEFBREITEN) {
+    await page.setViewportSize({ width: breite, height: 900 });
+    await page.goto('/index.html');
+    const d = await page.evaluate(() => ({
+      s: document.documentElement.scrollWidth,
+      c: document.documentElement.clientWidth,
+    }));
+    console.log(`  ${String(breite).padStart(4)} px: scrollWidth ${d.s}, clientWidth ${d.c}`);
+    expect(d.s, `waagerechtes Scrollen bei ${breite} px`).toBeLessThanOrEqual(d.c);
+  }
+});
+
+/* T1.5: Schriftgröße und Knopfhöhe auf dem Handy. */
+test('T1 — 390 px: Fließtext 17–18 px, Knöpfe höchstens 56 px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index.html');
+
+  const groesse = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('#leistungen > .huelle > p')!).fontSize)
+  );
+  console.log(`  Fließtext: ${groesse} px`);
+  expect(groesse).toBeGreaterThanOrEqual(17);
+  expect(groesse).toBeLessThanOrEqual(18);
+
+  /* Die feste Anrufleiste ist oben auf der Seite ausgeblendet und hat dann
+     keine Box — geprüft wird, was sichtbar ist. */
+  const knoepfe = page.locator('a.knopf:visible');
+  expect(await knoepfe.count()).toBeGreaterThan(0);
+  for (let i = 0; i < await knoepfe.count(); i++) {
+    const box = (await knoepfe.nth(i).boundingBox())!;
+    const text = (await knoepfe.nth(i).textContent())!.trim();
+    console.log(`  Knopf „${text}": ${Math.round(box.height)} px hoch`);
+    expect(box.height, `„${text}" zu hoch`).toBeLessThanOrEqual(56);
+    expect(box.height, `„${text}" zu niedrig`).toBeGreaterThanOrEqual(44);
+  }
+});
+
+/* T1.6: bei 320 px überlappt nichts und nichts steht über den Rand. */
+test('T1 — 320 px: nichts überlappt, nichts steht über den Rand', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto('/index.html');
+
+  const ueberstand = await page.evaluate(() => {
+    const raus: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+      if (el.offsetParent === null && el.tagName !== 'BODY') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue;
+      if (r.left < -0.5 || r.right > window.innerWidth + 0.5) {
+        raus.push(`${el.tagName.toLowerCase()}.${el.className} (${Math.round(r.left)}–${Math.round(r.right)})`);
+      }
+    }
+    return raus;
+  });
+  console.log(`  Elemente über den Rand: ${ueberstand.length ? ueberstand.join(', ') : 'keine'}`);
+  expect(ueberstand).toEqual([]);
+});
+
 /* --- Testfall 1: Alles Wichtige ohne Scrollen bei 380 px ------------------ */
 test('1 — Status, Anrufknopf und Notfallhinweis sind bei 380 px ohne Scrollen sichtbar', async ({ page }) => {
   await page.setViewportSize({ width: 380, height: 640 });

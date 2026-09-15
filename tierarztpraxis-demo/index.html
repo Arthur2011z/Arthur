@@ -25,20 +25,24 @@
     <h1>Tierarztpraxis Petra Hirschberger &amp; Ira Reischmann</h1>
     <p class="ort">in Hamburg-Volksdorf</p>
 
-    <!-- Der Inhalt hier ist das Ergebnis ohne JavaScript. app.js ersetzt ihn
-         durch den berechneten Status. -->
-    <div class="status" id="status" data-offen="ja">
-      <p class="status-zeile">
-        <span class="status-punkt" aria-hidden="true"></span>
-        <span id="status-text">Sprechzeiten heute</span>
-      </p>
-      <p class="status-zusatz" id="status-zusatz">
-        Die heutigen Zeiten finden Sie in der Übersicht weiter unten.
-      </p>
-    </div>
+    <div class="kopf-aktionen">
+      <!-- Der Inhalt hier ist das Ergebnis ohne JavaScript. app.js ersetzt ihn
+           durch den berechneten Status. -->
+      <div class="status" id="status" data-offen="ja">
+        <p class="status-zeile">
+          <span class="status-punkt" aria-hidden="true"></span>
+          <span id="status-text">Sprechzeiten heute</span>
+        </p>
+        <p class="status-zusatz" id="status-zusatz">
+          Die heutigen Zeiten finden Sie in der Übersicht weiter unten.
+        </p>
+      </div>
 
-    <a class="knopf knopf-haupt" id="anruf-haupt" href="tel:+4940000000">Praxis anrufen</a>
-    <a class="notfall-verweis" href="#notfall">Es ist ein Notfall →</a>
+      <div class="kopf-knoepfe">
+        <a class="knopf knopf-haupt" id="anruf-haupt" href="tel:+4940000000">Praxis anrufen</a>
+        <a class="notfall-verweis" href="#notfall">Es ist ein Notfall →</a>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -47,6 +51,7 @@
   <section id="sprechzeiten" class="abgesetzt">
     <div class="huelle">
       <h2>Sprechzeiten</h2>
+      <div class="zeiten-layout">
       <table class="zeiten-tabelle">
         <caption>Beispielzeiten — Platzhalter für die Demonstration.</caption>
         <tbody>
@@ -64,6 +69,7 @@
         Sie auch ohne Termin — rufen Sie vorher kurz an, damit wir uns auf Sie
         einstellen können. Bitte bringen Sie den Impfpass mit.
       </p>
+      </div>
     </div>
   </section>
 
@@ -71,17 +77,21 @@
   <section id="notfall" class="notfall">
     <div class="huelle">
       <h2>Im Notfall</h2>
+      <div class="notfall-layout">
       <p>
         Bleiben Sie ruhig und rufen Sie zuerst an, bevor Sie losfahren. So
         können wir uns vorbereiten und Ihnen sagen, worauf Sie unterwegs achten
         sollten. Transportieren Sie Ihr Tier möglichst ruhig und warm.
       </p>
+      <div>
       <a class="knopf knopf-notfall" href="tel:+4940000001">Notfallnummer anrufen</a>
       <p class="notdienst">
         Außerhalb der Sprechzeiten, nachts und an Feiertagen ist der
         tierärztliche Notdienst für Hamburg zuständig. Die zuständige Stelle
         wird über die Notdienstauskunft der Tierärztekammer vermittelt.
       </p>
+      </div>
+      </div>
     </div>
   </section>
 
@@ -162,6 +172,7 @@
   <section id="kontakt">
     <div class="huelle">
       <h2>Anfahrt und Kontakt</h2>
+      <div class="kontakt-layout">
       <dl class="kontakt-liste">
         <dt>Adresse (Platzhalter)</dt>
         <dd>Musterweg 12, 22359 Hamburg-Volksdorf</dd>
@@ -170,6 +181,7 @@
         <dt>E-Mail (Platzhalter)</dt>
         <dd><a href="mailto:praxis@demo.example">praxis@demo.example</a></dd>
       </dl>
+      <div>
       <p>
         Vor dem Haus stehen einige Parkplätze zur Verfügung, weitere finden Sie
         in den Seitenstraßen. Mit der U-Bahn erreichen Sie uns über die
@@ -182,6 +194,8 @@
         </p>
         <p><a href="https://www.openstreetmap.org/search?query=Volksdorf%2C%20Hamburg"
               rel="noopener noreferrer" target="_blank">Karte bei OpenStreetMap öffnen</a></p>
+      </div>
+      </div>
       </div>
     </div>
   </section>
