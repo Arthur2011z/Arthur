@@ -75,20 +75,45 @@ test('T1 — 320 px: nichts überlappt, nichts steht über den Rand', async ({ p
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto('/index.html');
 
-  const ueberstand = await page.evaluate(() => {
-    const raus: string[] = [];
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-      if (el.offsetParent === null && el.tagName !== 'BODY') continue;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0) continue;
-      if (r.left < -0.5 || r.right > window.innerWidth + 0.5) {
-        raus.push(`${el.tagName.toLowerCase()}.${el.className} (${Math.round(r.left)}–${Math.round(r.right)})`);
+  const befund = await page.evaluate(() => {
+    /* Ein Element, das über den Rand reicht, aber von einem Vorfahren mit
+       overflow:hidden beschnitten wird, ist nicht sichtbar draußen. Die
+       Pfoten sind bewusst so gebaut. Beides wird getrennt gemeldet. */
+    const beschnitten = (el: Element): boolean => {
+      let k = el.parentElement;
+      while (k) {
+        if (getComputedStyle(k).overflowX !== 'visible') return true;
+        k = k.parentElement;
       }
+      return false;
+    };
+    const name = (el: Element) => {
+      const k = el.getAttribute('class');
+      return el.tagName.toLowerCase() + (k ? '.' + k.split(' ').join('.') : '');
+    };
+
+    const sichtbarDraussen: string[] = [];
+    const zierBeschnitten: string[] = [];
+    for (const el of Array.from(document.querySelectorAll('body *'))) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.left >= -0.5 && r.right <= window.innerWidth + 0.5) continue;
+      const eintrag = `${name(el)} (${Math.round(r.left)}–${Math.round(r.right)})`;
+      (beschnitten(el) ? zierBeschnitten : sichtbarDraussen).push(eintrag);
     }
-    return raus;
+    return { sichtbarDraussen, zierBeschnitten };
   });
-  console.log(`  Elemente über den Rand: ${ueberstand.length ? ueberstand.join(', ') : 'keine'}`);
-  expect(ueberstand).toEqual([]);
+
+  console.log(`  Sichtbar über den Rand: ${befund.sichtbarDraussen.length ? befund.sichtbarDraussen.join(', ') : 'keine'}`);
+  console.log(`  Beschnittene Zier (unsichtbar draußen): ${befund.zierBeschnitten.length} Elemente`);
+
+  expect(befund.sichtbarDraussen).toEqual([]);
+  /* Was übersteht, darf ausschließlich Zier sein — nie Inhalt. */
+  const inhaltDraussen = befund.zierBeschnitten.filter(
+    (e) => !e.startsWith('svg.pfote') && !e.startsWith('use')
+  );
+  console.log(`  Davon Inhalt statt Zier: ${inhaltDraussen.length ? inhaltDraussen.join(', ') : 'keiner'}`);
+  expect(inhaltDraussen).toEqual([]);
 });
 
 /* ==========================================================================
@@ -188,6 +213,145 @@ test('T2 — kein Satz enthält ein Heilversprechen', async ({ page }) => {
     const gefunden = verboten.filter((w) => text.includes(w));
     console.log(`  ${seite}: ${gefunden.length ? 'GEFUNDEN: ' + gefunden.join(', ') : 'nichts beanstandet'}`);
     expect(gefunden).toEqual([]);
+  }
+});
+
+/* ==========================================================================
+   Teil 3 — Pfotenabdruecke
+   ========================================================================== */
+
+test('T3 — Anzahl der Hintergrundpfoten je Abschnitt', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await page.goto('/index.html');
+
+  const je = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('section')).map((s) => ({
+      id: s.id,
+      anzahl: s.querySelectorAll('.pfoten .pfote').length,
+    }))
+  );
+  for (const s of je) console.log(`  #${s.id.padEnd(14)} ${s.anzahl} Hintergrundpfoten`);
+
+  const mitPfoten = je.filter((s) => s.anzahl > 0).map((s) => s.id);
+  expect(mitPfoten.sort()).toEqual(['erstbesuch', 'leistungen']);
+  for (const s of je.filter((x) => x.anzahl > 0)) {
+    expect(s.anzahl, `#${s.id} außerhalb 5–7`).toBeGreaterThanOrEqual(5);
+    expect(s.anzahl, `#${s.id} außerhalb 5–7`).toBeLessThanOrEqual(7);
+  }
+});
+
+test('T3 — Deckkraft und Größe der Pfoten liegen im vorgegebenen Bereich', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await page.goto('/index.html');
+
+  const werte = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<SVGElement>('.pfoten .pfote')).map((el) => {
+      /* Die CSS-Breite, nicht getBoundingClientRect: bei gedrehten Elementen
+         liefert die Rechteck-Box die umschliessende Flaeche und damit einen
+         zu grossen Wert. */
+      const s = getComputedStyle(el);
+      return { deckkraft: parseFloat(s.opacity), groesse: Math.round(parseFloat(s.width)) };
+    })
+  );
+  const deck = [...new Set(werte.map((w) => w.deckkraft))];
+  const groessen = werte.map((w) => w.groesse);
+  console.log(`  Deckkraft Hintergrundpfoten: ${deck.join(', ')}`);
+  console.log(`  Größen: ${groessen.join(', ')} px`);
+  for (const d of deck) {
+    expect(d).toBeGreaterThanOrEqual(0.06);
+    expect(d).toBeLessThanOrEqual(0.08);
+  }
+  for (const g of groessen) {
+    expect(g).toBeGreaterThanOrEqual(90);
+    expect(g).toBeLessThanOrEqual(140);
+  }
+
+  const trenner = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<SVGElement>('.pfoten-trenner')).map((el) => ({
+      deckkraft: parseFloat(getComputedStyle(el).opacity),
+      groesse: Math.round(parseFloat(getComputedStyle(el).width)),
+    }))
+  );
+  console.log(`  Trennzeichen: ${trenner.length} Stück, ` +
+    `Deckkraft ${[...new Set(trenner.map((t) => t.deckkraft))].join(', ')}, ` +
+    `Größe ${trenner.map((t) => t.groesse).join(', ')} px`);
+  expect(trenner.length, 'mehr als drei Trennzeichen').toBeLessThanOrEqual(3);
+  for (const t of trenner) {
+    expect(t.deckkraft).toBeCloseTo(0.35, 2);
+    expect(t.groesse).toBeGreaterThanOrEqual(18);
+    expect(t.groesse).toBeLessThanOrEqual(22);
+  }
+});
+
+test('T3 — keine Pfote im Kopfbereich, Notfall, Anrufleiste oder in der Tabelle', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index.html');
+
+  const verboten = ['header.kopf', '#notfall', '.anrufleiste', '.zeiten-tabelle',
+                    'a.knopf', '.status', 'ul.karten'];
+  for (const bereich of verboten) {
+    const anzahl = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      return el ? el.querySelectorAll('svg use[href="#pfote"]').length : -1;
+    }, bereich);
+    console.log(`  ${bereich.padEnd(16)} ${anzahl === -1 ? 'nicht vorhanden' : anzahl + ' Pfoten'}`);
+    expect(anzahl, `Pfote in ${bereich}`).toBeLessThanOrEqual(0);
+  }
+});
+
+test('T3 — alle Pfoten sind aria-hidden und nicht anklickbar', async ({ page }) => {
+  await page.goto('/index.html');
+  const befund = await page.evaluate(() => {
+    const alle = Array.from(document.querySelectorAll('svg')).filter(
+      (s) => s.querySelector('use[href="#pfote"]') || s.querySelector('symbol#pfote')
+    );
+    return alle.map((s) => ({
+      klasse: s.getAttribute('class') || '(Symboltraeger)',
+      aria: s.getAttribute('aria-hidden'),
+      zeiger: getComputedStyle(s).pointerEvents,
+    }));
+  });
+  for (const b of befund) {
+    console.log(`  ${String(b.klasse).padEnd(22)} aria-hidden=${b.aria}  pointer-events=${b.zeiger}`);
+    expect(b.aria, `${b.klasse} ohne aria-hidden`).toBe('true');
+  }
+  expect(befund.length).toBeGreaterThan(0);
+
+  /* Der Nutzer darf die Zier nicht versehentlich treffen. */
+  const zier = befund.filter((b) => b.klasse !== '(Symboltraeger)');
+  for (const b of zier) expect(b.zeiger).toBe('none');
+});
+
+test('T3 — höchstens drei Hintergrundpfoten je Abschnitt bei 390 px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index.html');
+
+  const je = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('section')).map((s) => ({
+      id: s.id,
+      sichtbar: Array.from(s.querySelectorAll<SVGElement>('.pfoten .pfote'))
+        .filter((p) => getComputedStyle(p).display !== 'none').length,
+    })).filter((s) => s.sichtbar > 0)
+  );
+  for (const s of je) console.log(`  #${s.id}: ${s.sichtbar} sichtbar`);
+  for (const s of je) expect(s.sichtbar, `#${s.id} zeigt mehr als drei`).toBeLessThanOrEqual(3);
+});
+
+test('T3 — die Pfoten verursachen kein waagerechtes Scrollen', async ({ page }) => {
+  for (const breite of PRUEFBREITEN) {
+    await page.setViewportSize({ width: breite, height: 900 });
+    await page.goto('/index.html');
+    const d = await page.evaluate(() => {
+      const ueber = Array.from(document.querySelectorAll<SVGElement>('.pfoten .pfote, .pfoten-trenner'))
+        .filter((p) => {
+          const r = p.getBoundingClientRect();
+          return r.right > window.innerWidth + 0.5 || r.left < -0.5;
+        }).length;
+      return { s: document.documentElement.scrollWidth, c: document.documentElement.clientWidth, ueber };
+    });
+    console.log(`  ${String(breite).padStart(4)} px: scrollWidth ${d.s} / ${d.c}, ` +
+                `${d.ueber} Pfoten über den Rand (durch overflow beschnitten)`);
+    expect(d.s).toBeLessThanOrEqual(d.c);
   }
 });
 

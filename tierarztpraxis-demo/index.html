@@ -11,6 +11,19 @@
 </head>
 <body>
 
+<!-- Die Pfotenform steht genau einmal im Quelltext; alle Vorkommen verweisen
+     darauf. Flache Silhouette, gefuellt, ohne Kontur, ohne Krallen, einfarbig.
+     Reine Zier: aria-hidden, keine Bilddatei, kein Zeichensatz. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="pfote" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="71" rx="25" ry="20"/>
+    <ellipse cx="22" cy="43" rx="10"   ry="13"   transform="rotate(-22 22 43)"/>
+    <ellipse cx="40" cy="27" rx="10.5" ry="14"   transform="rotate(-8 40 27)"/>
+    <ellipse cx="61" cy="27" rx="10.5" ry="14"   transform="rotate(8 61 27)"/>
+    <ellipse cx="79" cy="43" rx="10"   ry="13"   transform="rotate(22 79 43)"/>
+  </symbol>
+</svg>
+
 <!-- Demo-Hinweis: steht auf jeder Seite und wird nicht entfernt. -->
 <div class="demo-hinweis">
   <div class="huelle">
@@ -95,7 +108,14 @@
     </div>
   </section>
 
-  <section id="leistungen">
+  <section id="leistungen" class="mit-pfoten">
+      <div class="pfoten" aria-hidden="true">
+        <svg class="pfote p1" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p3" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p4" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p2" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p6" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+      </div>
     <div class="huelle">
       <h2>Leistungen</h2>
       <p>Wenn Ihr Tier krank ist, rufen Sie uns an. Wir schauen es uns
@@ -135,7 +155,14 @@
     </div>
   </section>
 
-  <section id="erstbesuch" class="abgesetzt">
+  <section id="erstbesuch" class="abgesetzt mit-pfoten">
+      <div class="pfoten" aria-hidden="true">
+        <svg class="pfote p4" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p1" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p3" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p5" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+        <svg class="pfote p6" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+      </div>
     <div class="huelle">
       <h2>Ihr erster Besuch bei uns</h2>
       <p>
@@ -194,6 +221,7 @@
           Entwurf wurden keine Angaben über die Personen erfunden.</p>
         </li>
       </ul>
+      <svg class="pfoten-trenner" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
       <div class="praxis-bilder">
         <div class="platzhalter-bild">Platzhalter — hier stünde eine Aufnahme des Eingangs</div>
         <div class="platzhalter-bild">Platzhalter — hier stünde eine Aufnahme des Behandlungsraums</div>
@@ -241,6 +269,8 @@
 
 <footer class="fuss">
   <div class="huelle">
+      <svg class="pfoten-trenner" aria-hidden="true" focusable="false"><use href="#pfote"/></svg>
+
     <ul>
       <li><a href="impressum.html">Impressum</a></li>
       <li><a href="datenschutz.html">Datenschutz</a></li>

@@ -285,7 +285,7 @@ section {
   aspect-ratio: 4 / 3;
   border: 2px dashed var(--sand-kante);
   border-radius: var(--radius);
-  background: var(--sand-flaeche);
+  background: #F0E6D6;
   color: var(--text-gedaempft);
   font-size: .9375rem;
   text-align: center;
@@ -302,7 +302,10 @@ section {
   gap: 1rem;
 }
 .erstbesuch-liste li {
-  background: var(--sand-flaeche);
+  /* Deckend, nicht halbtransparent — sonst scheinen die Hintergrundpfoten
+     durch die Karte und stehen hinter dem Text. Der Wert entspricht
+     --sand-flaeche ueber --flaeche-abgesetzt. */
+  background: #F0E6D6;
   border-radius: var(--radius);
   padding: 1.25rem 1.375rem;
 }
@@ -501,3 +504,61 @@ body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   margin-top: 1.5rem;
 }
 .praxis-bilder .platzhalter-bild { margin-bottom: 0; }
+
+/* ==========================================================================
+   Pfotenabdruecke — reine Zier
+   Regeln: nur im Leistungs- und im Erstbesuch-Abschnitt als Hintergrund,
+   nie im Kopfbereich, nie im Notfallbereich, nie auf Knoepfen, nie in der
+   Anrufleiste, nie in der Sprechzeiten-Tabelle, nie animiert.
+   ========================================================================== */
+
+/* Hintergrundmuster ------------------------------------------------------- */
+.mit-pfoten { position: relative; overflow: hidden; }
+.mit-pfoten > .huelle { position: relative; z-index: 1; }
+
+.pfoten {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;   /* keine Pfote verursacht waagerechtes Scrollen */
+}
+.pfoten .pfote {
+  position: absolute;
+  fill: var(--sand);
+  opacity: .06;       /* Vorgabe 0.06 bis 0.08 — der Pruefsatz aus 3.6
+                         (Blick aus zwei Metern) hat .07 als zu stark gezeigt. */
+  pointer-events: none;
+}
+
+/* Unregelmaessig verteilt, verschieden gross, verschieden gedreht.
+   Kein wiederholtes Kachelmuster. */
+.pfoten .p1 { width: 132px; height: 132px; top:   2%; right: -2%; rotate: -12deg; }
+.pfoten .p2 { width:  98px; height:  98px; top:  30%; right: 12%; rotate:   9deg; }
+.pfoten .p3 { width: 120px; height: 120px; bottom: 4%; left:  -3%; rotate: -18deg; }
+.pfoten .p4 { width: 140px; height: 140px; bottom: 26%; right: -4%; rotate:   5deg; }
+.pfoten .p5 { width:  92px; height:  92px; top:  70%; left:   3%; rotate:  16deg; }
+.pfoten .p6 { width: 112px; height: 112px; top:  -3%; left:   9%; rotate:  -6deg; }
+
+/* Auf schmalen Geraeten hoechstens drei je Abschnitt, sonst wird es unruhig. */
+@media (max-width: 479px) {
+  .pfoten .pfote:nth-of-type(n + 4) { display: none; }
+}
+
+/* Trennzeichen ------------------------------------------------------------- */
+/* Ersetzt eine Trennlinie, kommt nicht zusaetzlich dazu. */
+.pfoten-trenner {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 2.25rem auto;
+  fill: var(--sand);
+  opacity: .35;
+  rotate: -9deg;
+  pointer-events: none;
+}
+
+/* Beim Drucken bleibt die Zier weg. */
+@media print {
+  .pfoten, .pfoten-trenner { display: none !important; }
+}
